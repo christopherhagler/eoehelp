@@ -1,0 +1,150 @@
+"""Row-level security: the backstop behind application-level scoping.
+
+These tests connect as `app_runtime` — the unprivileged role the deployed
+application uses — because RLS is bypassed by table owners and superusers. Run
+as the owner, every one of these would pass while proving nothing.
+"""
+
+import os
+import uuid
+from urllib.parse import urlsplit, urlunsplit
+
+import pytest
+import pytest_asyncio
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
+
+def _app_role_url(database_url: str) -> str:
+    """Rewrite the test database URL to connect as the unprivileged app role."""
+    override = os.environ.get("APP_RUNTIME_DATABASE_URL")
+    if override:
+        return override
+    parts = urlsplit(database_url)
+    password = os.environ.get("APP_RUNTIME_PASSWORD", "app_runtime_local_only")
+    netloc = f"app_runtime:{password}@{parts.hostname}:{parts.port or 5432}"
+    return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
+
+
+@pytest_asyncio.fixture
+async def app_role_engine(clean_tables: None, test_database_url: str):
+    engine = create_async_engine(_app_role_url(test_database_url), poolclass=None)
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:  # pragma: no cover - environment-dependent
+        await engine.dispose()
+        pytest.skip("app_runtime role unavailable in this environment")
+    yield engine
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture
+async def two_patients(session) -> tuple[uuid.UUID, uuid.UUID]:
+    """Seed two patients as the owner, bypassing RLS to set up the fixture."""
+    ids: list[uuid.UUID] = []
+    for email in ("alice@example.com", "bob@example.com"):
+        user_id = (
+            await session.execute(
+                text(
+                    "INSERT INTO users (email, role, status) "
+                    "VALUES (:email, 'patient', 'active') RETURNING id"
+                ),
+                {"email": email},
+            )
+        ).scalar_one()
+        patient_id = (
+            await session.execute(
+                text(
+                    "INSERT INTO patients (user_id, display_name) VALUES (:uid, :name) RETURNING id"
+                ),
+                {"uid": user_id, "name": email.split("@")[0]},
+            )
+        ).scalar_one()
+        await session.execute(
+            text(
+                "INSERT INTO consents (patient_id, consent_type, document_version, granted) "
+                "VALUES (:pid, 'terms_of_service', 'tos-2026-01', true)"
+            ),
+            {"pid": patient_id},
+        )
+        ids.append(patient_id)
+    await session.commit()
+    return ids[0], ids[1]
+
+
+async def _scoped_rows(engine, patient_id: uuid.UUID | None, table: str) -> int:
+    async with engine.connect() as conn, conn.begin():
+        await conn.execute(
+            text("SELECT set_config('app.current_patient_id', :v, true)"),
+            {"v": str(patient_id) if patient_id else ""},
+        )
+        return (await conn.execute(text(f"SELECT count(*) FROM {table}"))).scalar_one()
+
+
+class TestRowLevelSecurity:
+    async def test_unscoped_query_returns_nothing(self, app_role_engine, two_patients) -> None:
+        """The property that matters: a forgotten filter leaks nothing.
+
+        Without this, RLS is a policy you believe works rather than one you know does.
+        """
+        assert await _scoped_rows(app_role_engine, None, "patients") == 0
+        assert await _scoped_rows(app_role_engine, None, "consents") == 0
+
+    async def test_scope_limits_results_to_one_patient(self, app_role_engine, two_patients) -> None:
+        alice, bob = two_patients
+        assert await _scoped_rows(app_role_engine, alice, "patients") == 1
+        assert await _scoped_rows(app_role_engine, bob, "patients") == 1
+        assert await _scoped_rows(app_role_engine, alice, "consents") == 1
+
+    async def test_one_patient_cannot_read_another_by_id(
+        self, app_role_engine, two_patients
+    ) -> None:
+        alice, bob = two_patients
+        async with app_role_engine.connect() as conn, conn.begin():
+            await conn.execute(
+                text("SELECT set_config('app.current_patient_id', :v, true)"),
+                {"v": str(alice)},
+            )
+            found = (
+                await conn.execute(
+                    text("SELECT count(*) FROM patients WHERE id = :bob"),
+                    {"bob": str(bob)},
+                )
+            ).scalar_one()
+        assert found == 0, "explicitly naming another patient's id must still return nothing"
+
+    async def test_scope_does_not_leak_across_transactions(
+        self, app_role_engine, two_patients
+    ) -> None:
+        """Catches `SET` where `SET LOCAL` was meant.
+
+        A session-scoped setting would survive on the pooled connection and hand
+        the next borrower the previous patient's scope.
+        """
+        alice, _ = two_patients
+        async with app_role_engine.connect() as conn:
+            async with conn.begin():
+                await conn.execute(
+                    text("SELECT set_config('app.current_patient_id', :v, true)"),
+                    {"v": str(alice)},
+                )
+                assert (await conn.execute(text("SELECT count(*) FROM patients"))).scalar_one() == 1
+
+            # Same physical connection, new transaction, no scope applied.
+            async with conn.begin():
+                leaked = (await conn.execute(text("SELECT count(*) FROM patients"))).scalar_one()
+        assert leaked == 0, "patient scope leaked into a subsequent transaction"
+
+    async def test_app_role_is_not_a_table_owner(self, app_role_engine) -> None:
+        """Owners bypass RLS, which would make every policy above inert."""
+        async with app_role_engine.connect() as conn:
+            owned = (
+                await conn.execute(
+                    text(
+                        "SELECT count(*) FROM pg_tables "
+                        "WHERE schemaname = 'public' AND tableowner = 'app_runtime'"
+                    )
+                )
+            ).scalar_one()
+        assert owned == 0

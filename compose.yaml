@@ -1,0 +1,104 @@
+# Local development stack, run with Podman. Everything runs in containers, so a
+# developer needs only `podman` and nothing else installed. The api/web images
+# here are the same ones CI builds and ECS runs; only the command and mounts differ.
+#
+#   podman compose up --build
+#   podman compose exec api alembic upgrade head
+#
+# Mailhog captures magic-link emails at http://localhost:8025 so no mail ever
+# leaves the machine in development.
+#
+# Note: /docker-entrypoint-initdb.d below is a path inside the upstream postgres
+# image, not a runtime dependency — it is named that way by the image author.
+
+name: eoehelp
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: eoehelp
+      POSTGRES_PASSWORD: eoehelp
+      POSTGRES_DB: eoehelp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eoehelp -d eoehelp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # web UI
+    logging:
+      driver: none
+
+  api:
+    build:
+      context: ./apps/api
+      target: runtime
+    command:
+      - sh
+      - -c
+      - "alembic upgrade head && uvicorn eoehelp_api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src"
+    environment:
+      # Makes the mounted source take precedence over the copy pip-installed into
+      # the image, so edits reload. Deployed images set no PYTHONPATH and run the
+      # installed package.
+      PYTHONPATH: /app/src
+      ENVIRONMENT: local
+      DEBUG: "true"
+      DATABASE_URL: postgresql+asyncpg://eoehelp:eoehelp@postgres:5432/eoehelp
+      REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      APP_BASE_URL: http://localhost:4200
+      API_BASE_URL: http://localhost:8000
+      CORS_ORIGINS: http://localhost:4200,http://localhost:8080
+    ports:
+      - "8000:8000"
+    volumes:
+      # Source mount for reload. Deployed images copy source in and mount nothing.
+      - ./apps/api/src:/app/src:ro
+      - ./apps/api/alembic:/app/alembic:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./apps/web
+      target: builder
+    command: ["npm", "start", "--", "--host", "0.0.0.0", "--port", "4200", "--poll", "1000"]
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./apps/web/src:/build/src
+      - ./apps/web/public:/build/public
+      # Keeps container-built node_modules from being shadowed by the host mount.
+      - web_node_modules:/build/node_modules
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  web_node_modules:

@@ -1,0 +1,235 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "24"
+
+jobs:
+  api:
+    name: API — lint, types, tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: eoehelp
+          POSTGRES_PASSWORD: eoehelp
+          POSTGRES_DB: eoehelp
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U eoehelp"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: apps/api/pyproject.toml
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Create the unprivileged application role
+        # The isolation tests are meaningless as a table owner, since owners
+        # bypass row-level security. They connect as this role instead.
+        env:
+          PGPASSWORD: eoehelp
+        run: |
+          psql -h localhost -U eoehelp -d eoehelp -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE EXTENSION IF NOT EXISTS citext;
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_runtime') THEN
+              CREATE ROLE app_runtime LOGIN PASSWORD 'app_runtime_local_only';
+            END IF;
+          END
+          $$;
+          SQL
+
+      - name: Lint
+        run: ruff check . && ruff format --check .
+
+      - name: Type check
+        run: mypy src
+
+      - name: Tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://eoehelp:eoehelp@localhost:5432/eoehelp
+          ENVIRONMENT: local
+        run: pytest --cov --cov-report=term-missing
+
+      - name: Migrations must roll back
+        # A health-data migration that cannot be reversed turns a bad deploy into
+        # permanent data loss, so both directions are exercised on every change.
+        env:
+          DATABASE_URL: postgresql+asyncpg://eoehelp:eoehelp@localhost:5432/eoehelp
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+
+  openapi-drift:
+    name: OpenAPI contract is current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install
+        working-directory: apps/api
+        run: pip install -e .
+      - name: Regenerate and compare
+        # The Angular client is generated from this schema. If it drifts, a
+        # backend response change stops being a compile error on the frontend.
+        run: |
+          python - <<'PY' > /tmp/openapi.json
+          import json, os
+          os.environ.setdefault("ENVIRONMENT", "local")
+          from eoehelp_api.main import create_app
+          print(json.dumps(create_app().openapi(), indent=2, sort_keys=True))
+          PY
+          if ! diff -q /tmp/openapi.json packages/openapi/schema.json >/dev/null 2>&1; then
+            echo "::error::OpenAPI schema changed. Run 'make openapi' and commit packages/openapi/schema.json."
+            diff -u packages/openapi/schema.json /tmp/openapi.json | head -60 || true
+            exit 1
+          fi
+
+  web:
+    name: Web — lint, build, tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint --if-present
+      - run: npm run test -- --watch=false --browsers=ChromeHeadless --if-present
+      - run: npm run build -- --configuration production
+
+  images:
+    name: Container images (buildah, arm64)
+    # arm64 runners so CI builds the same architecture as both the Apple Silicon
+    # dev machines and ARM64 Fargate. Single architecture end to end means no
+    # cross-building and no QEMU emulation anywhere. GA for private repos since
+    # January 2026.
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      # buildah and skopeo rather than podman: this job only builds and inspects,
+      # and neither tool needs a container runtime or a daemon to do it. See
+      # docs/adr/0006-buildah-and-skopeo.md.
+      #
+      # Installed explicitly rather than trusting the runner image. buildah ships
+      # on ubuntu-22.04+, but skopeo's preinstalled version has historically been
+      # too old for some operations, and relying on it invites intermittent failure.
+      - name: Install buildah and skopeo
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends buildah skopeo
+          buildah --version
+          skopeo --version
+
+      # --format docker is pinned deliberately. The OCI manifest format is
+      # buildah's other option, and ECS has historically choked on it; Docker v2
+      # is what ECR and ECS consume without incident. --layers keeps intermediate
+      # layers so registry-backed --cache-from/--cache-to can be added later.
+      #
+      # --target is always explicit: the final stage of apps/api/Dockerfile is
+      # `test`, so a bare build would produce the test image, not the runtime one.
+      - name: Build API runtime image
+        run: buildah build --format docker --layers --target runtime -t eoehelp-api:ci apps/api
+
+      - name: Build API test image
+        run: buildah build --format docker --layers --target test -t eoehelp-api-test:ci apps/api
+
+      - name: Build web runtime image
+        run: buildah build --format docker --layers --target runtime -t eoehelp-web:ci apps/web
+
+      - name: Images must be Docker v2 manifests and arm64
+        # skopeo reads the manifest straight out of local container storage, so the
+        # media type asserted here is exactly what would land in ECR.
+        run: |
+          for image in eoehelp-api:ci eoehelp-web:ci; do
+            manifest=$(skopeo inspect --raw "containers-storage:localhost/$image" \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin)["mediaType"])')
+            arch=$(skopeo inspect "containers-storage:localhost/$image" \
+              | python3 -c 'import json,sys; print(json.load(sys.stdin)["Architecture"])')
+            echo "$image -> $manifest / $arch"
+            case "$manifest" in
+              application/vnd.docker.distribution.manifest.v2+json) ;;
+              *) echo "::error::$image is $manifest, expected a Docker v2 manifest"; exit 1 ;;
+            esac
+            [ "$arch" = "arm64" ] || { echo "::error::$image is $arch, expected arm64"; exit 1; }
+          done
+
+      - name: Images must run unprivileged
+        # A container escape should not begin as root. Asserted here rather than
+        # trusted, because a base-image bump can silently revert it.
+        run: |
+          for image in eoehelp-api:ci eoehelp-web:ci; do
+            user=$(buildah inspect --type image --format '{{.OCIv1.Config.User}}' "$image")
+            echo "$image runs as '${user:-root}'"
+            if [ -z "$user" ] || [ "$user" = "root" ] || [ "$user" = "0" ]; then
+              echo "::error::$image would run as root"
+              exit 1
+            fi
+          done
+
+      - name: Promotion preserves the image digest
+        # Proves the deploy pattern the plan depends on: build once, then promote
+        # the identical digest between registries rather than rebuilding, so
+        # production runs the artifact that was actually tested. Two throwaway
+        # registries stand in for the staging and production ECRs.
+        run: ./scripts/verify-promote.sh eoehelp-api:ci
+
+  security:
+    name: Dependency and code scanning
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Python dependency audit
+        working-directory: apps/api
+        run: |
+          pip install pip-audit
+          pip install -e .
+          pip-audit --strict
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Node dependency audit
+        working-directory: apps/web
+        run: npm audit --audit-level=high

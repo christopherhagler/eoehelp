@@ -1,0 +1,8 @@
+# Marketing pages are indexable. Everything that can render health data is not.
+User-agent: *
+Allow: /$
+Disallow: /today
+Disallow: /shared/
+Disallow: /verify
+Disallow: /sign-in
+Disallow: /api/

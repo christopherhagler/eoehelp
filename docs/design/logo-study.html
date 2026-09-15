@@ -1,0 +1,705 @@
+<title>eoehelp Identity Study</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;450;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap">
+
+<style>
+  /* Palette is lifted directly from apps/web/src/styles.scss so these marks are
+     judged against the surfaces they will actually sit on. */
+  :root {
+    --ink-900: #10161c;
+    --ink-700: #2d3944;
+    --ink-500: #566472;
+    --ink-300: #9aa6b0;
+
+    --surface: #ffffff;
+    --surface-sunken: #f2f5f7;
+    --surface-raised: #ffffff;
+    --border: #dfe4e9;
+    --border-soft: #e9edf1;
+
+    --accent: #0f6b6b;
+    --accent-bright: #148080;
+    --accent-wash: #e2f1f1;
+
+    --ink-inverse: #eef2f5;
+    --ground-inverse: #11171c;
+
+    --measure: 66ch;
+    --rule: 1px solid var(--border);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink-900: #eef2f5;
+      --ink-700: #c8d1d9;
+      --ink-500: #97a3ad;
+      --ink-300: #6d7882;
+
+      --surface: #11171c;
+      --surface-sunken: #0c1114;
+      --surface-raised: #1a2128;
+      --border: #2a333b;
+      --border-soft: #222a31;
+
+      --accent: #4bb8b0;
+      --accent-bright: #5ec9c1;
+      --accent-wash: #12312f;
+
+      --ink-inverse: #0c1114;
+      --ground-inverse: #e7ecef;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink-900: #eef2f5;
+    --ink-700: #c8d1d9;
+    --ink-500: #97a3ad;
+    --ink-300: #6d7882;
+
+    --surface: #11171c;
+    --surface-sunken: #0c1114;
+    --surface-raised: #1a2128;
+    --border: #2a333b;
+    --border-soft: #222a31;
+
+    --accent: #4bb8b0;
+    --accent-bright: #5ec9c1;
+    --accent-wash: #12312f;
+
+    --ink-inverse: #0c1114;
+    --ground-inverse: #e7ecef;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--surface-sunken);
+    color: var(--ink-900);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1000px;
+    margin-inline: auto;
+    padding: clamp(32px, 5vw, 72px) clamp(20px, 4vw, 48px) 96px;
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+
+  h1 {
+    font-family: Newsreader, Georgia, "Times New Roman", serif;
+    font-weight: 400;
+    font-size: clamp(2.1rem, 1.4rem + 3vw, 3.3rem);
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 20px;
+  }
+
+  h2 {
+    font-family: Newsreader, Georgia, serif;
+    font-weight: 500;
+    font-size: 1.5rem;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 8px;
+  }
+
+  p { margin: 0 0 16px; max-width: var(--measure); }
+  p:last-child { margin-bottom: 0; }
+
+  .standfirst {
+    font-size: 1.1rem;
+    color: var(--ink-700);
+    max-width: 62ch;
+  }
+
+  .lede-note {
+    font-size: 0.95rem;
+    color: var(--ink-500);
+    max-width: 62ch;
+  }
+
+  /* ---- constraints strip ---- */
+
+  .constraints {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 40px 0 72px;
+  }
+
+  .constraint {
+    background: var(--surface-raised);
+    padding: 18px 20px;
+  }
+
+  .constraint dt {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-500);
+    margin-bottom: 6px;
+  }
+
+  .constraint dd {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--ink-700);
+    line-height: 1.45;
+  }
+
+  /* ---- plates ---- */
+
+  .plate {
+    border-top: var(--rule);
+    padding-top: 36px;
+    margin-bottom: 72px;
+  }
+
+  .plate__head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+
+  .plate__index {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    color: var(--ink-300);
+    letter-spacing: 0.08em;
+  }
+
+  .plate__thesis {
+    font-family: Newsreader, Georgia, serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    color: var(--ink-500);
+    margin: 0 0 26px;
+    max-width: 58ch;
+  }
+
+  .plate__body {
+    display: grid;
+    grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+    gap: clamp(24px, 4vw, 48px);
+    align-items: start;
+  }
+
+  @media (max-width: 720px) {
+    .plate__body { grid-template-columns: 1fr; }
+  }
+
+  .hero-mark {
+    background: var(--surface-raised);
+    border: var(--rule);
+    border-radius: 3px;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    color: var(--accent);
+  }
+
+  /* ---- the marks ---- */
+
+  .mark {
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 3.6;
+  }
+
+  .mark--hero { width: 62%; }
+
+  /* Stroke weight is compensated at small sizes: a mark that is correct at 96px
+     goes to mush at 16px if the stroke scales down proportionally. */
+  .sz-32 { width: 32px; height: 32px; stroke-width: 4.2; }
+  .sz-24 { width: 24px; height: 24px; stroke-width: 5; }
+  .sz-16 { width: 16px; height: 16px; stroke-width: 6.4; }
+
+  .ladder {
+    display: flex;
+    align-items: flex-end;
+    gap: 26px;
+    padding: 20px 22px;
+    background: var(--surface-raised);
+    border: var(--rule);
+    border-radius: 3px;
+    color: var(--accent);
+    flex-wrap: wrap;
+  }
+
+  .rung {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .rung span {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.64rem;
+    color: var(--ink-500);
+    letter-spacing: 0.06em;
+  }
+
+  .contexts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .ctx {
+    border: var(--rule);
+    border-radius: 3px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    font-size: 0.82rem;
+  }
+
+  .ctx--light { background: #ffffff; color: #10161c; border-color: #dfe4e9; }
+  .ctx--dark  { background: var(--ground-inverse); color: var(--ink-inverse); border-color: transparent; }
+  .ctx--print { background: #ffffff; color: #10161c; border-color: #dfe4e9; }
+
+  .ctx__label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+
+  /* ---- wordmark lockups ---- */
+
+  .lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-weight: 500;
+    font-size: 1.18rem;
+    letter-spacing: -0.025em;
+  }
+
+  .lockup .wm-a { color: var(--accent); }
+  .lockup .wm-b { color: currentColor; }
+
+  .lockup--sm { font-size: 0.95rem; gap: 7px; }
+
+  .verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.64rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  .verdict--lead { background: var(--accent-wash); color: var(--accent); }
+  .verdict--alt { border: 1px solid var(--border); color: var(--ink-500); }
+
+  .risk {
+    border-left: 2px solid var(--border);
+    padding-left: 16px;
+    margin-top: 18px;
+    font-size: 0.9rem;
+    color: var(--ink-500);
+    max-width: 58ch;
+  }
+
+  .risk strong { color: var(--ink-700); font-weight: 600; }
+
+  /* ---- closing ---- */
+
+  .closing {
+    border-top: 2px solid var(--ink-900);
+    padding-top: 30px;
+    margin-top: 16px;
+  }
+
+  .steps {
+    margin: 18px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 14px;
+    max-width: var(--measure);
+    counter-reset: step;
+  }
+
+  .steps li {
+    display: grid;
+    grid-template-columns: 26px 1fr;
+    gap: 12px;
+    font-size: 0.94rem;
+    color: var(--ink-700);
+    counter-increment: step;
+  }
+
+  .steps li::before {
+    content: counter(step);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.7rem;
+    color: var(--accent);
+    padding-top: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+
+<!-- Mark geometry, defined once and instanced at every size below. -->
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <defs>
+    <symbol id="m-rings" viewBox="0 0 48 48">
+      <path d="M 30.16 7.09 A 18 18 0 1 1 17.84 7.09" />
+      <path d="M 30 13.61 A 12 12 0 1 1 18 13.61" />
+      <path d="M 28.24 19.76 A 6 6 0 1 1 19.76 19.76" />
+    </symbol>
+
+    <symbol id="m-passage" viewBox="0 0 48 48">
+      <path d="M 15 5 C 15 17, 20.5 21, 20.5 24 C 20.5 27, 14 32, 14 43" />
+      <path d="M 33 5 C 33 17, 27.5 21, 27.5 24 C 27.5 27, 34 32, 34 43" />
+    </symbol>
+
+    <symbol id="m-log" viewBox="0 0 48 48">
+      <path d="M 8 12 L 8 37" />
+      <path d="M 16 9 L 16 37" />
+      <path d="M 24 17 L 24 37" />
+      <path d="M 32 25 L 32 37" />
+      <path d="M 40 31 L 40 37" />
+    </symbol>
+
+    <symbol id="m-aperture" viewBox="0 0 48 48">
+      <path d="M 39.04 18.53 A 16 16 0 1 1 29.47 8.97" />
+      <circle cx="24" cy="24" r="3.4" fill="currentColor" stroke="none" />
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <p class="eyebrow">Identity study · eoehelp.org</p>
+  <h1>Four marks for a disease you can&nbsp;see</h1>
+  <p class="standfirst">
+    EoE has an unusually literal visual signature. Anyone who has had an endoscopy
+    has seen their own esophagus on a screen — concentric rings, furrows, a narrowed
+    channel. That gives this identity something most health brands don't have: a form
+    the audience already recognizes from their own medical records.
+  </p>
+  <p class="lede-note">
+    Each direction below is shown at the sizes it actually has to survive, on the
+    surfaces it actually has to sit on. Nothing here is decorative — a mark that
+    only works at 200px is not a logo, it's an illustration.
+  </p>
+
+  <dl class="constraints">
+    <div class="constraint">
+      <dt>Favicon</dt>
+      <dd>16px. Must stay legible as a browser-tab silhouette, next to thirty other tabs.</dd>
+    </div>
+    <div class="constraint">
+      <dt>App masthead</dt>
+      <dd>24px beside the wordmark, on white and on the dark theme.</dd>
+    </div>
+    <div class="constraint">
+      <dt>Clinical report</dt>
+      <dd>Monochrome, printed. A gastroenterologist may read it on paper.</dd>
+    </div>
+    <div class="constraint">
+      <dt>Tone</dt>
+      <dd>Credible to a specialist, not clinical to the point of cold. Never cute.</dd>
+    </div>
+  </dl>
+
+  <!-- ============ 01 ============ -->
+  <section class="plate">
+    <div class="plate__head">
+      <span class="plate__index">01</span>
+      <h2>Rings</h2>
+      <span class="verdict verdict--lead">Recommended</span>
+    </div>
+    <p class="plate__thesis">The endoscopic signature of EoE, drawn as three rings that open.</p>
+
+    <div class="plate__body">
+      <div class="hero-mark">
+        <svg class="mark mark--hero" viewBox="0 0 48 48" role="img" aria-label="Three concentric arcs with widening gaps at the top">
+          <use href="#m-rings" />
+        </svg>
+      </div>
+
+      <div>
+        <p>
+          Concentric rings — trachealization — are what an EoE esophagus looks like
+          through a scope. Patients recognize this shape from their own procedure
+          photos, which is a rare thing for a logo to be able to do.
+        </p>
+        <p>
+          The rings are deliberately broken, and the gaps widen as they move inward,
+          opening upward into a channel. So the mark reads twice: the disease as it
+          appears on a screen, and the passage clearing. That second reading is the
+          product's whole promise, and it keeps the mark from being a diagram of an
+          illness.
+        </p>
+
+        <h3>Size ladder</h3>
+        <div class="ladder">
+          <div class="rung"><svg class="mark sz-32"><use href="#m-rings" /></svg><span>32</span></div>
+          <div class="rung"><svg class="mark sz-24"><use href="#m-rings" /></svg><span>24 · masthead</span></div>
+          <div class="rung"><svg class="mark sz-16"><use href="#m-rings" /></svg><span>16 · favicon</span></div>
+        </div>
+
+        <div class="contexts">
+          <div class="ctx ctx--light">
+            <span class="lockup lockup--sm"><svg class="mark sz-24"><use href="#m-rings" /></svg><span><span class="wm-a">eoe</span><span class="wm-b">help</span></span></span>
+          </div>
+          <div class="ctx ctx--dark">
+            <span class="lockup lockup--sm" style="color:#eef2f5"><svg class="mark sz-24" style="color:#5ec9c1"><use href="#m-rings" /></svg><span>eoehelp</span></span>
+          </div>
+          <div class="ctx ctx--print">
+            <svg class="mark sz-24" style="color:#10161c"><use href="#m-rings" /></svg>
+            <span class="ctx__label">Mono · print</span>
+          </div>
+        </div>
+
+        <p class="risk">
+          <strong>The risk:</strong> concentric circles are also a target, a radar, a
+          record button. The offset gaps are what pull it away from that — if the
+          rings were closed, this would be generic. Worth testing against a few
+          patients before committing.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 ============ -->
+  <section class="plate">
+    <div class="plate__head">
+      <span class="plate__index">02</span>
+      <h2>Passage</h2>
+      <span class="verdict verdict--alt">Strong alternative</span>
+    </div>
+    <p class="plate__thesis">The esophagus in profile — narrowed at the middle, opening below.</p>
+
+    <div class="plate__body">
+      <div class="hero-mark">
+        <svg class="mark mark--hero" viewBox="0 0 48 48" role="img" aria-label="Two mirrored curves forming a channel that narrows and then widens">
+          <use href="#m-passage" />
+        </svg>
+      </div>
+
+      <div>
+        <p>
+          Two mirrored curves form a channel that pinches at the midpoint and opens
+          out below it. It is the stricture and the relief of it in a single gesture,
+          and it is abstract enough to work as a mark without needing to be explained.
+        </p>
+        <p>
+          This is the quieter, more timeless of the two lead directions. It reads as
+          a considered piece of geometry first and a medical reference second — which
+          may age better than Rings if the product ever widens beyond EoE.
+        </p>
+
+        <h3>Size ladder</h3>
+        <div class="ladder">
+          <div class="rung"><svg class="mark sz-32"><use href="#m-passage" /></svg><span>32</span></div>
+          <div class="rung"><svg class="mark sz-24"><use href="#m-passage" /></svg><span>24 · masthead</span></div>
+          <div class="rung"><svg class="mark sz-16"><use href="#m-passage" /></svg><span>16 · favicon</span></div>
+        </div>
+
+        <div class="contexts">
+          <div class="ctx ctx--light">
+            <span class="lockup lockup--sm"><svg class="mark sz-24"><use href="#m-passage" /></svg><span><span class="wm-a">eoe</span><span class="wm-b">help</span></span></span>
+          </div>
+          <div class="ctx ctx--dark">
+            <span class="lockup lockup--sm" style="color:#eef2f5"><svg class="mark sz-24" style="color:#5ec9c1"><use href="#m-passage" /></svg><span>eoehelp</span></span>
+          </div>
+          <div class="ctx ctx--print">
+            <svg class="mark sz-24" style="color:#10161c"><use href="#m-passage" /></svg>
+            <span class="ctx__label">Mono · print</span>
+          </div>
+        </div>
+
+        <p class="risk">
+          <strong>The risk:</strong> it is the weakest of the four at 16px — two thin
+          vertical strokes start to read as a bracket or a parenthesis. It needs a
+          purpose-drawn favicon variant rather than a scaled-down copy.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 ============ -->
+  <section class="plate">
+    <div class="plate__head">
+      <span class="plate__index">03</span>
+      <h2>Fourteen days</h2>
+      <span class="verdict verdict--alt">Product-first</span>
+    </div>
+    <p class="plate__thesis">Not the disease — the daily log, and the trend going down.</p>
+
+    <div class="plate__body">
+      <div class="hero-mark">
+        <svg class="mark mark--hero" viewBox="0 0 48 48" role="img" aria-label="Five vertical bars of descending height">
+          <use href="#m-log" />
+        </svg>
+      </div>
+
+      <div>
+        <p>
+          A descending run of bars: a symptom score falling across a scoring window.
+          This direction deliberately refuses to depict the illness at all, and points
+          at what the product does instead — you log every day, and the line comes down.
+        </p>
+        <p>
+          It is the most optimistic of the four and the easiest to explain to someone
+          who has never had an endoscopy. It is also the one a clinician would read
+          fastest, because a falling DSQ score is exactly what they are looking for.
+        </p>
+
+        <h3>Size ladder</h3>
+        <div class="ladder">
+          <div class="rung"><svg class="mark sz-32"><use href="#m-log" /></svg><span>32</span></div>
+          <div class="rung"><svg class="mark sz-24"><use href="#m-log" /></svg><span>24 · masthead</span></div>
+          <div class="rung"><svg class="mark sz-16"><use href="#m-log" /></svg><span>16 · favicon</span></div>
+        </div>
+
+        <div class="contexts">
+          <div class="ctx ctx--light">
+            <span class="lockup lockup--sm"><svg class="mark sz-24"><use href="#m-log" /></svg><span><span class="wm-a">eoe</span><span class="wm-b">help</span></span></span>
+          </div>
+          <div class="ctx ctx--dark">
+            <span class="lockup lockup--sm" style="color:#eef2f5"><svg class="mark sz-24" style="color:#5ec9c1"><use href="#m-log" /></svg><span>eoehelp</span></span>
+          </div>
+          <div class="ctx ctx--print">
+            <svg class="mark sz-24" style="color:#10161c"><use href="#m-log" /></svg>
+            <span class="ctx__label">Mono · print</span>
+          </div>
+        </div>
+
+        <p class="risk">
+          <strong>The risk:</strong> this is the most generic of the four. Descending
+          bars belong to every analytics product ever shipped, and nothing about it
+          says esophagus, or even health. It survives as a direction only if you decide
+          the identity should lead with tracking rather than with the condition.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 ============ -->
+  <section class="plate">
+    <div class="plate__head">
+      <span class="plate__index">04</span>
+      <h2>Aperture</h2>
+      <span class="verdict verdict--alt">Most durable at 16px</span>
+    </div>
+    <p class="plate__thesis">Looking down the scope: one open ring, one fixed point.</p>
+
+    <div class="plate__body">
+      <div class="hero-mark">
+        <svg class="mark mark--hero" viewBox="0 0 48 48" role="img" aria-label="A broken ring with a solid dot at its centre">
+          <use href="#m-aperture" />
+        </svg>
+      </div>
+
+      <div>
+        <p>
+          A single ring, broken at the upper right, around a solid centre. It is the
+          view down an endoscope reduced to its simplest possible statement, and the
+          break keeps it from closing into a plain circle.
+        </p>
+        <p>
+          Technically this is the strongest of the four: the heaviest silhouette, the
+          fewest strokes, and the only one that is unambiguously itself at 16 pixels.
+          If favicon legibility is the deciding constraint, this wins on merit.
+        </p>
+
+        <h3>Size ladder</h3>
+        <div class="ladder">
+          <div class="rung"><svg class="mark sz-32"><use href="#m-aperture" /></svg><span>32</span></div>
+          <div class="rung"><svg class="mark sz-24"><use href="#m-aperture" /></svg><span>24 · masthead</span></div>
+          <div class="rung"><svg class="mark sz-16"><use href="#m-aperture" /></svg><span>16 · favicon</span></div>
+        </div>
+
+        <div class="contexts">
+          <div class="ctx ctx--light">
+            <span class="lockup lockup--sm"><svg class="mark sz-24"><use href="#m-aperture" /></svg><span><span class="wm-a">eoe</span><span class="wm-b">help</span></span></span>
+          </div>
+          <div class="ctx ctx--dark">
+            <span class="lockup lockup--sm" style="color:#eef2f5"><svg class="mark sz-24" style="color:#5ec9c1"><use href="#m-aperture" /></svg><span>eoehelp</span></span>
+          </div>
+          <div class="ctx ctx--print">
+            <svg class="mark sz-24" style="color:#10161c"><use href="#m-aperture" /></svg>
+            <span class="ctx__label">Mono · print</span>
+          </div>
+        </div>
+
+        <p class="risk">
+          <strong>The risk:</strong> it is one small rotation away from a record button,
+          a camera aperture, or a loading spinner. Strong silhouette, thin idea.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ closing ============ -->
+  <section class="closing">
+    <h2>Where I'd land</h2>
+    <p>
+      <strong>Rings</strong>, with <strong>Aperture</strong> held in reserve as the
+      favicon if Rings proves too fine at 16px. Rings is the only one of the four that
+      says something true and specific about this disease, and the widening gaps keep
+      it from being a picture of illness — it shows the passage opening, which is the
+      thing patients are actually trying to get back.
+    </p>
+    <p>
+      Passage is the more elegant object and would be the safer pick for a broader
+      health brand. It's the one to choose if you ever expect to cover more than EoE.
+    </p>
+
+    <h3 style="margin-top:28px">What happens next</h3>
+    <ol class="steps">
+      <li>Pick a direction — or tell me what's wrong with all four, which is just as useful at this stage.</li>
+      <li>I draw a purpose-built 16px variant rather than scaling the master down, since stroke weight has to be redrawn, not divided.</li>
+      <li>Wordmark gets settled properly: the letterforms here are placeholder IBM Plex, not a decision.</li>
+      <li>Ship it as an inline SVG component in the Angular masthead, an ICO and PNG set for the favicon, and a monochrome variant for the report PDF header.</li>
+      <li>Show it to a few people with EoE before it goes anywhere near production. They are the ones who will recognize it, or won't.</li>
+    </ol>
+  </section>
+
+</div>

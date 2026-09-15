@@ -1,0 +1,44 @@
+/* Tailwind lives in its own plain-CSS entry point rather than inside styles.scss:
+ * Tailwind v4 and SCSS preprocessing fight over @import semantics, and keeping
+ * them separate avoids that entirely. Angular Material's theming stays in SCSS.
+ *
+ * Cascade note that makes the two coexist: everything Tailwind emits sits inside
+ * @layer, and Angular Material's component CSS is unlayered. Unlayered styles beat
+ * layered ones, so Material components always win over Tailwind utilities and
+ * preflight — which is why preflight is safe to keep. The corollary is that a
+ * Tailwind utility cannot override a Material component's internals; reach for
+ * Material's own theming tokens when that is what you need.
+ */
+@import "tailwindcss";
+
+@theme {
+  /* Colours are aliases onto Angular Material's system tokens rather than a
+   * second palette. One source of truth, and every utility below is automatically
+   * correct in both light and dark because the Material tokens resolve per theme.
+   */
+  --color-surface: var(--mat-sys-surface);
+  --color-surface-container: var(--mat-sys-surface-container);
+  --color-surface-container-low: var(--mat-sys-surface-container-low);
+  --color-surface-container-high: var(--mat-sys-surface-container-high);
+  --color-on-surface: var(--mat-sys-on-surface);
+  --color-on-surface-variant: var(--mat-sys-on-surface-variant);
+
+  --color-brand: var(--mat-sys-primary);
+  --color-on-brand: var(--mat-sys-on-primary);
+  --color-brand-container: var(--mat-sys-primary-container);
+  --color-on-brand-container: var(--mat-sys-on-primary-container);
+
+  --color-outline: var(--mat-sys-outline);
+  --color-outline-variant: var(--mat-sys-outline-variant);
+  --color-danger: var(--mat-sys-error);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+
+  /* 44px — the minimum comfortable touch target for someone one-handed,
+   * fatigued, or on a phone mid-meal. */
+  --spacing-tap: 2.75rem;
+
+  /* Running text stays near 65 characters regardless of viewport. */
+  --container-measure: 34rem;
+}
