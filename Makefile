@@ -2,7 +2,7 @@
 COMPOSE := podman compose
 
 .PHONY: help up down logs ps rebuild migrate revision test test-api image-test image-api \
-        verify-promote lint format typecheck openapi api-types mail psql clean
+        verify-promote lint format typecheck openapi api-types seed mail psql clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -79,6 +79,12 @@ api-types: ## Regenerate the Angular types from the committed OpenAPI contract
 		-e HOME=/tmp -e npm_config_cache=/tmp/.npm node:24-bookworm-slim \
 		npx -y openapi-typescript@7.13.0 ../../packages/openapi/schema.json \
 		-o src/app/api-client/schema.d.ts
+
+# Refuses to run against production, and needs --allow-staging for staging: see
+# synthetic/writer.py. n= and months= override the defaults.
+seed: ## Seed the dev database with synthetic patients (n=3 months=18)
+	$(COMPOSE) exec -T api python -m eoehelp_api.synthetic \
+		--patients $(or $(n),3) --months $(or $(months),18) --seed $(or $(seed),1)
 
 openapi: ## Regenerate the committed OpenAPI contract
 	$(COMPOSE) exec -T api python -c "\
