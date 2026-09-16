@@ -235,12 +235,18 @@ jobs:
       - name: Python dependency audit
         working-directory: apps/api
         run: |
-          pip install pip-audit
+          # Audit the resolved dependency set rather than the environment. eoehelp-api
+          # is installed editable and has no PyPI entry, and --strict fails on both
+          # "not found" and "skipped" — so --skip-editable does not rescue it. Freezing
+          # without editables hands pip-audit exactly the third-party closure, which
+          # keeps --strict meaning what it should: a resolution failure fails the job.
+          #
+          # The freeze happens before pip-audit is installed, so its own dependency
+          # tree is not dragged into the audit surface.
           pip install -e .
-          # --skip-editable: eoehelp-api itself is installed editable and does not
-          # exist on PyPI, so auditing it fails the run for the one package that has
-          # no advisories to look up. Its dependencies are still audited.
-          pip-audit --strict --skip-editable
+          pip freeze --exclude-editable > /tmp/requirements.txt
+          pip install pip-audit
+          pip-audit --strict -r /tmp/requirements.txt
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
