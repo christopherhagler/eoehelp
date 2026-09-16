@@ -3,7 +3,9 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    # development is the working branch, so it is gated too. Without it, CI first
+    # runs at the merge to main, which is the wrong place to discover a failure.
+    branches: [main, development]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -130,7 +132,10 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
       - run: npm run lint --if-present
-      - run: npm run test -- --watch=false --browsers=ChromeHeadless --if-present
+      # Flags after `--` go to ng, so --if-present stays on the npm side. The test
+      # target is @angular/build:unit-test (vitest on jsdom) — there is no browser
+      # to pick, and a --browsers flag is rejected outright.
+      - run: npm run test --if-present -- --watch=false
       - run: npm run build -- --configuration production
 
   images:
@@ -174,14 +179,20 @@ jobs:
         run: buildah build --format docker --layers --target runtime -t eoehelp-web:ci apps/web
 
       - name: Images must be Docker v2 manifests and arm64
-        # skopeo reads the manifest straight out of local container storage, so the
-        # media type asserted here is exactly what would land in ECR.
+        # Read out of local container storage with buildah, not skopeo. Ubuntu 24.04
+        # restricts unprivileged user namespaces by AppArmor, and only binaries with
+        # a profile may unshare — buildah ships one, skopeo does not, so
+        # `skopeo inspect containers-storage:…` dies with "unshare(...): Operation
+        # not permitted". skopeo's job here is registry work, which it does over
+        # docker:// in the promotion check below and needs no namespace at all.
+        #
+        # .Manifest is the committed manifest verbatim, so the media type asserted
+        # here is exactly what would land in ECR.
         run: |
           for image in eoehelp-api:ci eoehelp-web:ci; do
-            manifest=$(skopeo inspect --raw "containers-storage:localhost/$image" \
+            manifest=$(buildah inspect --type image --format '{{.Manifest}}' "$image" \
               | python3 -c 'import json,sys; print(json.load(sys.stdin)["mediaType"])')
-            arch=$(skopeo inspect "containers-storage:localhost/$image" \
-              | python3 -c 'import json,sys; print(json.load(sys.stdin)["Architecture"])')
+            arch=$(buildah inspect --type image --format '{{.OCIv1.Architecture}}' "$image")
             echo "$image -> $manifest / $arch"
             case "$manifest" in
               application/vnd.docker.distribution.manifest.v2+json) ;;
@@ -226,7 +237,10 @@ jobs:
         run: |
           pip install pip-audit
           pip install -e .
-          pip-audit --strict
+          # --skip-editable: eoehelp-api itself is installed editable and does not
+          # exist on PyPI, so auditing it fails the run for the one package that has
+          # no advisories to look up. Its dependencies are still audited.
+          pip-audit --strict --skip-editable
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}

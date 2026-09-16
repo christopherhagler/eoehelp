@@ -2,7 +2,7 @@
 COMPOSE := podman compose
 
 .PHONY: help up down logs ps rebuild migrate revision test test-api image-test image-api \
-        verify-promote lint typecheck openapi mail psql clean
+        verify-promote lint format typecheck openapi mail psql clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -51,8 +51,15 @@ test-api: image-test ## Run the API test suite in a container
 		-e ENVIRONMENT=local \
 		eoehelp-api-test pytest -q
 
-lint: ## Lint the API
-	$(COMPOSE) exec api sh -c "cd /app && ruff check src"
+# Both halves, and the whole tree rather than src/ alone: CI runs
+# `ruff check . && ruff format --check .`, and a narrower local command means
+# alembic/ and formatting drift only ever fail on the remote.
+lint: image-test ## Lint the API exactly as CI does
+	podman run --rm eoehelp-api-test sh -c "ruff check . && ruff format --check ."
+
+format: image-test ## Apply ruff's formatting and safe fixes to the API
+	podman run --rm -v "$(PWD)/apps/api:/src:z" eoehelp-api-test \
+		sh -c "ruff check --fix /src && ruff format /src"
 
 typecheck: image-test ## Type-check the API
 	podman run --rm eoehelp-api-test mypy src

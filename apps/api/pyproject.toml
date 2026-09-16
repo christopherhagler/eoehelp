@@ -28,8 +28,11 @@ dev = [
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
     "httpx>=0.28",
-    "ruff>=0.8",
-    "mypy>=1.13",
+    # Linters are CI gates, so they are pinned exactly: a new release that adds a
+    # rule turns an untouched main branch red, which is a failure of the pipeline
+    # rather than of the code. Bumping these is a deliberate, reviewed change.
+    "ruff==0.16.7",
+    "mypy==2.3.1",
     "types-python-dateutil",
 ]
 

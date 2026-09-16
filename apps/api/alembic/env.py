@@ -36,9 +36,9 @@ def _configure(connection: Connection) -> None:
 def _include_object(
     _object: object, name: str | None, type_: str, _reflected: bool, _compare_to: object
 ) -> bool:
-    if type_ == "table" and name == "alembic_version":
-        return False
-    return True
+    # alembic_version is alembic's own bookkeeping, not part of the schema under
+    # revision control, so autogenerate must never propose changes to it.
+    return not (type_ == "table" and name == "alembic_version")
 
 
 def run_migrations_offline() -> None:

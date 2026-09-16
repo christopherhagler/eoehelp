@@ -153,9 +153,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
     )
-    op.create_index(
-        "ix_consents_current", "consents", ["patient_id", "consent_type", "granted_at"]
-    )
+    op.create_index("ix_consents_current", "consents", ["patient_id", "consent_type", "granted_at"])
 
     op.create_table(
         "research_consent_scopes",
@@ -277,9 +275,7 @@ def _apply_row_level_security() -> None:
 
     for table in ("consents",):
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
-        op.execute(
-            f"CREATE POLICY patient_isolation ON {table} USING (patient_id = {scope})"
-        )
+        op.execute(f"CREATE POLICY patient_isolation ON {table} USING (patient_id = {scope})")
 
 
 def _apply_runtime_grants() -> None:
