@@ -26,6 +26,116 @@
         "title": "AccessTokenResponse",
         "type": "object"
       },
+      "AdherenceRead": {
+        "description": "Adherence, or an explicit admission that it cannot be measured.\n\n`percentage` is null for an as-needed medication and for a window outside the\ncourse. Null is not zero: rendering \"unknown\" as 0% would show a patient\nignoring their treatment when in fact there was no expectation to meet.",
+        "properties": {
+          "expected_doses": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Doses"
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DoseFrequency"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generic_name": {
+            "title": "Generic Name",
+            "type": "string"
+          },
+          "medication_code": {
+            "title": "Medication Code",
+            "type": "string"
+          },
+          "medication_id": {
+            "format": "uuid",
+            "title": "Medication Id",
+            "type": "string"
+          },
+          "percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percentage"
+          },
+          "skipped_doses": {
+            "title": "Skipped Doses",
+            "type": "integer"
+          },
+          "taken_doses": {
+            "title": "Taken Doses",
+            "type": "integer"
+          },
+          "window_end": {
+            "format": "date",
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "format": "date",
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "medication_id",
+          "medication_code",
+          "generic_name",
+          "frequency",
+          "window_start",
+          "window_end",
+          "expected_doses",
+          "taken_doses",
+          "skipped_doses",
+          "percentage"
+        ],
+        "title": "AdherenceRead",
+        "type": "object"
+      },
+      "AdherenceSummary": {
+        "properties": {
+          "medications": {
+            "items": {
+              "$ref": "#/components/schemas/AdherenceRead"
+            },
+            "title": "Medications",
+            "type": "array"
+          },
+          "window_end": {
+            "format": "date",
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "format": "date",
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "window_start",
+          "window_end",
+          "medications"
+        ],
+        "title": "AdherenceSummary",
+        "type": "object"
+      },
       "ConsentAcceptance": {
         "additionalProperties": false,
         "description": "The three documents required to hold an account.\n\nThree separate booleans rather than one \"I agree\": Washington's My Health My\nData Act requires specific consent to the consumer health data disclosure,\nand a single checkbox covering everything is exactly what it prohibits.\nResearch participation is deliberately not here \u2014 it is a separate decision,\nmade later, and never a condition of using the product.",
@@ -91,6 +201,95 @@
           "er_visit"
         ],
         "title": "CopingAction",
+        "type": "string"
+      },
+      "DoseCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/DoseStatus",
+            "default": "taken"
+          },
+          "taken_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taken At"
+          }
+        },
+        "title": "DoseCreate",
+        "type": "object"
+      },
+      "DoseFrequency": {
+        "description": "The regimens EoE treatment actually uses.\n\nAS_NEEDED is not a frequency but the absence of one, and is handled as such:\nthere is no expected-dose count, so adherence is reported as unknown rather\nthan invented.",
+        "enum": [
+          "once_daily",
+          "twice_daily",
+          "three_times_daily",
+          "every_other_day",
+          "weekly",
+          "every_two_weeks",
+          "every_four_weeks",
+          "as_needed"
+        ],
+        "title": "DoseFrequency",
+        "type": "string"
+      },
+      "DoseRead": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "medication_id": {
+            "format": "uuid",
+            "title": "Medication Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DoseStatus"
+          },
+          "taken_at": {
+            "format": "date-time",
+            "title": "Taken At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "medication_id",
+          "taken_at",
+          "status"
+        ],
+        "title": "DoseRead",
+        "type": "object"
+      },
+      "DoseStatus": {
+        "description": "Skipped is recorded, not inferred from absence.\n\nAn absent dose is ambiguous \u2014 it may mean skipped, or it may mean the patient\ndid not open the app. A deliberate skip is information, and the difference\nmatters when a clinician is deciding whether a treatment failed or was never\nreally taken.",
+        "enum": [
+          "taken",
+          "skipped",
+          "delayed"
+        ],
+        "title": "DoseStatus",
+        "type": "string"
+      },
+      "DrugClass": {
+        "description": "The classes actually used in EoE, not a general drug taxonomy.\n\nKept coarse deliberately: the report groups by class, and research asks\n\"were they on a topical steroid\" rather than which brand.",
+        "enum": [
+          "ppi",
+          "swallowed_topical_corticosteroid",
+          "biologic",
+          "other"
+        ],
+        "title": "DrugClass",
         "type": "string"
       },
       "DysphagiaSeverity": {
@@ -167,6 +366,365 @@
           "token"
         ],
         "title": "MagicLinkVerify",
+        "type": "object"
+      },
+      "MedicationCatalogItem": {
+        "properties": {
+          "also_known_as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Also Known As"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "default_route": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Route"
+          },
+          "default_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Unit"
+          },
+          "drug_class": {
+            "$ref": "#/components/schemas/DrugClass"
+          },
+          "generic_name": {
+            "title": "Generic Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "generic_name",
+          "drug_class",
+          "default_route",
+          "default_unit",
+          "also_known_as"
+        ],
+        "title": "MedicationCatalogItem",
+        "type": "object"
+      },
+      "MedicationCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "dose_amount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 100000.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,2}0*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dose Amount"
+          },
+          "dose_unit": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dose Unit"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/DoseFrequency"
+          },
+          "medication_code": {
+            "maxLength": 64,
+            "title": "Medication Code",
+            "type": "string"
+          },
+          "prescriber_note": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prescriber Note"
+          },
+          "started_on": {
+            "format": "date",
+            "title": "Started On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "medication_code",
+          "frequency",
+          "started_on"
+        ],
+        "title": "MedicationCreate",
+        "type": "object"
+      },
+      "MedicationRead": {
+        "properties": {
+          "dose_amount": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dose Amount"
+          },
+          "dose_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dose Unit"
+          },
+          "drug_class": {
+            "$ref": "#/components/schemas/DrugClass"
+          },
+          "ended_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended On"
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DoseFrequency"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generic_name": {
+            "title": "Generic Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "medication_code": {
+            "title": "Medication Code",
+            "type": "string"
+          },
+          "prescriber_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prescriber Note"
+          },
+          "started_on": {
+            "format": "date",
+            "title": "Started On",
+            "type": "string"
+          },
+          "stop_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MedicationStopReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "medication_code",
+          "generic_name",
+          "drug_class",
+          "dose_amount",
+          "dose_unit",
+          "frequency",
+          "started_on",
+          "ended_on",
+          "stop_reason",
+          "prescriber_note",
+          "is_active"
+        ],
+        "title": "MedicationRead",
+        "type": "object"
+      },
+      "MedicationStop": {
+        "additionalProperties": false,
+        "description": "Stopping records both when and why.\n\nThe reason is required rather than optional, because \"stopped because it did\nnot work\" and \"stopped because insurance refused it\" lead a clinician to\nopposite next steps, and an unexplained end date loses that distinction\npermanently.",
+        "properties": {
+          "ended_on": {
+            "format": "date",
+            "title": "Ended On",
+            "type": "string"
+          },
+          "stop_reason": {
+            "$ref": "#/components/schemas/MedicationStopReason"
+          }
+        },
+        "required": [
+          "ended_on",
+          "stop_reason"
+        ],
+        "title": "MedicationStop",
+        "type": "object"
+      },
+      "MedicationStopReason": {
+        "description": "Why a medication ended.\n\nClinically the most informative field on the table: \"stopped because it did\nnot work\" and \"stopped because insurance refused it\" lead to opposite next\nsteps, and patients rarely remember which by the next appointment.",
+        "enum": [
+          "remission",
+          "ineffective",
+          "side_effects",
+          "cost",
+          "insurance",
+          "provider_directed",
+          "other"
+        ],
+        "title": "MedicationStopReason",
+        "type": "string"
+      },
+      "MedicationToday": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MedicationTodayItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on_date",
+          "items"
+        ],
+        "title": "MedicationToday",
+        "type": "object"
+      },
+      "MedicationTodayItem": {
+        "description": "One active medication, as the daily log needs to show it.",
+        "properties": {
+          "dose_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dose Label"
+          },
+          "doses_today": {
+            "items": {
+              "$ref": "#/components/schemas/DoseRead"
+            },
+            "title": "Doses Today",
+            "type": "array"
+          },
+          "expected_today": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Today"
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DoseFrequency"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generic_name": {
+            "title": "Generic Name",
+            "type": "string"
+          },
+          "medication_code": {
+            "title": "Medication Code",
+            "type": "string"
+          },
+          "medication_id": {
+            "format": "uuid",
+            "title": "Medication Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "medication_id",
+          "medication_code",
+          "generic_name",
+          "dose_label",
+          "frequency",
+          "expected_today",
+          "doses_today"
+        ],
+        "title": "MedicationTodayItem",
         "type": "object"
       },
       "OnboardingRequest": {
@@ -1020,6 +1578,407 @@
         ]
       }
     },
+    "/api/v1/me/medications": {
+      "get": {
+        "operationId": "list_medications_api_v1_me_medications_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include_ended",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Ended",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MedicationRead"
+                  },
+                  "title": "Response List Medications Api V1 Me Medications Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Medications",
+        "tags": [
+          "medications"
+        ]
+      },
+      "post": {
+        "operationId": "add_medication_api_v1_me_medications_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedicationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Medication",
+        "tags": [
+          "medications"
+        ]
+      }
+    },
+    "/api/v1/me/medications/adherence": {
+      "get": {
+        "operationId": "read_adherence_api_v1_me_medications_adherence_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_ended",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Ended",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdherenceSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Adherence",
+        "tags": [
+          "medications"
+        ]
+      }
+    },
+    "/api/v1/me/medications/doses/{dose_id}": {
+      "delete": {
+        "operationId": "undo_dose_api_v1_me_medications_doses__dose_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dose_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Dose Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo Dose",
+        "tags": [
+          "medications"
+        ]
+      }
+    },
+    "/api/v1/me/medications/today": {
+      "get": {
+        "description": "What is due today and what has been logged, in one call.\n\nThe daily log needs both halves: whether the evening dose is still\noutstanding, and the dose ids required to undo a mistaken tap.",
+        "operationId": "medications_today_api_v1_me_medications_today_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "on",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "On"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicationToday"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Medications Today",
+        "tags": [
+          "medications"
+        ]
+      }
+    },
+    "/api/v1/me/medications/{medication_id}": {
+      "delete": {
+        "description": "For a course entered by mistake. Refused once doses exist \u2014 see the service.",
+        "operationId": "delete_medication_api_v1_me_medications__medication_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "medication_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Medication Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Medication",
+        "tags": [
+          "medications"
+        ]
+      }
+    },
+    "/api/v1/me/medications/{medication_id}/doses": {
+      "post": {
+        "description": "Record a dose.\n\nThe body is optional: tapping \"took it\" sends none at all, and the server\ntimestamps it \u2014 which is the only version worth trusting anyway.",
+        "operationId": "log_dose_api_v1_me_medications__medication_id__doses_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "medication_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Medication Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DoseCreate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoseRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Log Dose",
+        "tags": [
+          "medications"
+        ]
+      }
+    },
+    "/api/v1/me/medications/{medication_id}/stop": {
+      "post": {
+        "operationId": "stop_medication_api_v1_me_medications__medication_id__stop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "medication_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Medication Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MedicationStop"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stop Medication",
+        "tags": [
+          "medications"
+        ]
+      }
+    },
     "/api/v1/me/onboarding": {
       "post": {
         "operationId": "complete_onboarding_api_v1_me_onboarding_post",
@@ -1427,6 +2386,32 @@
         "summary": "Upsert Entry",
         "tags": [
           "symptoms"
+        ]
+      }
+    },
+    "/api/v1/medications/catalog": {
+      "get": {
+        "description": "The medications this product knows about.\n\nReference data, so it is not under /me and writes no audit row \u2014 reading the\nlist discloses nothing about the reader.",
+        "operationId": "list_catalog_api_v1_medications_catalog_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MedicationCatalogItem"
+                  },
+                  "title": "Response List Catalog Api V1 Medications Catalog Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Catalog",
+        "tags": [
+          "medications"
         ]
       }
     },

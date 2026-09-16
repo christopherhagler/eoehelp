@@ -40,6 +40,13 @@ export const routes: Routes = [
     title: 'Daily log — eoehelp',
   },
   {
+    path: 'medications',
+    canActivate: [onboardedGuard],
+    loadComponent: () =>
+      import('./features/medications/medications').then((m) => m.Medications),
+    title: 'Medications — eoehelp',
+  },
+  {
     path: 'log',
     canActivate: [onboardedGuard],
     loadComponent: () => import('./features/log/log').then((m) => m.Log),

@@ -130,6 +130,141 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/medications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Medications */
+        get: operations["list_medications_api_v1_me_medications_get"];
+        put?: never;
+        /** Add Medication */
+        post: operations["add_medication_api_v1_me_medications_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/medications/adherence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Adherence */
+        get: operations["read_adherence_api_v1_me_medications_adherence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/medications/doses/{dose_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Undo Dose */
+        delete: operations["undo_dose_api_v1_me_medications_doses__dose_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/medications/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Medications Today
+         * @description What is due today and what has been logged, in one call.
+         *
+         *     The daily log needs both halves: whether the evening dose is still
+         *     outstanding, and the dose ids required to undo a mistaken tap.
+         */
+        get: operations["medications_today_api_v1_me_medications_today_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/medications/{medication_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Medication
+         * @description For a course entered by mistake. Refused once doses exist — see the service.
+         */
+        delete: operations["delete_medication_api_v1_me_medications__medication_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/medications/{medication_id}/doses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log Dose
+         * @description Record a dose.
+         *
+         *     The body is optional: tapping "took it" sends none at all, and the server
+         *     timestamps it — which is the only version worth trusting anyway.
+         */
+        post: operations["log_dose_api_v1_me_medications__medication_id__doses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/medications/{medication_id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop Medication */
+        post: operations["stop_medication_api_v1_me_medications__medication_id__stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/onboarding": {
         parameters: {
             query?: never;
@@ -248,6 +383,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/medications/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Catalog
+         * @description The medications this product knows about.
+         *
+         *     Reference data, so it is not under /me and writes no audit row — reading the
+         *     list discloses nothing about the reader.
+         */
+        get: operations["list_catalog_api_v1_medications_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -314,6 +472,59 @@ export interface components {
             token_type: string;
         };
         /**
+         * AdherenceRead
+         * @description Adherence, or an explicit admission that it cannot be measured.
+         *
+         *     `percentage` is null for an as-needed medication and for a window outside the
+         *     course. Null is not zero: rendering "unknown" as 0% would show a patient
+         *     ignoring their treatment when in fact there was no expectation to meet.
+         */
+        AdherenceRead: {
+            /** Expected Doses */
+            expected_doses: number | null;
+            frequency: components["schemas"]["DoseFrequency"] | null;
+            /** Generic Name */
+            generic_name: string;
+            /** Medication Code */
+            medication_code: string;
+            /**
+             * Medication Id
+             * Format: uuid
+             */
+            medication_id: string;
+            /** Percentage */
+            percentage: number | null;
+            /** Skipped Doses */
+            skipped_doses: number;
+            /** Taken Doses */
+            taken_doses: number;
+            /**
+             * Window End
+             * Format: date
+             */
+            window_end: string;
+            /**
+             * Window Start
+             * Format: date
+             */
+            window_start: string;
+        };
+        /** AdherenceSummary */
+        AdherenceSummary: {
+            /** Medications */
+            medications: components["schemas"]["AdherenceRead"][];
+            /**
+             * Window End
+             * Format: date
+             */
+            window_end: string;
+            /**
+             * Window Start
+             * Format: date
+             */
+            window_start: string;
+        };
+        /**
          * ConsentAcceptance
          * @description The three documents required to hold an account.
          *
@@ -355,6 +566,62 @@ export interface components {
          * @enum {string}
          */
         CopingAction: "drank_liquid" | "extra_chewing" | "spit_out" | "left_table" | "induced_vomit" | "er_visit";
+        /** DoseCreate */
+        DoseCreate: {
+            /** @default taken */
+            status: components["schemas"]["DoseStatus"];
+            /** Taken At */
+            taken_at?: string | null;
+        };
+        /**
+         * DoseFrequency
+         * @description The regimens EoE treatment actually uses.
+         *
+         *     AS_NEEDED is not a frequency but the absence of one, and is handled as such:
+         *     there is no expected-dose count, so adherence is reported as unknown rather
+         *     than invented.
+         * @enum {string}
+         */
+        DoseFrequency: "once_daily" | "twice_daily" | "three_times_daily" | "every_other_day" | "weekly" | "every_two_weeks" | "every_four_weeks" | "as_needed";
+        /** DoseRead */
+        DoseRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Medication Id
+             * Format: uuid
+             */
+            medication_id: string;
+            status: components["schemas"]["DoseStatus"];
+            /**
+             * Taken At
+             * Format: date-time
+             */
+            taken_at: string;
+        };
+        /**
+         * DoseStatus
+         * @description Skipped is recorded, not inferred from absence.
+         *
+         *     An absent dose is ambiguous — it may mean skipped, or it may mean the patient
+         *     did not open the app. A deliberate skip is information, and the difference
+         *     matters when a clinician is deciding whether a treatment failed or was never
+         *     really taken.
+         * @enum {string}
+         */
+        DoseStatus: "taken" | "skipped" | "delayed";
+        /**
+         * DrugClass
+         * @description The classes actually used in EoE, not a general drug taxonomy.
+         *
+         *     Kept coarse deliberately: the report groups by class, and research asks
+         *     "were they on a topical steroid" rather than which brand.
+         * @enum {string}
+         */
+        DrugClass: "ppi" | "swallowed_topical_corticosteroid" | "biologic" | "other";
         /**
          * DysphagiaSeverity
          * @description Graded by what the patient had to do about it, not by a 1-10 feeling.
@@ -407,6 +674,126 @@ export interface components {
         MagicLinkVerify: {
             /** Token */
             token: string;
+        };
+        /** MedicationCatalogItem */
+        MedicationCatalogItem: {
+            /** Also Known As */
+            also_known_as: string | null;
+            /** Code */
+            code: string;
+            /** Default Route */
+            default_route: string | null;
+            /** Default Unit */
+            default_unit: string | null;
+            drug_class: components["schemas"]["DrugClass"];
+            /** Generic Name */
+            generic_name: string;
+        };
+        /** MedicationCreate */
+        MedicationCreate: {
+            /** Dose Amount */
+            dose_amount?: number | string | null;
+            /** Dose Unit */
+            dose_unit?: string | null;
+            frequency: components["schemas"]["DoseFrequency"];
+            /** Medication Code */
+            medication_code: string;
+            /** Prescriber Note */
+            prescriber_note?: string | null;
+            /**
+             * Started On
+             * Format: date
+             */
+            started_on: string;
+        };
+        /** MedicationRead */
+        MedicationRead: {
+            /** Dose Amount */
+            dose_amount: string | null;
+            /** Dose Unit */
+            dose_unit: string | null;
+            drug_class: components["schemas"]["DrugClass"];
+            /** Ended On */
+            ended_on: string | null;
+            frequency: components["schemas"]["DoseFrequency"] | null;
+            /** Generic Name */
+            generic_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Medication Code */
+            medication_code: string;
+            /** Prescriber Note */
+            prescriber_note: string | null;
+            /**
+             * Started On
+             * Format: date
+             */
+            started_on: string;
+            stop_reason: components["schemas"]["MedicationStopReason"] | null;
+        };
+        /**
+         * MedicationStop
+         * @description Stopping records both when and why.
+         *
+         *     The reason is required rather than optional, because "stopped because it did
+         *     not work" and "stopped because insurance refused it" lead a clinician to
+         *     opposite next steps, and an unexplained end date loses that distinction
+         *     permanently.
+         */
+        MedicationStop: {
+            /**
+             * Ended On
+             * Format: date
+             */
+            ended_on: string;
+            stop_reason: components["schemas"]["MedicationStopReason"];
+        };
+        /**
+         * MedicationStopReason
+         * @description Why a medication ended.
+         *
+         *     Clinically the most informative field on the table: "stopped because it did
+         *     not work" and "stopped because insurance refused it" lead to opposite next
+         *     steps, and patients rarely remember which by the next appointment.
+         * @enum {string}
+         */
+        MedicationStopReason: "remission" | "ineffective" | "side_effects" | "cost" | "insurance" | "provider_directed" | "other";
+        /** MedicationToday */
+        MedicationToday: {
+            /** Items */
+            items: components["schemas"]["MedicationTodayItem"][];
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+        };
+        /**
+         * MedicationTodayItem
+         * @description One active medication, as the daily log needs to show it.
+         */
+        MedicationTodayItem: {
+            /** Dose Label */
+            dose_label: string | null;
+            /** Doses Today */
+            doses_today: components["schemas"]["DoseRead"][];
+            /** Expected Today */
+            expected_today: number | null;
+            frequency: components["schemas"]["DoseFrequency"] | null;
+            /** Generic Name */
+            generic_name: string;
+            /** Medication Code */
+            medication_code: string;
+            /**
+             * Medication Id
+             * Format: uuid
+             */
+            medication_id: string;
         };
         /** OnboardingRequest */
         OnboardingRequest: {
@@ -844,6 +1231,262 @@ export interface operations {
             };
         };
     };
+    list_medications_api_v1_me_medications_get: {
+        parameters: {
+            query?: {
+                include_ended?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MedicationRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_medication_api_v1_me_medications_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MedicationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MedicationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_adherence_api_v1_me_medications_adherence_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+                include_ended?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdherenceSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_dose_api_v1_me_medications_doses__dose_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dose_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    medications_today_api_v1_me_medications_today_get: {
+        parameters: {
+            query?: {
+                on?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MedicationToday"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_medication_api_v1_me_medications__medication_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                medication_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    log_dose_api_v1_me_medications__medication_id__doses_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                medication_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DoseCreate"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DoseRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stop_medication_api_v1_me_medications__medication_id__stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                medication_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MedicationStop"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MedicationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     complete_onboarding_api_v1_me_onboarding_post: {
         parameters: {
             query?: never;
@@ -1116,6 +1759,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_catalog_api_v1_medications_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MedicationCatalogItem"][];
                 };
             };
         };

@@ -20,6 +20,9 @@ dependencies = [
     "structlog>=24.4",
     "aiosmtplib>=3.0",
     "slowapi>=0.1.9",
+    # RRULE expansion for the adherence denominator. types-python-dateutil was
+    # already in dev deps in anticipation of this.
+    "python-dateutil>=2.9",
 ]
 
 [project.optional-dependencies]

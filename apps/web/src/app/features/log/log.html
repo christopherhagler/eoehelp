@@ -147,6 +147,21 @@
         </mat-card>
       }
 
+      <!-- Medications, on the same screen rather than behind a separate flow.
+           This is the other thing a patient does every day, and separating it is
+           how adherence data stops being collected. Shown only for today, since a
+           dose logged against a past day is guesswork. -->
+      @if (!isBackfill()) {
+        <mat-card appearance="outlined">
+          <mat-card-content class="!p-6">
+            <h2 class="m-0 text-lg font-semibold tracking-tight">Today's medication</h2>
+            <div class="mt-4">
+              <app-dose-log />
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
+
       <!-- Behavioural adaptation. Collapsed, because it is the part patients
            skip on an ordinary day and the log has to stay short. -->
       @if (ateSolidFood() !== null) {

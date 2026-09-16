@@ -1,0 +1,294 @@
+<section class="mx-auto max-w-3xl px-6 py-10 sm:py-14">
+  <header class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="m-0 text-sm font-semibold uppercase tracking-[0.12em] text-brand">
+        Treatment
+      </p>
+      <h1 class="m-0 mt-1 text-3xl font-semibold tracking-tight">Medications</h1>
+    </div>
+    @if (!showForm()) {
+      <button mat-flat-button type="button" class="!min-h-tap" (click)="showForm.set(true)">
+        <mat-icon>add</mat-icon>
+        Add a medication
+      </button>
+    }
+  </header>
+
+  @if (error()) {
+    <div
+      role="alert"
+      class="mt-6 flex items-start gap-2 rounded-lg border border-danger/40
+             bg-danger/10 px-4 py-3 text-sm text-danger"
+    >
+      <mat-icon class="!size-5 shrink-0 !text-xl">error</mat-icon>
+      <span>{{ error() }}</span>
+    </div>
+  }
+
+  @if (showForm()) {
+    <mat-card appearance="outlined" class="mt-7">
+      <mat-card-content class="!p-6">
+        <h2 class="m-0 text-lg font-semibold tracking-tight">Add a medication</h2>
+        <form class="mt-5 grid gap-4 sm:grid-cols-2" (ngSubmit)="add()" novalidate>
+          <mat-form-field appearance="outline" class="sm:col-span-2">
+            <mat-label>Which medication?</mat-label>
+            <mat-select
+              name="medicationCode"
+              required
+              [(ngModel)]="medicationCode"
+              (selectionChange)="onMedicationChosen()"
+            >
+              @for (entry of catalog(); track entry.code) {
+                <mat-option [value]="entry.code">
+                  {{ entry.generic_name }}
+                  @if (entry.also_known_as) {
+                    <span class="text-on-surface-variant">— {{ entry.also_known_as }}</span>
+                  }
+                </mat-option>
+              }
+            </mat-select>
+            <mat-hint>Brand names are listed alongside the generic name.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Dose</mat-label>
+            <input
+              matInput
+              name="doseAmount"
+              type="number"
+              inputmode="decimal"
+              min="0"
+              step="0.01"
+              [(ngModel)]="doseAmount"
+            />
+            <span matTextSuffix>{{ doseUnit }}</span>
+            <mat-hint>Optional.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>How often?</mat-label>
+            <mat-select name="frequency" required [(ngModel)]="frequency">
+              @for (option of frequencies; track option[0]) {
+                <mat-option [value]="option[0]">{{ option[1] }}</mat-option>
+              }
+            </mat-select>
+            <!-- This is the adherence denominator: without it a fortnightly
+                 injection and a twice-daily pill look identical. -->
+            <mat-hint>Used to work out how many doses to expect.</mat-hint>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>When did you start?</mat-label>
+            <input
+              matInput
+              name="startedOn"
+              type="date"
+              required
+              [max]="today"
+              [(ngModel)]="startedOn"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="sm:col-span-2">
+            <mat-label>Note from your prescriber</mat-label>
+            <input matInput name="prescriberNote" maxlength="2000" [(ngModel)]="prescriberNote" />
+            <mat-hint>Optional, encrypted, and never included in research data.</mat-hint>
+          </mat-form-field>
+
+          <div class="flex gap-3 sm:col-span-2">
+            <button
+              mat-flat-button
+              type="submit"
+              class="!min-h-tap !px-6"
+              [disabled]="!canAdd() || saving()"
+            >
+              @if (saving()) {
+                <mat-spinner diameter="20" />
+                Adding…
+              } @else {
+                Add it
+              }
+            </button>
+            <button mat-button type="button" class="!min-h-tap" (click)="showForm.set(false)">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-center py-20"><mat-spinner diameter="36" /></div>
+  } @else {
+    <h2 class="mb-4 mt-9 text-base font-semibold tracking-tight">
+      Currently taking
+      @if (active().length === 0) {
+        <span class="font-normal text-on-surface-variant">— nothing recorded</span>
+      }
+    </h2>
+
+    <div class="flex flex-col gap-4">
+      @for (medication of active(); track medication.id) {
+        <mat-card appearance="outlined">
+          <mat-card-content class="!p-6">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div class="min-w-0">
+                <h3 class="m-0 text-lg font-semibold tracking-tight">
+                  {{ medication.generic_name }}
+                  @if (medication.dose_amount) {
+                    <span class="font-normal text-on-surface-variant">
+                      · {{ medication.dose_amount }} {{ medication.dose_unit }}
+                    </span>
+                  }
+                </h3>
+                <p class="m-0 mt-1 text-sm text-on-surface-variant">
+                  {{ frequencyLabel(medication.frequency) }} · started
+                  {{ medication.started_on }}
+                </p>
+                @if (medication.prescriber_note) {
+                  <p class="m-0 mt-2 text-sm italic text-on-surface-variant">
+                    “{{ medication.prescriber_note }}”
+                  </p>
+                }
+              </div>
+
+              @if (stopping() !== medication.id) {
+                <div class="flex shrink-0 gap-2">
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    class="!min-h-tap"
+                    (click)="beginStop(medication)"
+                  >
+                    Stop
+                  </button>
+                  <button
+                    mat-button
+                    type="button"
+                    class="!min-h-tap"
+                    (click)="remove(medication)"
+                  >
+                    Remove
+                  </button>
+                </div>
+              }
+            </div>
+
+            <!-- Adherence, or an explicit admission that it cannot be measured. -->
+            @if (adherenceFor(medication.id); as adherence) {
+              <div class="mt-5 border-t border-outline-variant pt-4">
+                @if (adherence.percentage !== null) {
+                  <p class="m-0 flex items-baseline gap-2 text-sm">
+                    <span class="text-xl font-semibold tabular-nums">
+                      {{ adherence.percentage }}%
+                    </span>
+                    <span class="text-on-surface-variant">
+                      of the {{ adherence.expected_doses }} doses expected in the last 30 days
+                    </span>
+                  </p>
+                  <mat-progress-bar
+                    class="mt-3 !rounded-full"
+                    mode="determinate"
+                    [value]="adherence.percentage"
+                    [attr.aria-label]="
+                      'Adherence ' + adherence.percentage + ' percent over the last 30 days'
+                    "
+                  />
+                  <p class="m-0 mt-2 text-xs text-on-surface-variant">
+                    {{ adherence.taken_doses }} logged
+                    @if (adherence.skipped_doses > 0) {
+                      · {{ adherence.skipped_doses }} deliberately skipped
+                    }
+                  </p>
+                } @else {
+                  <p class="m-0 text-sm text-on-surface-variant">
+                    Taken as needed, so there is no expected number to measure against.
+                    {{ adherence.taken_doses }} logged in the last 30 days.
+                  </p>
+                }
+              </div>
+            }
+
+            @if (stopping() === medication.id) {
+              <div class="mt-5 border-t border-outline-variant pt-5">
+                <h4 class="m-0 text-base font-semibold">Stop {{ medication.generic_name }}</h4>
+                <p class="mt-1 text-sm text-on-surface-variant">
+                  Why it stopped matters as much as when: "it did not work" and
+                  "insurance refused it" lead your doctor to different next steps.
+                </p>
+                <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Last day you took it</mat-label>
+                    <input
+                      matInput
+                      name="endedOn"
+                      type="date"
+                      [max]="today"
+                      [(ngModel)]="endedOn"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Why?</mat-label>
+                    <mat-select name="stopReason" [(ngModel)]="stopReason">
+                      @for (option of stopReasons; track option[0]) {
+                        <mat-option [value]="option[0]">{{ option[1] }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                <div class="mt-2 flex gap-3">
+                  <button
+                    mat-flat-button
+                    type="button"
+                    class="!min-h-tap"
+                    [disabled]="stopReason === '' || saving()"
+                    (click)="confirmStop(medication)"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    mat-button
+                    type="button"
+                    class="!min-h-tap"
+                    (click)="stopping.set(null)"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+
+    @if (past().length > 0) {
+      <h2 class="mb-4 mt-10 text-base font-semibold tracking-tight">Previously taken</h2>
+      <p class="mb-4 text-sm leading-relaxed text-on-surface-variant">
+        Kept rather than deleted: what was tried and why it stopped is the part of
+        your history a new gastroenterologist most needs.
+      </p>
+      <div class="flex flex-col gap-3">
+        @for (medication of past(); track medication.id) {
+          <mat-card appearance="outlined">
+            <mat-card-content class="!p-5">
+              <p class="m-0 font-medium">
+                {{ medication.generic_name }}
+                @if (medication.dose_amount) {
+                  <span class="font-normal text-on-surface-variant">
+                    · {{ medication.dose_amount }} {{ medication.dose_unit }}
+                  </span>
+                }
+              </p>
+              <p class="m-0 mt-1 text-sm text-on-surface-variant">
+                {{ medication.started_on }} to {{ medication.ended_on }} ·
+                {{ stopReasonLabel(medication.stop_reason) }}
+              </p>
+            </mat-card-content>
+          </mat-card>
+        }
+      </div>
+    }
+  }
+</section>

@@ -78,6 +78,23 @@ async def two_patients(session) -> tuple[uuid.UUID, uuid.UUID]:
             ),
             {"pid": patient_id},
         )
+        medication_id = (
+            await session.execute(
+                text(
+                    "INSERT INTO medications "
+                    "(patient_id, medication_code, started_on) "
+                    "VALUES (:pid, 'omeprazole', CURRENT_DATE) RETURNING id"
+                ),
+                {"pid": patient_id},
+            )
+        ).scalar_one()
+        await session.execute(
+            text(
+                "INSERT INTO medication_doses (patient_id, medication_id, taken_at, status) "
+                "VALUES (:pid, :mid, now(), 'taken')"
+            ),
+            {"pid": patient_id, "mid": medication_id},
+        )
         ids.append(patient_id)
     await session.commit()
     return ids[0], ids[1]
@@ -123,6 +140,8 @@ class TestRowLevelSecurity:
         assert await _scoped_rows(app_role_engine, None, "patients") == 0
         assert await _scoped_rows(app_role_engine, None, "consents") == 0
         assert await _scoped_rows(app_role_engine, None, "symptom_entries") == 0
+        assert await _scoped_rows(app_role_engine, None, "medications") == 0
+        assert await _scoped_rows(app_role_engine, None, "medication_doses") == 0
 
     async def test_scope_limits_results_to_one_patient(self, app_role_engine, two_patients) -> None:
         alice, bob = two_patients
@@ -131,6 +150,9 @@ class TestRowLevelSecurity:
         assert await _scoped_rows(app_role_engine, alice, "consents") == 1
         assert await _scoped_rows(app_role_engine, alice, "symptom_entries") == 1
         assert await _scoped_rows(app_role_engine, bob, "symptom_entries") == 1
+        assert await _scoped_rows(app_role_engine, alice, "medications") == 1
+        assert await _scoped_rows(app_role_engine, alice, "medication_doses") == 1
+        assert await _scoped_rows(app_role_engine, bob, "medications") == 1
 
     async def test_one_patient_cannot_read_another_by_id(
         self, app_role_engine, two_patients

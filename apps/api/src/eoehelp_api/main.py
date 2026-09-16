@@ -15,7 +15,7 @@ from eoehelp_api.config import get_settings
 from eoehelp_api.core.deps import API_V1_PREFIX
 from eoehelp_api.db.session import dispose_engine
 from eoehelp_api.observability import configure_logging, get_logger
-from eoehelp_api.routers import auth, health, me, symptoms
+from eoehelp_api.routers import auth, health, me, medications, symptoms
 
 logger = get_logger(__name__)
 
@@ -110,6 +110,8 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router, prefix=API_V1_PREFIX)
     app.include_router(me.router, prefix=API_V1_PREFIX)
+    app.include_router(medications.catalog_router, prefix=API_V1_PREFIX)
+    app.include_router(medications.router, prefix=API_V1_PREFIX)
     app.include_router(symptoms.router, prefix=API_V1_PREFIX)
 
     return app

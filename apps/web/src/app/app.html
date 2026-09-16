@@ -34,6 +34,10 @@
             <mat-icon>edit_note</mat-icon>
             Log
           </a>
+          <a mat-button routerLink="/medications" routerLinkActive="!text-brand">
+            <mat-icon>medication</mat-icon>
+            Medications
+          </a>
           <button mat-button type="button" (click)="signOut()">Sign out</button>
         } @else if (!auth.isRestoring()) {
           <a mat-flat-button routerLink="/sign-in">Sign in</a>

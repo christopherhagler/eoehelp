@@ -14,6 +14,7 @@ import { FormsModule } from '@angular/forms';
 
 import { CopingAction, DysphagiaSeverity, SymptomEntryInput } from '../../core/api-types';
 import { addDays, formatDayLabel, todayIso } from '../../core/dates';
+import { DoseLog } from '../../shared/dose-log';
 import { SymptomService } from '../../core/symptom.service';
 
 interface SeverityChoice {
@@ -30,6 +31,7 @@ interface CopingChoice {
 @Component({
   selector: 'app-log',
   imports: [
+    DoseLog,
     FormsModule,
     RouterLink,
     MatButtonModule,

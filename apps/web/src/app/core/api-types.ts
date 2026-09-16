@@ -24,6 +24,21 @@ export type PatientProfile = Schemas['PatientProfile'];
 export type PatientProfileUpdate = Schemas['PatientProfileUpdate'];
 export type SexAtBirth = Schemas['SexAtBirth'];
 
+export type MedicationCatalogItem = Schemas['MedicationCatalogItem'];
+export type MedicationCreate = Schemas['MedicationCreate'];
+export type MedicationRead = Schemas['MedicationRead'];
+export type MedicationStop = Schemas['MedicationStop'];
+export type MedicationToday = Schemas['MedicationToday'];
+export type MedicationTodayItem = Schemas['MedicationTodayItem'];
+export type DoseCreate = Schemas['DoseCreate'];
+export type DoseRead = Schemas['DoseRead'];
+export type DoseStatus = Schemas['DoseStatus'];
+export type DoseFrequency = Schemas['DoseFrequency'];
+export type DrugClass = Schemas['DrugClass'];
+export type MedicationStopReason = Schemas['MedicationStopReason'];
+export type AdherenceRead = Schemas['AdherenceRead'];
+export type AdherenceSummary = Schemas['AdherenceSummary'];
+
 export type SymptomEntryInput = Schemas['SymptomEntryInput'];
 export type SymptomEntryRead = Schemas['SymptomEntryRead'];
 export type SymptomEntryList = Schemas['SymptomEntryList'];
