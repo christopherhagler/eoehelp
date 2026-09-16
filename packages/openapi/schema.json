@@ -2415,6 +2415,32 @@
         ]
       }
     },
+    "/api/v1/reference/timezones": {
+      "get": {
+        "description": "Every IANA zone this server will accept, sorted.\n\nAuthenticated, like the medication catalog: it discloses nothing about the\nreader, but there is no reason to serve it to anyone who is not signed in.",
+        "operationId": "list_timezones_api_v1_reference_timezones_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response List Timezones Api V1 Reference Timezones Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Timezones",
+        "tags": [
+          "reference"
+        ]
+      }
+    },
     "/healthz": {
       "get": {
         "description": "Liveness only. Deliberately does not touch the database: the load balancer\nshould not cycle healthy application containers because Postgres is briefly\nunreachable.",

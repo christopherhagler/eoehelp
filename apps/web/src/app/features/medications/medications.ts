@@ -9,6 +9,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 
+import { describeApiError } from '../../core/api-errors';
 import {
   AdherenceRead,
   DoseFrequency,
@@ -124,8 +125,10 @@ export class Medications {
       this.resetForm();
       this.showForm.set(false);
       await this.load();
-    } catch {
-      this.error.set('We could not add that. Check the dates and try again.');
+    } catch (failure: unknown) {
+      this.error.set(
+        describeApiError(failure, 'We could not add that. Check the dates and try again.'),
+      );
     } finally {
       this.saving.set(false);
     }
@@ -157,8 +160,10 @@ export class Medications {
       });
       this.stopping.set(null);
       await this.load();
-    } catch {
-      this.error.set('We could not stop that. Check the end date and try again.');
+    } catch (failure: unknown) {
+      this.error.set(
+        describeApiError(failure, 'We could not stop that. Check the end date and try again.'),
+      );
     } finally {
       this.saving.set(false);
     }
@@ -173,9 +178,12 @@ export class Medications {
     try {
       await this.medications.remove(medication.id);
       await this.load();
-    } catch {
+    } catch (failure: unknown) {
       this.error.set(
-        'Doses have been logged against this, so it is part of your history. Stop it instead.',
+        describeApiError(
+          failure,
+          'Doses have been logged against this, so it is part of your history. Stop it instead.',
+        ),
       );
     }
   }

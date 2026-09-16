@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -15,7 +16,7 @@ from eoehelp_api.config import get_settings
 from eoehelp_api.core.deps import API_V1_PREFIX
 from eoehelp_api.db.session import dispose_engine
 from eoehelp_api.observability import configure_logging, get_logger
-from eoehelp_api.routers import auth, health, me, medications, symptoms
+from eoehelp_api.routers import auth, health, me, medications, reference, symptoms
 
 logger = get_logger(__name__)
 
@@ -96,6 +97,39 @@ def create_app() -> FastAPI:
             )
         return response
 
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        """Log which fields failed validation, never what was in them.
+
+        Without this a 422 leaves no server-side trace of the cause, and the only
+        way to find out is to reproduce it by hand — which is exactly how a
+        misbehaving client field goes undiagnosed. Field *locations* are safe to
+        log; the submitted values are PHI and stay out, which is why `input` is
+        dropped from the response body too.
+        """
+        fields = [".".join(str(part) for part in error["loc"]) for error in exc.errors()]
+        logger.warning(
+            "http.validation_failed",
+            path=request.scope.get("route").path  # type: ignore[union-attr]
+            if request.scope.get("route")
+            else request.url.path,
+            fields=fields,
+            error_types=[error["type"] for error in exc.errors()],
+        )
+        return JSONResponse(
+            status_code=422,
+            content={
+                "detail": [
+                    {
+                        "loc": list(error["loc"]),
+                        "msg": error["msg"],
+                        "type": error["type"],
+                    }
+                    for error in exc.errors()
+                ]
+            },
+        )
+
     @app.exception_handler(Exception)
     async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
         # Log the type but never the message: exception text on this codebase can
@@ -110,6 +144,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(auth.router, prefix=API_V1_PREFIX)
     app.include_router(me.router, prefix=API_V1_PREFIX)
+    app.include_router(reference.router, prefix=API_V1_PREFIX)
     app.include_router(medications.catalog_router, prefix=API_V1_PREFIX)
     app.include_router(medications.router, prefix=API_V1_PREFIX)
     app.include_router(symptoms.router, prefix=API_V1_PREFIX)

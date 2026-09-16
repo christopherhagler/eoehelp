@@ -23,6 +23,11 @@ dependencies = [
     # RRULE expansion for the adherence denominator. types-python-dateutil was
     # already in dev deps in anticipation of this.
     "python-dateutil>=2.9",
+    # Declared rather than relying on the base image shipping /usr/share/zoneinfo.
+    # The patient's timezone decides which day an entry belongs to, so a slimmer
+    # base layer silently breaking zone lookups would corrupt data rather than
+    # fail loudly.
+    "tzdata>=2025.1",
 ]
 
 [project.optional-dependencies]

@@ -10,10 +10,13 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { Router } from '@angular/router';
 
+import { describeApiError } from '../../core/api-errors';
 import { SexAtBirth } from '../../core/api-types';
 import { detectTimezone } from '../../core/dates';
 import { PatientService } from '../../core/patient.service';
+import { ReferenceService } from '../../core/reference.service';
 import { Logo } from '../../shared/logo';
+import { MonthPicker } from '../../shared/month-picker';
 
 const MINIMUM_AGE = 18;
 
@@ -22,6 +25,7 @@ const MINIMUM_AGE = 18;
   imports: [
     FormsModule,
     Logo,
+    MonthPicker,
     MatButtonModule,
     MatCardModule,
     MatCheckboxModule,
@@ -35,6 +39,7 @@ const MINIMUM_AGE = 18;
 })
 export class Welcome {
   private readonly patients = inject(PatientService);
+  private readonly reference = inject(ReferenceService);
   private readonly router = inject(Router);
 
   protected readonly sexOptions: readonly { value: SexAtBirth; label: string }[] = [
@@ -44,17 +49,21 @@ export class Welcome {
     { value: 'undisclosed', label: 'Prefer not to say' },
   ];
 
-  protected readonly timezones = Intl.supportedValuesOf('timeZone');
+  // Populated from the API, so every option is one the server accepts. The
+  // browser's own list can contain zones the server's tz database lacks, and
+  // offering one of those is a dead end on this form.
+  protected readonly timezones = signal<string[]>([]);
   protected readonly currentYear = new Date().getFullYear();
   protected readonly minimumAge = MINIMUM_AGE;
 
   protected displayName = '';
   protected birthYear: number | null = null;
   protected sexAtBirth: SexAtBirth | null = null;
-  // An <input type="month"> gives "2021-03"; the API stores the first of the
-  // month, because EoE diagnosis dates are remembered as "around March" and
-  // day precision would be invented.
-  protected diagnosisMonth = '';
+  // Already an ISO date on the first of the month, produced by MonthPicker. The
+  // previous version concatenated an <input type="month"> value with "-01",
+  // which Firefox and desktop Safari turned into a malformed date because
+  // neither implements that input type.
+  protected diagnosisMonth: string | null = null;
   protected timezone = detectTimezone();
 
   protected acceptedTerms = false;
@@ -64,6 +73,26 @@ export class Welcome {
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly showTimezonePicker = signal(false);
+
+  constructor() {
+    void this.loadTimezones();
+  }
+
+  private async loadTimezones(): Promise<void> {
+    try {
+      const zones = await this.reference.timezones();
+      this.timezones.set(zones);
+      // Keep the detected zone only if the server recognises it; otherwise make
+      // the patient choose rather than submitting something that will be refused.
+      if (!zones.includes(this.timezone)) {
+        this.timezone = zones.includes('UTC') ? 'UTC' : (zones[0] ?? 'UTC');
+        this.showTimezonePicker.set(true);
+      }
+    } catch {
+      // Not fatal: the detected zone is usually right, and the server validates.
+      this.timezones.set([this.timezone]);
+    }
+  }
 
   protected canSubmit(): boolean {
     return (
@@ -84,7 +113,7 @@ export class Welcome {
         display_name: this.displayName.trim() || null,
         birth_year: this.birthYear,
         sex_at_birth: this.sexAtBirth,
-        diagnosis_month: this.diagnosisMonth ? `${this.diagnosisMonth}-01` : null,
+        diagnosis_month: this.diagnosisMonth,
         timezone: this.timezone,
         consents: {
           terms_of_service: this.acceptedTerms,
@@ -93,8 +122,13 @@ export class Welcome {
         },
       });
       void this.router.navigate(['/today']);
-    } catch {
-      this.error.set('We could not create your record. Please try again.');
+    } catch (failure: unknown) {
+      // Pass the API's own field-level message through. The first version showed
+      // a generic line here, which left a patient stuck on the form with no idea
+      // which answer was the problem.
+      this.error.set(
+        describeApiError(failure, 'We could not create your record. Please try again.'),
+      );
     } finally {
       this.saving.set(false);
     }

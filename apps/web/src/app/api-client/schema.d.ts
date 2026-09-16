@@ -406,6 +406,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reference/timezones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Timezones
+         * @description Every IANA zone this server will accept, sorted.
+         *
+         *     Authenticated, like the medication catalog: it discloses nothing about the
+         *     reader, but there is no reason to serve it to anyone who is not signed in.
+         */
+        get: operations["list_timezones_api_v1_reference_timezones_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -1779,6 +1802,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MedicationCatalogItem"][];
+                };
+            };
+        };
+    };
+    list_timezones_api_v1_reference_timezones_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
                 };
             };
         };

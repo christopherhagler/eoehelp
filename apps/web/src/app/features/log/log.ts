@@ -12,6 +12,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
+import { describeApiError } from '../../core/api-errors';
 import { CopingAction, DysphagiaSeverity, SymptomEntryInput } from '../../core/api-types';
 import { addDays, formatDayLabel, todayIso } from '../../core/dates';
 import { DoseLog } from '../../shared/dose-log';
@@ -230,8 +231,10 @@ export class Log {
       await this.symptoms.save(this.entryDate(), this.buildEntry());
       this.snackBar.open(`${this.dayLabel()} saved.`, undefined, { duration: 2500 });
       void this.router.navigate(['/today']);
-    } catch {
-      this.error.set('That did not save. Your answers are still here — try again.');
+    } catch (failure: unknown) {
+      this.error.set(
+        describeApiError(failure, 'That did not save. Your answers are still here — try again.'),
+      );
     } finally {
       this.saving.set(false);
     }
