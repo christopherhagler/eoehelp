@@ -6,16 +6,19 @@ autogenerate reads. A model not imported here is silently invisible to migration
 
 from eoehelp_api.models.audit import AuditLog
 from eoehelp_api.models.auth import MagicLinkToken, RefreshToken
+from eoehelp_api.models.clinical import ClinicalInstrument, SymptomEntry
 from eoehelp_api.models.consent import Consent, ResearchConsentScope
 from eoehelp_api.models.patient import Patient
 from eoehelp_api.models.user import User
 
 __all__ = [
     "AuditLog",
+    "ClinicalInstrument",
     "Consent",
     "MagicLinkToken",
     "Patient",
     "RefreshToken",
     "ResearchConsentScope",
+    "SymptomEntry",
     "User",
 ]

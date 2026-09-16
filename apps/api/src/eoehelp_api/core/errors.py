@@ -22,6 +22,13 @@ class NotFoundError(AppError):
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
 
+class BadRequestError(AppError):
+    """A request the client can correct, described without disclosing anything."""
+
+    def __init__(self, detail: str = "That request could not be processed.") -> None:
+        super().__init__(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+
+
 class UnauthenticatedError(AppError):
     def __init__(self, detail: str = "Not authenticated") -> None:
         super().__init__(

@@ -1,6 +1,8 @@
 import asyncio
 import os
-from collections.abc import AsyncIterator
+import re
+from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -8,6 +10,8 @@ from alembic import command
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from helpers import DEFAULT_ONBOARDING
 
 TEST_DB_NAME = "eoehelp_test"
 
@@ -106,8 +110,12 @@ async def clean_tables(_database: None) -> AsyncIterator[None]:
     engine = create_async_engine(_test_url())
     async with engine.begin() as conn:
         await conn.exec_driver_sql(
+            # clinical_instruments is deliberately absent: it is reference data
+            # seeded by the migration, and truncating it would break the foreign
+            # key every symptom entry depends on.
             "TRUNCATE users, patients, consents, research_consent_scopes, "
-            "magic_link_tokens, refresh_tokens, audit_log RESTART IDENTITY CASCADE"
+            "magic_link_tokens, refresh_tokens, symptom_entries, audit_log "
+            "RESTART IDENTITY CASCADE"
         )
     await engine.dispose()
     yield
@@ -152,3 +160,64 @@ async def client(clean_tables: None) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
         yield async_client
+
+
+# --- authenticated-patient helpers -------------------------------------------
+#
+# Reaching any clinical endpoint takes a magic link, a verification, and
+# onboarding. These fixtures compress that into one call so a test about symptom
+# entries reads as a test about symptom entries.
+
+MAGIC_LINK_TOKEN_RE = re.compile(r"token=([A-Za-z0-9_-]+)")
+
+
+@pytest.fixture
+def sign_in(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> Callable[..., Awaitable[str]]:
+    """Sign a fresh account in, returning its access token."""
+
+    captured: list[str] = []
+
+    async def fake_send(_self: object, *, to: str, link: str, ttl_minutes: int) -> None:
+        captured.append(link)
+
+    monkeypatch.setattr("eoehelp_api.services.email.EmailSender.send_magic_link", fake_send)
+
+    async def _sign_in(email: str = "patient@example.com") -> str:
+        requested = await client.post("/api/v1/auth/magic-link", json={"email": email})
+        assert requested.status_code == 202
+        match = MAGIC_LINK_TOKEN_RE.search(captured[-1])
+        assert match is not None
+        verified = await client.post(
+            "/api/v1/auth/magic-link/verify", json={"token": match.group(1)}
+        )
+        assert verified.status_code == 200
+        return str(verified.json()["access_token"])
+
+    return _sign_in
+
+
+@pytest.fixture
+def onboard(
+    client: AsyncClient, sign_in: Callable[..., Awaitable[str]]
+) -> Callable[..., Awaitable[tuple[str, dict[str, Any]]]]:
+    """Sign in and complete onboarding, returning (access token, patient).
+
+    The token onboarding returns is the one to use: the pre-onboarding token has
+    no patient id in it, so every patient-scoped route rejects it.
+    """
+
+    async def _onboard(
+        email: str = "patient@example.com", **overrides: object
+    ) -> tuple[str, dict[str, Any]]:
+        access = await sign_in(email)
+        payload = {**DEFAULT_ONBOARDING, **overrides}
+        response = await client.post(
+            "/api/v1/me/onboarding",
+            json=payload,
+            headers={"Authorization": f"Bearer {access}"},
+        )
+        assert response.status_code == 201, response.text
+        body = response.json()
+        return str(body["access_token"]), dict(body["patient"])
+
+    return _onboard

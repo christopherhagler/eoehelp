@@ -26,6 +26,93 @@
         "title": "AccessTokenResponse",
         "type": "object"
       },
+      "ConsentAcceptance": {
+        "additionalProperties": false,
+        "description": "The three documents required to hold an account.\n\nThree separate booleans rather than one \"I agree\": Washington's My Health My\nData Act requires specific consent to the consumer health data disclosure,\nand a single checkbox covering everything is exactly what it prohibits.\nResearch participation is deliberately not here \u2014 it is a separate decision,\nmade later, and never a condition of using the product.",
+        "properties": {
+          "consumer_health_data": {
+            "title": "Consumer Health Data",
+            "type": "boolean"
+          },
+          "privacy_policy": {
+            "title": "Privacy Policy",
+            "type": "boolean"
+          },
+          "terms_of_service": {
+            "title": "Terms Of Service",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "terms_of_service",
+          "privacy_policy",
+          "consumer_health_data"
+        ],
+        "title": "ConsentAcceptance",
+        "type": "object"
+      },
+      "ConsentRecord": {
+        "properties": {
+          "consent_type": {
+            "title": "Consent Type",
+            "type": "string"
+          },
+          "document_version": {
+            "title": "Document Version",
+            "type": "string"
+          },
+          "granted": {
+            "title": "Granted",
+            "type": "boolean"
+          },
+          "granted_at": {
+            "format": "date-time",
+            "title": "Granted At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "consent_type",
+          "document_version",
+          "granted",
+          "granted_at"
+        ],
+        "title": "ConsentRecord",
+        "type": "object"
+      },
+      "CopingAction": {
+        "description": "What the patient did when food stuck.\n\nRecorded because it is the clearest signal of severity a patient can report\nreliably, and because the behavioural adaptations are what a\ngastroenterologist asks about and patients forget by the appointment.",
+        "enum": [
+          "drank_liquid",
+          "extra_chewing",
+          "spit_out",
+          "left_table",
+          "induced_vomit",
+          "er_visit"
+        ],
+        "title": "CopingAction",
+        "type": "string"
+      },
+      "DysphagiaSeverity": {
+        "description": "Graded by what the patient had to do about it, not by a 1-10 feeling.\n\nA self-reported intensity number is not comparable between patients or\nagainst a trial cohort. \"Did it stick, and did you need help getting it down\"\nis observable, and it is the distinction the DSQ itself draws.",
+        "enum": [
+          "none",
+          "mild_slow",
+          "stuck_self_resolved",
+          "stuck_intervention"
+        ],
+        "title": "DysphagiaSeverity",
+        "type": "string"
+      },
+      "EntryMethod": {
+        "description": "Whether the entry was logged on the day it describes.\n\nResearch weights same-day entries more heavily than recalled ones, and this\nis derived server-side from the patient's own timezone rather than trusted\nfrom the client.",
+        "enum": [
+          "same_day",
+          "backfill"
+        ],
+        "title": "EntryMethod",
+        "type": "string"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -82,6 +169,220 @@
         "title": "MagicLinkVerify",
         "type": "object"
       },
+      "OnboardingRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "birth_year": {
+            "maximum": 2100.0,
+            "minimum": 1900.0,
+            "title": "Birth Year",
+            "type": "integer"
+          },
+          "consents": {
+            "$ref": "#/components/schemas/ConsentAcceptance"
+          },
+          "diagnosis_month": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Month"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "sex_at_birth": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SexAtBirth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "timezone": {
+            "default": "UTC",
+            "maxLength": 64,
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "birth_year",
+          "consents"
+        ],
+        "title": "OnboardingRequest",
+        "type": "object"
+      },
+      "OnboardingResponse": {
+        "description": "Carries a fresh access token because the old one predates the patient row.\n\nThe access token embeds the patient id, and every patient-scoped route reads\nit from there rather than from the request. Returning a new token here saves\nthe client an immediate refresh round trip to become usable.",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "consents": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentRecord"
+            },
+            "title": "Consents",
+            "type": "array"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "patient": {
+            "$ref": "#/components/schemas/PatientProfile"
+          },
+          "token_type": {
+            "default": "Bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "patient",
+          "consents",
+          "access_token",
+          "expires_at"
+        ],
+        "title": "OnboardingResponse",
+        "type": "object"
+      },
+      "PatientProfile": {
+        "properties": {
+          "birth_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Year"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "diagnosis_month": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Month"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "sex_at_birth": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SexAtBirth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "birth_year",
+          "sex_at_birth",
+          "diagnosis_month",
+          "timezone",
+          "created_at"
+        ],
+        "title": "PatientProfile",
+        "type": "object"
+      },
+      "PatientProfileUpdate": {
+        "additionalProperties": false,
+        "description": "Every field optional: this is a PATCH, and an absent field is untouched.\n\nbirth_year and sex_at_birth are absent on purpose. They gate eligibility and\ndescribe the research cohort, so changing them is a support action with an\naudit trail, not a profile edit.",
+        "properties": {
+          "diagnosis_month": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnosis Month"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "title": "PatientProfileUpdate",
+        "type": "object"
+      },
       "SessionUser": {
         "properties": {
           "email": {
@@ -125,6 +426,371 @@
           "email_verified"
         ],
         "title": "SessionUser",
+        "type": "object"
+      },
+      "SexAtBirth": {
+        "enum": [
+          "female",
+          "male",
+          "intersex",
+          "undisclosed"
+        ],
+        "title": "SexAtBirth",
+        "type": "string"
+      },
+      "SymptomBurdenRead": {
+        "description": "A scored window, or an explicit null score with the reason in components.\n\n`score` is null rather than zero when too few days were logged. Dividing three\nanswered days across a fourteen-day window would render a badly-tracked\nfortnight as remission, which is the most damaging thing this endpoint could\nget wrong.",
+        "properties": {
+          "components": {
+            "additionalProperties": true,
+            "title": "Components",
+            "type": "object"
+          },
+          "days_in_window": {
+            "title": "Days In Window",
+            "type": "integer"
+          },
+          "days_logged": {
+            "title": "Days Logged",
+            "type": "integer"
+          },
+          "days_scorable": {
+            "title": "Days Scorable",
+            "type": "integer"
+          },
+          "instrument_code": {
+            "title": "Instrument Code",
+            "type": "string"
+          },
+          "instrument_version": {
+            "title": "Instrument Version",
+            "type": "string"
+          },
+          "max_score": {
+            "title": "Max Score",
+            "type": "integer"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date",
+            "title": "Period Start",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "required": [
+          "period_start",
+          "period_end",
+          "instrument_code",
+          "instrument_version",
+          "days_in_window",
+          "days_logged",
+          "days_scorable",
+          "max_score",
+          "score",
+          "components"
+        ],
+        "title": "SymptomBurdenRead",
+        "type": "object"
+      },
+      "SymptomBurdenTrend": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/SymptomBurdenRead"
+            },
+            "title": "Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "title": "SymptomBurdenTrend",
+        "type": "object"
+      },
+      "SymptomEntryInput": {
+        "additionalProperties": false,
+        "description": "One day, as the patient answers it.\n\nentry_date is absent deliberately: it comes from the URL, so a body and a\npath cannot disagree about which day is being written.",
+        "properties": {
+          "ate_solid_food": {
+            "title": "Ate Solid Food",
+            "type": "boolean"
+          },
+          "ate_unusually_slowly": {
+            "default": false,
+            "title": "Ate Unusually Slowly",
+            "type": "boolean"
+          },
+          "avoided_foods_today": {
+            "default": false,
+            "title": "Avoided Foods Today",
+            "type": "boolean"
+          },
+          "coping_actions": {
+            "items": {
+              "$ref": "#/components/schemas/CopingAction"
+            },
+            "title": "Coping Actions",
+            "type": "array"
+          },
+          "dysphagia_occurred": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dysphagia Occurred"
+          },
+          "dysphagia_severity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DysphagiaSeverity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "food_impaction_er_visit": {
+            "default": false,
+            "title": "Food Impaction Er Visit",
+            "type": "boolean"
+          },
+          "modified_foods_today": {
+            "default": false,
+            "title": "Modified Foods Today",
+            "type": "boolean"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "odynophagia": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Odynophagia"
+          },
+          "odynophagia_severity": {
+            "anyOf": [
+              {
+                "maximum": 3.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Odynophagia Severity"
+          }
+        },
+        "required": [
+          "ate_solid_food"
+        ],
+        "title": "SymptomEntryInput",
+        "type": "object"
+      },
+      "SymptomEntryList": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/SymptomEntryRead"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "range_end": {
+            "format": "date",
+            "title": "Range End",
+            "type": "string"
+          },
+          "range_start": {
+            "format": "date",
+            "title": "Range Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entries",
+          "range_start",
+          "range_end"
+        ],
+        "title": "SymptomEntryList",
+        "type": "object"
+      },
+      "SymptomEntryRead": {
+        "properties": {
+          "ate_solid_food": {
+            "title": "Ate Solid Food",
+            "type": "boolean"
+          },
+          "ate_unusually_slowly": {
+            "title": "Ate Unusually Slowly",
+            "type": "boolean"
+          },
+          "avoided_foods_today": {
+            "title": "Avoided Foods Today",
+            "type": "boolean"
+          },
+          "coping_actions": {
+            "items": {
+              "$ref": "#/components/schemas/CopingAction"
+            },
+            "title": "Coping Actions",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "daily_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Score"
+          },
+          "dysphagia_occurred": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dysphagia Occurred"
+          },
+          "dysphagia_severity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DysphagiaSeverity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entry_date": {
+            "format": "date",
+            "title": "Entry Date",
+            "type": "string"
+          },
+          "entry_method": {
+            "$ref": "#/components/schemas/EntryMethod"
+          },
+          "food_impaction_er_visit": {
+            "title": "Food Impaction Er Visit",
+            "type": "boolean"
+          },
+          "instrument_code": {
+            "title": "Instrument Code",
+            "type": "string"
+          },
+          "instrument_version": {
+            "title": "Instrument Version",
+            "type": "string"
+          },
+          "modified_foods_today": {
+            "title": "Modified Foods Today",
+            "type": "boolean"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "odynophagia": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Odynophagia"
+          },
+          "odynophagia_severity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Odynophagia Severity"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entry_date",
+          "ate_solid_food",
+          "dysphagia_occurred",
+          "dysphagia_severity",
+          "odynophagia",
+          "odynophagia_severity",
+          "food_impaction_er_visit",
+          "coping_actions",
+          "avoided_foods_today",
+          "modified_foods_today",
+          "ate_unusually_slowly",
+          "notes",
+          "entry_method",
+          "instrument_code",
+          "instrument_version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SymptomEntryRead",
         "type": "object"
       },
       "ValidationError": {
@@ -311,6 +977,456 @@
         "summary": "Sign Out",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/me": {
+      "delete": {
+        "description": "Erase the record. Not reversible, and not a flag.\n\nWashington's My Health My Data Act gives a working deletion right, and the\nproduct promises the deletion is real. The audit trail of the access and of\nthe deletion survives by design; it holds field names rather than values.",
+        "operationId": "delete_account_api_v1_me_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Delete Account",
+        "tags": [
+          "patient"
+        ]
+      }
+    },
+    "/api/v1/me/consents": {
+      "get": {
+        "operationId": "read_consents_api_v1_me_consents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConsentRecord"
+                  },
+                  "title": "Response Read Consents Api V1 Me Consents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Consents",
+        "tags": [
+          "patient"
+        ]
+      }
+    },
+    "/api/v1/me/onboarding": {
+      "post": {
+        "operationId": "complete_onboarding_api_v1_me_onboarding_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete Onboarding",
+        "tags": [
+          "patient"
+        ]
+      }
+    },
+    "/api/v1/me/profile": {
+      "get": {
+        "operationId": "read_profile_api_v1_me_profile_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientProfile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Profile",
+        "tags": [
+          "patient"
+        ]
+      },
+      "patch": {
+        "operationId": "update_profile_api_v1_me_profile_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatientProfile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Profile",
+        "tags": [
+          "patient"
+        ]
+      }
+    },
+    "/api/v1/me/symptoms": {
+      "get": {
+        "operationId": "list_entries_api_v1_me_symptoms_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SymptomEntryList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Entries",
+        "tags": [
+          "symptoms"
+        ]
+      }
+    },
+    "/api/v1/me/symptoms/burden": {
+      "get": {
+        "description": "The 14-day symptom burden score ending on `as_of`, or today.\n\nComputed server-side so the screen, the PDF, and any future export cannot\ndisagree about the same patient's score.",
+        "operationId": "read_burden_api_v1_me_symptoms_burden_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SymptomBurdenRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Burden",
+        "tags": [
+          "symptoms"
+        ]
+      }
+    },
+    "/api/v1/me/symptoms/burden/trend": {
+      "get": {
+        "operationId": "read_burden_trend_api_v1_me_symptoms_burden_trend_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            }
+          },
+          {
+            "in": "query",
+            "name": "points",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 365,
+              "minimum": 2,
+              "title": "Points",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SymptomBurdenTrend"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Burden Trend",
+        "tags": [
+          "symptoms"
+        ]
+      }
+    },
+    "/api/v1/me/symptoms/{entry_date}": {
+      "delete": {
+        "operationId": "delete_entry_api_v1_me_symptoms__entry_date__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Entry Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Entry",
+        "tags": [
+          "symptoms"
+        ]
+      },
+      "get": {
+        "operationId": "read_entry_api_v1_me_symptoms__entry_date__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Entry Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SymptomEntryRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Entry",
+        "tags": [
+          "symptoms"
+        ]
+      },
+      "put": {
+        "description": "Write the entry for one day, creating or replacing it.\n\nPUT rather than POST: the day is the identifier, the operation is idempotent,\nand an offline client replaying a queued submission must not produce a second\nentry for the same date.",
+        "operationId": "upsert_entry_api_v1_me_symptoms__entry_date__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Entry Date",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SymptomEntryInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SymptomEntryRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upsert Entry",
+        "tags": [
+          "symptoms"
         ]
       }
     },

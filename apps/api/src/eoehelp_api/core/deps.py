@@ -12,6 +12,7 @@ from eoehelp_api.core import security
 from eoehelp_api.core.errors import ForbiddenError, UnauthenticatedError
 from eoehelp_api.db.session import apply_rls_scope, get_session_factory
 from eoehelp_api.models.enums import UserRole
+from eoehelp_api.models.patient import Patient
 from eoehelp_api.services.audit import AuditContext
 
 API_V1_PREFIX = "/api/v1"
@@ -96,24 +97,71 @@ def get_principal(request: Request) -> Principal:
     return Principal(user_id=user_id, role=role, patient_id=patient_id)
 
 
-def get_patient_principal(
+def get_patient_role_principal(
     principal: Principal = Depends(get_principal),
 ) -> Principal:
+    """A patient account, onboarded or not.
+
+    Onboarding itself needs this: the caller is authenticated but has no patient
+    record yet, so it cannot require one.
+    """
     if principal.role is not UserRole.PATIENT:
         raise ForbiddenError("This endpoint is for patient accounts.")
-    if principal.patient_id is None:
-        raise ForbiddenError("Complete onboarding before using this endpoint.")
     return principal
 
 
+@dataclass(frozen=True)
+class PatientPrincipal:
+    """An onboarded patient, where `patient_id` is known to exist.
+
+    A separate type rather than a checked field, so that every patient-scoped
+    route is statically guaranteed a real patient id. The alternative — carrying
+    `patient_id: UUID | None` everywhere — spreads either an assertion or an
+    unchecked Optional into every handler, and one of those eventually gets it
+    wrong.
+    """
+
+    user_id: uuid.UUID
+    patient_id: uuid.UUID
+
+
+def get_patient_principal(
+    principal: Principal = Depends(get_patient_role_principal),
+) -> PatientPrincipal:
+    if principal.patient_id is None:
+        raise ForbiddenError("Complete onboarding before using this endpoint.")
+    return PatientPrincipal(user_id=principal.user_id, patient_id=principal.patient_id)
+
+
 async def get_patient_session(
-    principal: Principal = Depends(get_patient_principal),
+    principal: PatientPrincipal = Depends(get_patient_principal),
 ) -> AsyncIterator[AsyncSession]:
     """Session bound to the caller's patient row for the life of one transaction."""
     factory = get_session_factory()
     async with factory() as session, session.begin():
         await apply_rls_scope(session, principal.patient_id)
         yield session
+
+
+async def get_current_patient(
+    principal: PatientPrincipal = Depends(get_patient_principal),
+    session: AsyncSession = Depends(get_patient_session),
+) -> Patient:
+    """The caller's own patient row, loaded inside the scoped transaction.
+
+    Fetched rather than reconstructed from the token because the timezone lives
+    here, and the daily log is wrong in a way nobody notices if it is guessed:
+    "today" has to be the patient's today.
+
+    The lookup goes through the row-level-security scope set by
+    get_patient_session, so it can only ever return the caller's own row — if the
+    scope and the token disagreed, this would return nothing rather than someone
+    else's record.
+    """
+    patient = await session.get(Patient, principal.patient_id)
+    if patient is None:
+        raise ForbiddenError("Complete onboarding before using this endpoint.")
+    return patient
 
 
 def get_authenticated_audit_context(

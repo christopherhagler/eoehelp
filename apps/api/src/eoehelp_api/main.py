@@ -15,7 +15,7 @@ from eoehelp_api.config import get_settings
 from eoehelp_api.core.deps import API_V1_PREFIX
 from eoehelp_api.db.session import dispose_engine
 from eoehelp_api.observability import configure_logging, get_logger
-from eoehelp_api.routers import auth, health
+from eoehelp_api.routers import auth, health, me, symptoms
 
 logger = get_logger(__name__)
 
@@ -51,7 +51,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,  # required for the refresh cookie
-        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
     )
 
@@ -109,6 +109,8 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(auth.router, prefix=API_V1_PREFIX)
+    app.include_router(me.router, prefix=API_V1_PREFIX)
+    app.include_router(symptoms.router, prefix=API_V1_PREFIX)
 
     return app
 

@@ -12,6 +12,7 @@ from urllib.parse import urlsplit, urlunsplit
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import create_async_engine
 
 
@@ -68,9 +69,40 @@ async def two_patients(session) -> tuple[uuid.UUID, uuid.UUID]:
             ),
             {"pid": patient_id},
         )
+        await session.execute(
+            text(
+                "INSERT INTO symptom_entries "
+                "(patient_id, entry_date, ate_solid_food, dysphagia_occurred, "
+                " entry_method, instrument_code, instrument_version) "
+                "VALUES (:pid, CURRENT_DATE, true, false, 'same_day', 'DSQ', 'v4.0')"
+            ),
+            {"pid": patient_id},
+        )
         ids.append(patient_id)
     await session.commit()
     return ids[0], ids[1]
+
+
+async def _insert_entry(engine, *, scope: uuid.UUID, patient_id: uuid.UUID) -> None:
+    """Insert a symptom entry under one patient's scope, on behalf of another.
+
+    Split out so the assertion below is a single statement, and so the scope and
+    the row's owner are visibly separate arguments.
+    """
+    async with engine.connect() as conn, conn.begin():
+        await conn.execute(
+            text("SELECT set_config('app.current_patient_id', :v, true)"),
+            {"v": str(scope)},
+        )
+        await conn.execute(
+            text(
+                "INSERT INTO symptom_entries "
+                "(patient_id, entry_date, ate_solid_food, entry_method, "
+                " instrument_code, instrument_version) "
+                "VALUES (:pid, CURRENT_DATE - 1, true, 'same_day', 'DSQ', 'v4.0')"
+            ),
+            {"pid": str(patient_id)},
+        )
 
 
 async def _scoped_rows(engine, patient_id: uuid.UUID | None, table: str) -> int:
@@ -90,12 +122,15 @@ class TestRowLevelSecurity:
         """
         assert await _scoped_rows(app_role_engine, None, "patients") == 0
         assert await _scoped_rows(app_role_engine, None, "consents") == 0
+        assert await _scoped_rows(app_role_engine, None, "symptom_entries") == 0
 
     async def test_scope_limits_results_to_one_patient(self, app_role_engine, two_patients) -> None:
         alice, bob = two_patients
         assert await _scoped_rows(app_role_engine, alice, "patients") == 1
         assert await _scoped_rows(app_role_engine, bob, "patients") == 1
         assert await _scoped_rows(app_role_engine, alice, "consents") == 1
+        assert await _scoped_rows(app_role_engine, alice, "symptom_entries") == 1
+        assert await _scoped_rows(app_role_engine, bob, "symptom_entries") == 1
 
     async def test_one_patient_cannot_read_another_by_id(
         self, app_role_engine, two_patients
@@ -135,6 +170,29 @@ class TestRowLevelSecurity:
             async with conn.begin():
                 leaked = (await conn.execute(text("SELECT count(*) FROM patients"))).scalar_one()
         assert leaked == 0, "patient scope leaked into a subsequent transaction"
+
+    async def test_a_row_cannot_be_written_for_another_patient(
+        self, app_role_engine, two_patients
+    ) -> None:
+        """The policy governs INSERT as well as SELECT.
+
+        With no separate WITH CHECK clause, Postgres applies the USING expression
+        to writes too, so a scoped session cannot plant a row on someone else's
+        record even if the application layer were bypassed entirely.
+        """
+        alice, bob = two_patients
+        with pytest.raises(ProgrammingError, match="row-level security"):
+            await _insert_entry(app_role_engine, scope=alice, patient_id=bob)
+
+    async def test_a_row_can_be_written_for_the_scoped_patient(
+        self, app_role_engine, two_patients
+    ) -> None:
+        """The other half of the same property: the write policy is not simply
+        refusing everything, which would make the test above pass for the wrong
+        reason."""
+        alice, _ = two_patients
+        await _insert_entry(app_role_engine, scope=alice, patient_id=alice)
+        assert await _scoped_rows(app_role_engine, alice, "symptom_entries") == 2
 
     async def test_app_role_is_not_a_table_owner(self, app_role_engine) -> None:
         """Owners bypass RLS, which would make every policy above inert."""

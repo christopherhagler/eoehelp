@@ -49,3 +49,45 @@ class AuditOutcome(enum.StrEnum):
     SUCCESS = "success"
     DENIED = "denied"
     ERROR = "error"
+
+
+class DysphagiaSeverity(enum.StrEnum):
+    """Graded by what the patient had to do about it, not by a 1-10 feeling.
+
+    A self-reported intensity number is not comparable between patients or
+    against a trial cohort. "Did it stick, and did you need help getting it down"
+    is observable, and it is the distinction the DSQ itself draws.
+    """
+
+    NONE = "none"
+    MILD_SLOW = "mild_slow"
+    STUCK_SELF_RESOLVED = "stuck_self_resolved"
+    STUCK_INTERVENTION = "stuck_intervention"
+
+
+class CopingAction(enum.StrEnum):
+    """What the patient did when food stuck.
+
+    Recorded because it is the clearest signal of severity a patient can report
+    reliably, and because the behavioural adaptations are what a
+    gastroenterologist asks about and patients forget by the appointment.
+    """
+
+    DRANK_LIQUID = "drank_liquid"
+    EXTRA_CHEWING = "extra_chewing"
+    SPIT_OUT = "spit_out"
+    LEFT_TABLE = "left_table"
+    INDUCED_VOMIT = "induced_vomit"
+    ER_VISIT = "er_visit"
+
+
+class EntryMethod(enum.StrEnum):
+    """Whether the entry was logged on the day it describes.
+
+    Research weights same-day entries more heavily than recalled ones, and this
+    is derived server-side from the patient's own timezone rather than trusted
+    from the client.
+    """
+
+    SAME_DAY = "same_day"
+    BACKFILL = "backfill"
