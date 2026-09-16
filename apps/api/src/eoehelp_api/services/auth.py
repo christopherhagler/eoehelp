@@ -53,8 +53,6 @@ class AuthService:
         self._settings = settings or get_settings()
         self._email = email_sender or EmailSender(self._settings)
 
-    # -- magic link ---------------------------------------------------------
-
     async def request_magic_link(self, *, email: str, context: AuditContext | None = None) -> None:
         """Issue a sign-in link, creating the account on first request.
 
@@ -171,8 +169,6 @@ class AuthService:
             return "expired"
         return "unknown"
 
-    # -- refresh ------------------------------------------------------------
-
     async def refresh(
         self, *, raw_token: str, context: AuditContext | None = None
     ) -> IssuedSession:
@@ -269,8 +265,6 @@ class AuthService:
                 metadata={"family_id": str(family_id)},
             )
         logger.warning("auth.refresh.reuse_detected", family_id=str(family_id))
-
-    # -- helpers ------------------------------------------------------------
 
     async def _issue_session(
         self,
