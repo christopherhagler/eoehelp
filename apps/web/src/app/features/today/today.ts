@@ -1,104 +1,145 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
 
+import { SymptomBurdenRead, SymptomEntryRead } from '../../core/api-types';
 import { AuthService } from '../../core/auth.service';
+import { addDays, formatDayLabel, todayIso } from '../../core/dates';
+import { PatientService } from '../../core/patient.service';
+import { SymptomService } from '../../core/symptom.service';
+
+/** One cell of the fortnight strip. */
+interface DayCell {
+  readonly date: string;
+  readonly label: string;
+  readonly score: number | null;
+  readonly logged: boolean;
+  readonly scorable: boolean;
+  readonly withinBackfillWindow: boolean;
+  readonly description: string;
+}
+
+const WINDOW_DAYS = 14;
+const BACKFILL_DAYS = 7;
 
 @Component({
   selector: 'app-today',
-  imports: [MatButtonModule, MatCardModule, MatIconModule, MatProgressBarModule],
-  template: `
-    <section class="mx-auto max-w-4xl px-6 py-10 sm:py-14">
-      <header class="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p class="m-0 text-sm font-semibold uppercase tracking-[0.12em] text-brand">
-            {{ today }}
-          </p>
-          <h1 class="m-0 mt-1 text-3xl font-semibold tracking-tight">Today</h1>
-        </div>
-        <p class="m-0 text-sm text-on-surface-variant">
-          Signed in as {{ auth.user()?.email }}
-        </p>
-      </header>
-
-      <mat-card appearance="outlined" class="mt-8">
-        <mat-card-content class="!p-7">
-          <div class="flex items-start gap-4">
-            <span
-              class="flex size-11 shrink-0 items-center justify-center rounded-xl
-                     bg-brand-container text-on-brand-container"
-            >
-              <mat-icon>edit_note</mat-icon>
-            </span>
-            <div>
-              <h2 class="m-0 text-lg font-semibold tracking-tight">
-                Your daily log lands here next
-              </h2>
-              <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">
-                The symptom entry flow — did you eat solid food, did anything get
-                stuck, and what you did about it — is the next thing being built. It
-                follows the Dysphagia Symptom Questionnaire and is designed to take
-                under a minute on an ordinary day.
-              </p>
-            </div>
-          </div>
-        </mat-card-content>
-      </mat-card>
-
-      <div class="mt-5 grid gap-5 sm:grid-cols-2">
-        <mat-card appearance="outlined">
-          <mat-card-content class="!p-6">
-            <h3
-              class="m-0 text-xs font-semibold uppercase tracking-[0.1em]
-                     text-on-surface-variant"
-            >
-              Account
-            </h3>
-            <p class="mt-3 flex items-center gap-2 text-sm">
-              <mat-icon class="!size-5 !text-xl text-brand">verified_user</mat-icon>
-              Created and secured
-            </p>
-            <p class="mt-2 flex items-center gap-2 text-sm">
-              <mat-icon class="!size-5 !text-xl text-brand">lock</mat-icon>
-              Nothing shared with anyone
-            </p>
-          </mat-card-content>
-        </mat-card>
-
-        <mat-card appearance="outlined">
-          <mat-card-content class="!p-6">
-            <h3
-              class="m-0 text-xs font-semibold uppercase tracking-[0.1em]
-                     text-on-surface-variant"
-            >
-              Next milestone
-            </h3>
-            <p class="mt-3 text-sm text-on-surface-variant">
-              Daily symptom logging, diet phases, and the clinical report.
-            </p>
-            <mat-progress-bar
-              class="mt-4 !rounded-full"
-              mode="determinate"
-              [value]="25"
-              aria-label="Build progress through the first release"
-            />
-            <p class="mt-2 text-xs tabular-nums text-on-surface-variant">
-              Foundations complete
-            </p>
-          </mat-card-content>
-        </mat-card>
-      </div>
-    </section>
+  imports: [
+    RouterLink,
+    MatButtonModule,
+    MatCardModule,
+    MatIconModule,
+    MatProgressBarModule,
+    MatProgressSpinnerModule,
+    MatTooltipModule,
+  ],
+  templateUrl: './today.html',
+  styles: `
+    .day-strip {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 0.5rem;
+    }
+    @media (min-width: 640px) {
+      .day-strip {
+        grid-template-columns: repeat(14, minmax(0, 1fr));
+      }
+    }
   `,
 })
 export class Today {
   protected readonly auth = inject(AuthService);
+  private readonly patients = inject(PatientService);
+  private readonly symptoms = inject(SymptomService);
 
-  protected readonly today = new Intl.DateTimeFormat(undefined, {
+  protected readonly loading = signal(true);
+  protected readonly entries = signal<readonly SymptomEntryRead[]>([]);
+  protected readonly burden = signal<SymptomBurdenRead | null>(null);
+
+  protected readonly today = todayIso();
+  protected readonly todayLabel = new Intl.DateTimeFormat(undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   }).format(new Date());
+
+  protected readonly profile = this.patients.profile;
+
+  protected readonly todaysEntry = computed(
+    () => this.entries().find((e) => e.entry_date === this.today) ?? null,
+  );
+
+  /** The fortnight, oldest first, with a cell for every day including gaps. */
+  protected readonly days = computed<DayCell[]>(() => {
+    const byDate = new Map(this.entries().map((e) => [e.entry_date, e]));
+    const earliestBackfill = addDays(this.today, -BACKFILL_DAYS);
+
+    return Array.from({ length: WINDOW_DAYS }, (_, index) => {
+      const date = addDays(this.today, index - (WINDOW_DAYS - 1));
+      const entry = byDate.get(date);
+      const score = entry?.daily_score ?? null;
+      return {
+        date,
+        label: formatDayLabel(date, this.today),
+        score,
+        logged: entry !== undefined,
+        scorable: score !== null,
+        withinBackfillWindow: date >= earliestBackfill,
+        description: this.describe(date, entry),
+      };
+    });
+  });
+
+  protected readonly missedDays = computed(() =>
+    this.days().filter((d) => !d.logged && d.withinBackfillWindow && d.date !== this.today),
+  );
+
+  protected readonly loggedInWindow = computed(() => this.days().filter((d) => d.logged).length);
+
+  /** How many more scorable days before a 14-day score can be produced. */
+  protected readonly daysUntilScorable = computed(() => {
+    const current = this.burden();
+    if (current === null || current.score !== null) return 0;
+    const minimum = Number(current.components['minimum_scorable_days'] ?? 7);
+    return Math.max(minimum - current.days_scorable, 0);
+  });
+
+  constructor() {
+    void this.load();
+  }
+
+  private async load(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const [list, burden] = await Promise.all([
+        this.symptoms.list(addDays(this.today, -(WINDOW_DAYS - 1)), this.today),
+        this.symptoms.burden(),
+      ]);
+      this.entries.set(list.entries);
+      this.burden.set(burden);
+      if (this.patients.profile() === null) {
+        await this.patients.loadProfile();
+      }
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  private describe(date: string, entry: SymptomEntryRead | undefined): string {
+    const label = formatDayLabel(date, this.today);
+    if (!entry) return `${label}: not logged`;
+    if (!entry.ate_solid_food) return `${label}: no solid food, so not scored`;
+    return `${label}: ${entry.daily_score} out of 6`;
+  }
+
+  /** Greeting name, falling back to nothing rather than to an email address. */
+  protected readonly greeting = computed(() => {
+    const name = this.profile()?.display_name?.trim();
+    return name ? `Hello, ${name}` : 'Hello';
+  });
 }

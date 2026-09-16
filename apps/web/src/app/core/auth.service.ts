@@ -32,6 +32,22 @@ export class AuthService {
     return this.accessToken();
   }
 
+  /**
+   * Replace the in-memory access token with one the API just issued.
+   *
+   * Onboarding needs this: it returns a token carrying the new patient id, and
+   * without adopting it every /me route would keep rejecting the session until
+   * the old token expired.
+   */
+  adoptAccessToken(token: string): void {
+    this.accessToken.set(token);
+  }
+
+  /** Re-read /auth/session, e.g. after onboarding changes what it reports. */
+  async reloadSession(): Promise<void> {
+    await this.loadSession();
+  }
+
   async requestMagicLink(email: string): Promise<void> {
     await firstValueFrom(
       this.http.post(`${this.baseUrl}/auth/magic-link`, { email }),

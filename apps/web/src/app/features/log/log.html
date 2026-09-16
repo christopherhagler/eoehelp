@@ -1,0 +1,246 @@
+<section class="mx-auto max-w-2xl px-6 py-10 sm:py-14">
+  <header class="mb-7">
+    <p class="m-0 text-sm font-semibold uppercase tracking-[0.12em] text-brand">
+      {{ dayLabel() }}
+    </p>
+    <h1 class="m-0 mt-1 text-3xl font-semibold tracking-tight">
+      @if (alreadyLogged()) { Edit this day } @else { How was swallowing? }
+    </h1>
+    @if (isBackfill()) {
+      <p class="mt-2 flex items-center gap-2 text-sm text-on-surface-variant">
+        <mat-icon class="!size-5 !text-xl">history</mat-icon>
+        Added later, and recorded as such.
+      </p>
+    }
+  </header>
+
+  @if (loading()) {
+    <div class="flex justify-center py-16"><mat-spinner diameter="36" /></div>
+  } @else {
+    @if (error()) {
+      <div
+        role="alert"
+        class="mb-5 flex items-start gap-2 rounded-lg border border-danger/40
+               bg-danger/10 px-4 py-3 text-sm text-danger"
+      >
+        <mat-icon class="!size-5 shrink-0 !text-xl">error</mat-icon>
+        <span>{{ error() }}</span>
+      </div>
+    }
+
+    <div class="flex flex-col gap-5">
+      <!-- Question 1. Most days end here or at question 2. -->
+      <mat-card appearance="outlined">
+        <mat-card-content class="!p-6">
+          <h2 id="q-solid" class="m-0 text-lg font-semibold tracking-tight">
+            Did you eat solid food today?
+          </h2>
+          <mat-button-toggle-group
+            class="answer mt-4"
+            aria-labelledby="q-solid"
+            [value]="ateSolidFood()"
+            (change)="setAteSolidFood($event.value)"
+          >
+            <mat-button-toggle [value]="true">Yes</mat-button-toggle>
+            <mat-button-toggle [value]="false">No</mat-button-toggle>
+          </mat-button-toggle-group>
+
+          @if (ateSolidFood() === false) {
+            <p class="mt-4 flex items-start gap-2 text-sm text-on-surface-variant">
+              <mat-icon class="!size-5 shrink-0 !text-xl text-brand">info</mat-icon>
+              <span>
+                A day without solid food is recorded as its own thing, not as a
+                symptom-free day — counting it as zero would understate how you
+                were doing.
+              </span>
+            </p>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      @if (ateSolidFood() === true) {
+        <mat-card appearance="outlined">
+          <mat-card-content class="!p-6">
+            <h2 id="q-stuck" class="m-0 text-lg font-semibold tracking-tight">
+              Did food go down slowly or get stuck?
+            </h2>
+            <mat-button-toggle-group
+              class="answer mt-4"
+              aria-labelledby="q-stuck"
+              [value]="dysphagia()"
+              (change)="setDysphagia($event.value)"
+            >
+              <mat-button-toggle [value]="false">No</mat-button-toggle>
+              <mat-button-toggle [value]="true">Yes</mat-button-toggle>
+            </mat-button-toggle-group>
+
+            @if (dysphagia() === true) {
+              <h3 id="q-severity" class="m-0 mt-6 text-base font-semibold">
+                What happened?
+              </h3>
+              <mat-button-toggle-group
+                class="stacked mt-3"
+                aria-labelledby="q-severity"
+                [value]="severity()"
+                (change)="severity.set($event.value)"
+              >
+                @for (choice of severities; track choice.value) {
+                  <mat-button-toggle [value]="choice.value">
+                    <span class="flex flex-col items-start py-2">
+                      <span class="font-medium">{{ choice.label }}</span>
+                      <span class="text-xs text-on-surface-variant">
+                        {{ choice.detail }}
+                      </span>
+                    </span>
+                  </mat-button-toggle>
+                }
+              </mat-button-toggle-group>
+
+              <h3 class="m-0 mt-6 text-base font-semibold">What did you do?</h3>
+              <p class="mt-1 text-sm text-on-surface-variant">
+                Optional, and you can pick more than one.
+              </p>
+              <mat-chip-listbox class="mt-2" multiple aria-label="What you did about it">
+                @for (choice of copingChoices; track choice.value) {
+                  <mat-chip-option
+                    [selected]="isCopingSelected(choice.value)"
+                    (selectionChange)="toggleCoping(choice.value)"
+                  >
+                    {{ choice.label }}
+                  </mat-chip-option>
+                }
+              </mat-chip-listbox>
+            }
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card appearance="outlined">
+          <mat-card-content class="!p-6">
+            <h2 id="q-pain" class="m-0 text-lg font-semibold tracking-tight">
+              Did it hurt to swallow?
+            </h2>
+            <mat-button-toggle-group
+              class="answer mt-4"
+              aria-labelledby="q-pain"
+              [value]="pain()"
+              (change)="setPain($event.value)"
+            >
+              <mat-button-toggle [value]="false">No</mat-button-toggle>
+              <mat-button-toggle [value]="true">Yes</mat-button-toggle>
+            </mat-button-toggle-group>
+
+            @if (pain() === true) {
+              <mat-button-toggle-group
+                class="answer mt-4"
+                aria-label="How much it hurt"
+                [value]="painSeverity()"
+                (change)="painSeverity.set($event.value)"
+              >
+                @for (level of painLevels; track level.value) {
+                  <mat-button-toggle [value]="level.value">
+                    {{ level.label }}
+                  </mat-button-toggle>
+                }
+              </mat-button-toggle-group>
+            }
+          </mat-card-content>
+        </mat-card>
+      }
+
+      <!-- Behavioural adaptation. Collapsed, because it is the part patients
+           skip on an ordinary day and the log has to stay short. -->
+      @if (ateSolidFood() !== null) {
+        <mat-card appearance="outlined">
+          <mat-card-content class="!p-6">
+            @if (!showExtras()) {
+              <button
+                mat-button
+                type="button"
+                class="!min-h-tap !px-2"
+                (click)="showExtras.set(true)"
+              >
+                <mat-icon>add</mat-icon>
+                Add how you ate
+              </button>
+            } @else {
+              <h2 class="m-0 text-lg font-semibold tracking-tight">How you ate</h2>
+              <p class="mt-1 text-sm text-on-surface-variant">
+                The habits people build around EoE without noticing. Your
+                gastroenterologist will ask about these.
+              </p>
+              <div class="mt-4 flex flex-col gap-3">
+                <mat-checkbox
+                  [checked]="avoidedFoods()"
+                  (change)="avoidedFoods.set($event.checked)"
+                >
+                  Avoided foods you find difficult
+                </mat-checkbox>
+                <mat-checkbox
+                  [checked]="modifiedFoods()"
+                  (change)="modifiedFoods.set($event.checked)"
+                >
+                  Cut food small, or used sauce or liquid to get it down
+                </mat-checkbox>
+                <mat-checkbox [checked]="ateSlowly()" (change)="ateSlowly.set($event.checked)">
+                  Ate more slowly than the people around you
+                </mat-checkbox>
+              </div>
+            }
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card appearance="outlined">
+          <mat-card-content class="!p-6">
+            @if (!showNotes()) {
+              <button
+                mat-button
+                type="button"
+                class="!min-h-tap !px-2"
+                (click)="showNotes.set(true)"
+              >
+                <mat-icon>edit_note</mat-icon>
+                Add a note
+              </button>
+            } @else {
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Note</mat-label>
+                <textarea
+                  matInput
+                  rows="3"
+                  maxlength="4000"
+                  [(ngModel)]="notes"
+                  placeholder="Anything worth remembering about today"
+                ></textarea>
+                <mat-hint>
+                  Encrypted, and never included in research data.
+                </mat-hint>
+              </mat-form-field>
+            }
+          </mat-card-content>
+        </mat-card>
+      }
+
+      <div class="sticky bottom-4 mt-2 flex flex-wrap items-center gap-3">
+        <button
+          mat-flat-button
+          type="button"
+          class="!min-h-tap !px-7"
+          [disabled]="!canSave() || saving()"
+          (click)="save()"
+        >
+          @if (saving()) {
+            <mat-spinner diameter="20" />
+            Saving…
+          } @else {
+            Save {{ dayLabel().toLowerCase() }}
+          }
+        </button>
+        @if (!isBackfill()) {
+          <a mat-stroked-button class="!min-h-tap" [routerLink]="['/log', previousDay()]">
+            Log yesterday instead
+          </a>
+        }
+      </div>
+    </div>
+  }
+</section>

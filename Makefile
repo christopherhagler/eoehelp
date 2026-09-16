@@ -2,7 +2,7 @@
 COMPOSE := podman compose
 
 .PHONY: help up down logs ps rebuild migrate revision test test-api image-test image-api \
-        verify-promote lint format typecheck openapi mail psql clean
+        verify-promote lint format typecheck openapi api-types mail psql clean
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -69,6 +69,16 @@ image-api: ## Build the API runtime image (the artifact that ships)
 
 verify-promote: image-api ## Prove promotion between registries preserves the image digest
 	./scripts/verify-promote.sh eoehelp-api:local
+
+# Run with npx rather than added to package.json: openapi-typescript 7 declares a
+# peer dependency on typescript ^5, and this project is on 6. It is a codegen tool
+# that never participates in the app build, so pinning it here keeps an
+# unsatisfiable peer constraint out of the lock file.
+api-types: ## Regenerate the Angular types from the committed OpenAPI contract
+	podman run --rm -v "$(PWD):/repo" -w /repo/apps/web --userns=keep-id \
+		-e HOME=/tmp -e npm_config_cache=/tmp/.npm node:24-bookworm-slim \
+		npx -y openapi-typescript@7.13.0 ../../packages/openapi/schema.json \
+		-o src/app/api-client/schema.d.ts
 
 openapi: ## Regenerate the committed OpenAPI contract
 	$(COMPOSE) exec -T api python -c "\

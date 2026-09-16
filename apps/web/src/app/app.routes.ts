@@ -1,19 +1,17 @@
 import { Routes } from '@angular/router';
 
-import { authGuard } from './core/auth.guard';
+import { onboardedGuard, onboardingPendingGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    loadComponent: () =>
-      import('./features/landing/landing').then((m) => m.Landing),
+    loadComponent: () => import('./features/landing/landing').then((m) => m.Landing),
     title: 'eoehelp — track your EoE, and give your doctor the full picture',
   },
   {
     path: 'sign-in',
-    loadComponent: () =>
-      import('./features/auth/sign-in').then((m) => m.SignIn),
+    loadComponent: () => import('./features/auth/sign-in').then((m) => m.SignIn),
     title: 'Sign in — eoehelp',
   },
   {
@@ -22,9 +20,29 @@ export const routes: Routes = [
     title: 'Signing you in — eoehelp',
   },
   {
+    path: 'welcome',
+    canActivate: [onboardingPendingGuard],
+    loadComponent: () => import('./features/onboarding/welcome').then((m) => m.Welcome),
+    title: 'Set up your record — eoehelp',
+  },
+  {
     path: 'today',
-    canActivate: [authGuard],
+    canActivate: [onboardedGuard],
     loadComponent: () => import('./features/today/today').then((m) => m.Today),
+    title: 'Today — eoehelp',
+  },
+  {
+    // The date is part of the URL so a reminder notification, a catch-up link, or
+    // a bookmark can all deep-link straight into the right day.
+    path: 'log/:entryDate',
+    canActivate: [onboardedGuard],
+    loadComponent: () => import('./features/log/log').then((m) => m.Log),
+    title: 'Daily log — eoehelp',
+  },
+  {
+    path: 'log',
+    canActivate: [onboardedGuard],
+    loadComponent: () => import('./features/log/log').then((m) => m.Log),
     title: "Today's log — eoehelp",
   },
   { path: '**', redirectTo: '' },
