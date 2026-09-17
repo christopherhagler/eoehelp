@@ -47,3 +47,15 @@ export type SymptomBurdenTrend = Schemas['SymptomBurdenTrend'];
 export type DysphagiaSeverity = Schemas['DysphagiaSeverity'];
 export type CopingAction = Schemas['CopingAction'];
 export type EntryMethod = Schemas['EntryMethod'];
+
+export type AllergenGroup = Schemas['AllergenGroup'];
+export type Meal = Schemas['Meal'];
+export type CatalogIngredientRead = Schemas['CatalogIngredientRead'];
+export type CustomIngredientRead = Schemas['CustomIngredientRead'];
+export type CustomIngredientUpdate = Schemas['CustomIngredientUpdate'];
+export type IngredientRef = Schemas['IngredientRef'];
+export type IngredientRead = Schemas['IngredientRead'];
+export type FoodItemInput = Schemas['FoodItemInput'];
+export type FoodItemRead = Schemas['FoodItemRead'];
+export type FoodItemList = Schemas['FoodItemList'];
+export type RecentFood = Schemas['RecentFood'];

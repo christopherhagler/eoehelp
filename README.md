@@ -91,10 +91,18 @@ full list; the load-bearing ones:
 
 ## Status
 
-Milestone M0 (foundations) is complete: containerized stack, identity and
-consent schema, magic-link authentication, audit trail, row-level security, CI.
+- **M0 (foundations): complete.** Containerized stack, identity and consent
+  schema, magic-link authentication, audit trail, row-level security, and CI.
+- **M1 (daily tracking): complete.** Onboarding with versioned consent, the
+  DSQ-based daily log and 14-day score, medications with RRULE-based adherence,
+  account deletion, and a synthetic history generator (`make seed`).
+- **Food and ingredient logging: complete.** An allergen-tagged ingredient
+  catalog, patient-defined ingredients, and recent foods for fast re-logging. See
+  [ADR 0007](docs/adr/0007-food-and-ingredient-logging.md), including the limits
+  on what a future food-trigger insight may claim.
 
-Next is M1 — the daily symptom log. See `docs/` for the full plan.
+Next are the clinical context tables (M2), then the doctor report, the
+food-symptom insight, and the progress dashboards (M3).
 
 ## Before this serves a real patient
 

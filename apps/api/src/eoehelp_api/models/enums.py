@@ -135,3 +135,35 @@ class MedicationStopReason(enum.StrEnum):
     INSURANCE = "insurance"
     PROVIDER_DIRECTED = "provider_directed"
     OTHER = "other"
+
+
+class AllergenGroup(enum.StrEnum):
+    """The groups elimination diets are built from.
+
+    The first six are the six-food elimination diet (6FED) groups, split where the
+    diet treats them as one — nuts into peanut and tree nut, seafood into fish and
+    shellfish — so that a 4FED or 2FED is expressible without losing the finer
+    grain. Sesame is here because US labelling added it in 2023, not because the
+    EoE diets eliminate it.
+
+    PENDING CLINICAL CONFIRMATION: the group assigned to each catalog ingredient
+    (migration 0004) needs the clinical advisor's review before it drives any
+    patient-facing insight.
+    """
+
+    MILK = "milk"
+    WHEAT = "wheat"
+    EGG = "egg"
+    SOY = "soy"
+    PEANUT = "peanut"
+    TREE_NUT = "tree_nut"
+    FISH = "fish"
+    SHELLFISH = "shellfish"
+    SESAME = "sesame"
+
+
+class Meal(enum.StrEnum):
+    BREAKFAST = "breakfast"
+    LUNCH = "lunch"
+    DINNER = "dinner"
+    SNACK = "snack"

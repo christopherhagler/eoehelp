@@ -26,14 +26,9 @@ from eoehelp_api.models.enums import EntryMethod
 from eoehelp_api.models.patient import Patient
 from eoehelp_api.repositories.symptoms import SymptomEntryRepository
 from eoehelp_api.schemas.symptoms import SymptomEntryInput, SymptomEntryRead
-from eoehelp_api.services import audit, scoring
+from eoehelp_api.services import audit, entry_dates, scoring
 from eoehelp_api.services.audit import AuditContext
 from eoehelp_api.services.scoring import SymptomBurden
-
-# A week of catch-up covers a holiday or a flare that made logging impossible,
-# while keeping entries close enough to the day to be worth something. Anything
-# older is recall, and the plan would rather have a gap than fiction.
-MAX_BACKFILL_DAYS = 7
 
 # The longest span a single list request will return. A year of daily entries is
 # well within one response, and the cap exists so an unbounded range cannot turn
@@ -53,15 +48,7 @@ class SymptomService:
         return datetime.now(ZoneInfo(self._patient.timezone)).date()
 
     def _validate_entry_date(self, entry_date: date) -> EntryMethod:
-        today = self.today
-        if entry_date > today:
-            raise BadRequestError("That day has not happened yet in your timezone.")
-        if entry_date < today - timedelta(days=MAX_BACKFILL_DAYS):
-            raise BadRequestError(
-                f"Entries can be added up to {MAX_BACKFILL_DAYS} days late. "
-                "Older days are left blank rather than recalled."
-            )
-        return EntryMethod.SAME_DAY if entry_date == today else EntryMethod.BACKFILL
+        return entry_dates.classify(entry_date, today=self.today)
 
     async def upsert(
         self,

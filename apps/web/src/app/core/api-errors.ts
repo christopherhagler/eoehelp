@@ -22,6 +22,11 @@ const FIELD_LABELS: Record<string, string> = {
   odynophagia_severity: 'How much it hurt',
   dysphagia_severity: 'What happened',
   notes: 'Note',
+  eaten_on: 'Day',
+  meal: 'Meal',
+  name: 'Name',
+  ingredients: 'Ingredients',
+  allergen_groups: 'Contains',
 };
 
 /**

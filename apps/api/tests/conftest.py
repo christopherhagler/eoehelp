@@ -110,12 +110,14 @@ async def clean_tables(_database: None) -> AsyncIterator[None]:
     engine = create_async_engine(_test_url())
     async with engine.begin() as conn:
         await conn.exec_driver_sql(
-            # clinical_instruments and medication_catalog are deliberately absent:
-            # both are reference data seeded by a migration, and truncating either
-            # would break the foreign keys the patient-owned rows depend on.
+            # clinical_instruments, medication_catalog, and ingredient_catalog are
+            # deliberately absent: all are reference data seeded by a migration,
+            # and truncating one would break the foreign keys the patient-owned
+            # rows depend on.
             "TRUNCATE users, patients, consents, research_consent_scopes, "
             "magic_link_tokens, refresh_tokens, symptom_entries, medications, "
-            "medication_doses, audit_log RESTART IDENTITY CASCADE"
+            "medication_doses, custom_ingredients, food_log_items, "
+            "food_log_item_ingredients, audit_log RESTART IDENTITY CASCADE"
         )
     await engine.dispose()
     yield

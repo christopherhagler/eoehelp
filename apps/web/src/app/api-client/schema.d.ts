@@ -89,6 +89,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/foods/ingredients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Catalog
+         * @description Every catalog ingredient, with its allergen groups and search aliases.
+         *
+         *     Around a hundred rows, sent whole so the client can search as the patient
+         *     types without a request per keystroke.
+         */
+        get: operations["list_catalog_api_v1_foods_ingredients_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -125,6 +148,102 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/foods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Foods
+         * @description Logged food between two days, inclusive. Both default to the patient's today.
+         */
+        get: operations["list_foods_api_v1_me_foods_get"];
+        put?: never;
+        /** Log Food */
+        post: operations["log_food_api_v1_me_foods_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/foods/ingredients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Custom Ingredients
+         * @description The ingredients this patient has added that the catalog does not have.
+         */
+        get: operations["list_custom_ingredients_api_v1_me_foods_ingredients_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/foods/ingredients/{ingredient_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Custom Ingredient */
+        patch: operations["update_custom_ingredient_api_v1_me_foods_ingredients__ingredient_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/me/foods/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent Foods */
+        get: operations["recent_foods_api_v1_me_foods_recent_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/foods/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Food
+         * @description Replace a logged food, ingredients included.
+         */
+        put: operations["update_food_api_v1_me_foods__item_id__put"];
+        post?: never;
+        /** Delete Food */
+        delete: operations["delete_food_api_v1_me_foods__item_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -548,6 +667,33 @@ export interface components {
             window_start: string;
         };
         /**
+         * AllergenGroup
+         * @description The groups elimination diets are built from.
+         *
+         *     The first six are the six-food elimination diet (6FED) groups, split where the
+         *     diet treats them as one — nuts into peanut and tree nut, seafood into fish and
+         *     shellfish — so that a 4FED or 2FED is expressible without losing the finer
+         *     grain. Sesame is here because US labelling added it in 2023, not because the
+         *     EoE diets eliminate it.
+         *
+         *     PENDING CLINICAL CONFIRMATION: the group assigned to each catalog ingredient
+         *     (migration 0004) needs the clinical advisor's review before it drives any
+         *     patient-facing insight.
+         * @enum {string}
+         */
+        AllergenGroup: "milk" | "wheat" | "egg" | "soy" | "peanut" | "tree_nut" | "fish" | "shellfish" | "sesame";
+        /** CatalogIngredientRead */
+        CatalogIngredientRead: {
+            /** Aliases */
+            aliases: string[];
+            /** Allergen Groups */
+            allergen_groups: components["schemas"]["AllergenGroup"][];
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+        };
+        /**
          * ConsentAcceptance
          * @description The three documents required to hold an account.
          *
@@ -589,6 +735,32 @@ export interface components {
          * @enum {string}
          */
         CopingAction: "drank_liquid" | "extra_chewing" | "spit_out" | "left_table" | "induced_vomit" | "er_visit";
+        /** CustomIngredientRead */
+        CustomIngredientRead: {
+            /** Allergen Groups */
+            allergen_groups: components["schemas"]["AllergenGroup"][];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * CustomIngredientUpdate
+         * @description Rename an ingredient or tag its allergen groups.
+         *
+         *     Retagging applies to every past day it was eaten, deliberately: the tag
+         *     describes what the ingredient is, and "hot sauce turned out to contain soy"
+         *     is a correction to history, not a change from now on.
+         */
+        CustomIngredientUpdate: {
+            /** Allergen Groups */
+            allergen_groups?: components["schemas"]["AllergenGroup"][] | null;
+            /** Name */
+            name?: string | null;
+        };
         /** DoseCreate */
         DoseCreate: {
             /** @default taken */
@@ -665,10 +837,105 @@ export interface components {
          * @enum {string}
          */
         EntryMethod: "same_day" | "backfill";
+        /** FoodItemInput */
+        FoodItemInput: {
+            /**
+             * Eaten On
+             * Format: date
+             */
+            eaten_on: string;
+            /** Ingredients */
+            ingredients?: components["schemas"]["IngredientRef"][];
+            meal: components["schemas"]["Meal"];
+            /** Name */
+            name: string;
+        };
+        /** FoodItemList */
+        FoodItemList: {
+            /** Items */
+            items: components["schemas"]["FoodItemRead"][];
+            /**
+             * Range End
+             * Format: date
+             */
+            range_end: string;
+            /**
+             * Range Start
+             * Format: date
+             */
+            range_start: string;
+        };
+        /** FoodItemRead */
+        FoodItemRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Eaten On
+             * Format: date
+             */
+            eaten_on: string;
+            entry_method: components["schemas"]["EntryMethod"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Ingredients */
+            ingredients: components["schemas"]["IngredientRead"][];
+            meal: components["schemas"]["Meal"];
+            /** Name */
+            name: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * IngredientRead
+         * @description An ingredient as the patient sees it, from whichever table it lives in.
+         */
+        IngredientRead: {
+            /** Allergen Groups */
+            allergen_groups: components["schemas"]["AllergenGroup"][];
+            /** Code */
+            code: string | null;
+            /** Custom Ingredient Id */
+            custom_ingredient_id: string | null;
+            /** Name */
+            name: string;
+        };
+        /**
+         * IngredientRef
+         * @description One ingredient of a food, in exactly one of three forms.
+         *
+         *     - `code`: a catalog ingredient the patient picked.
+         *     - `custom_ingredient_id`: one of the patient's own ingredients.
+         *     - `name`: typed text. The server matches it against the catalog (names and
+         *       aliases) and the patient's own ingredients, and creates a new one of the
+         *       patient's only if nothing matches — so a typed "flour" still counts as wheat.
+         *
+         *     `allergen_groups` applies only when a typed name creates a new ingredient.
+         *     Catalog groups are authoritative, and an existing ingredient's groups are
+         *     changed through its own endpoint rather than as a side effect of logging.
+         */
+        IngredientRef: {
+            /** Allergen Groups */
+            allergen_groups?: components["schemas"]["AllergenGroup"][] | null;
+            /** Code */
+            code?: string | null;
+            /** Custom Ingredient Id */
+            custom_ingredient_id?: string | null;
+            /** Name */
+            name?: string | null;
         };
         /** MagicLinkRequest */
         MagicLinkRequest: {
@@ -698,6 +965,11 @@ export interface components {
             /** Token */
             token: string;
         };
+        /**
+         * Meal
+         * @enum {string}
+         */
+        Meal: "breakfast" | "lunch" | "dinner" | "snack";
         /** MedicationCatalogItem */
         MedicationCatalogItem: {
             /** Also Known As */
@@ -896,6 +1168,27 @@ export interface components {
             display_name?: string | null;
             /** Timezone */
             timezone?: string | null;
+        };
+        /**
+         * RecentFood
+         * @description A food the patient has logged before, ready to log again in one tap.
+         *
+         *     The ingredients are those of the most recent time it was logged, which is the
+         *     best guess at how the patient makes it now.
+         */
+        RecentFood: {
+            /** Ingredients */
+            ingredients: components["schemas"]["IngredientRead"][];
+            /**
+             * Last Eaten On
+             * Format: date
+             */
+            last_eaten_on: string;
+            meal: components["schemas"]["Meal"];
+            /** Name */
+            name: string;
+            /** Times Logged */
+            times_logged: number;
         };
         /** SessionUser */
         SessionUser: {
@@ -1216,6 +1509,26 @@ export interface operations {
             };
         };
     };
+    list_catalog_api_v1_foods_ingredients_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogIngredientRead"][];
+                };
+            };
+        };
+    };
     delete_account_api_v1_me_delete: {
         parameters: {
             query?: never;
@@ -1250,6 +1563,221 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConsentRecord"][];
+                };
+            };
+        };
+    };
+    list_foods_api_v1_me_foods_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FoodItemList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    log_food_api_v1_me_foods_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FoodItemInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FoodItemRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_custom_ingredients_api_v1_me_foods_ingredients_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomIngredientRead"][];
+                };
+            };
+        };
+    };
+    update_custom_ingredient_api_v1_me_foods_ingredients__ingredient_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomIngredientUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomIngredientRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recent_foods_api_v1_me_foods_recent_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecentFood"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_food_api_v1_me_foods__item_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FoodItemInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FoodItemRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_food_api_v1_me_foods__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

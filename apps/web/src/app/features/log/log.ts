@@ -16,6 +16,7 @@ import { describeApiError } from '../../core/api-errors';
 import { CopingAction, DysphagiaSeverity, SymptomEntryInput } from '../../core/api-types';
 import { addDays, formatDayLabel, todayIso } from '../../core/dates';
 import { DoseLog } from '../../shared/dose-log';
+import { FoodLog } from '../../shared/food-log';
 import { SymptomService } from '../../core/symptom.service';
 
 interface SeverityChoice {
@@ -33,6 +34,7 @@ interface CopingChoice {
   selector: 'app-log',
   imports: [
     DoseLog,
+    FoodLog,
     FormsModule,
     RouterLink,
     MatButtonModule,

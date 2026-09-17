@@ -95,6 +95,34 @@ async def two_patients(session) -> tuple[uuid.UUID, uuid.UUID]:
             ),
             {"pid": patient_id, "mid": medication_id},
         )
+        custom_id = (
+            await session.execute(
+                text(
+                    "INSERT INTO custom_ingredients (patient_id, name, name_key, allergen_groups) "
+                    "VALUES (:pid, 'Relish', 'relish', '{}') RETURNING id"
+                ),
+                {"pid": patient_id},
+            )
+        ).scalar_one()
+        item_id = (
+            await session.execute(
+                text(
+                    "INSERT INTO food_log_items "
+                    "(patient_id, eaten_on, meal, name, name_key, entry_method) "
+                    "VALUES (:pid, CURRENT_DATE, 'lunch', 'Sandwich', 'sandwich', 'same_day') "
+                    "RETURNING id"
+                ),
+                {"pid": patient_id},
+            )
+        ).scalar_one()
+        await session.execute(
+            text(
+                "INSERT INTO food_log_item_ingredients "
+                "(patient_id, item_id, ingredient_code, custom_ingredient_id, position) "
+                "VALUES (:pid, :item, 'bread', NULL, 0), (:pid, :item, NULL, :custom, 1)"
+            ),
+            {"pid": patient_id, "item": item_id, "custom": custom_id},
+        )
         ids.append(patient_id)
     await session.commit()
     return ids[0], ids[1]
@@ -142,6 +170,9 @@ class TestRowLevelSecurity:
         assert await _scoped_rows(app_role_engine, None, "symptom_entries") == 0
         assert await _scoped_rows(app_role_engine, None, "medications") == 0
         assert await _scoped_rows(app_role_engine, None, "medication_doses") == 0
+        assert await _scoped_rows(app_role_engine, None, "custom_ingredients") == 0
+        assert await _scoped_rows(app_role_engine, None, "food_log_items") == 0
+        assert await _scoped_rows(app_role_engine, None, "food_log_item_ingredients") == 0
 
     async def test_scope_limits_results_to_one_patient(self, app_role_engine, two_patients) -> None:
         alice, bob = two_patients
@@ -153,6 +184,10 @@ class TestRowLevelSecurity:
         assert await _scoped_rows(app_role_engine, alice, "medications") == 1
         assert await _scoped_rows(app_role_engine, alice, "medication_doses") == 1
         assert await _scoped_rows(app_role_engine, bob, "medications") == 1
+        assert await _scoped_rows(app_role_engine, alice, "custom_ingredients") == 1
+        assert await _scoped_rows(app_role_engine, alice, "food_log_items") == 1
+        assert await _scoped_rows(app_role_engine, alice, "food_log_item_ingredients") == 2
+        assert await _scoped_rows(app_role_engine, bob, "food_log_item_ingredients") == 2
 
     async def test_one_patient_cannot_read_another_by_id(
         self, app_role_engine, two_patients
@@ -228,3 +263,44 @@ class TestRowLevelSecurity:
                 )
             ).scalar_one()
         assert owned == 0
+
+    async def test_every_patient_owned_table_has_row_level_security(self, app_role_engine) -> None:
+        """A new table with a patient_id and no policy is the gap this layer exists
+        to close, and it is exactly the kind a migration forgets. Checked from the
+        catalog, so the next table is covered without anyone editing this test."""
+        async with app_role_engine.connect() as conn:
+            unprotected = (
+                (
+                    await conn.execute(
+                        text(
+                            "SELECT c.relname FROM pg_class c "
+                            "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                            "JOIN pg_attribute a ON a.attrelid = c.oid "
+                            "WHERE n.nspname = 'public' AND c.relkind = 'r' "
+                            "AND a.attname = 'patient_id' AND NOT a.attisdropped "
+                            "AND NOT c.relrowsecurity "
+                            "ORDER BY c.relname"
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        # audit_log names a patient but is append-only and never read by the
+        # application; its protection is the grant, not a policy.
+        assert list(unprotected) == ["audit_log"]
+
+    async def test_reference_data_is_read_only_for_the_application(self, app_role_engine) -> None:
+        async with app_role_engine.connect() as conn:
+            assert (
+                await conn.execute(text("SELECT count(*) FROM ingredient_catalog"))
+            ).scalar_one() > 100
+        for statement in (
+            "INSERT INTO ingredient_catalog (code, name, allergen_groups, aliases) "
+            "VALUES ('x', 'X', '{}', '{}')",
+            "UPDATE ingredient_catalog SET allergen_groups = '{}' WHERE code = 'milk'",
+            "DELETE FROM ingredient_catalog WHERE code = 'milk'",
+        ):
+            with pytest.raises(ProgrammingError, match="permission denied"):
+                async with app_role_engine.connect() as conn, conn.begin():
+                    await conn.execute(text(statement))

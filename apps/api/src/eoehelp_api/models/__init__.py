@@ -8,6 +8,12 @@ from eoehelp_api.models.audit import AuditLog
 from eoehelp_api.models.auth import MagicLinkToken, RefreshToken
 from eoehelp_api.models.clinical import ClinicalInstrument, SymptomEntry
 from eoehelp_api.models.consent import Consent, ResearchConsentScope
+from eoehelp_api.models.food import (
+    CatalogIngredient,
+    CustomIngredient,
+    FoodLogItem,
+    FoodLogItemIngredient,
+)
 from eoehelp_api.models.medication import (
     Medication,
     MedicationCatalogEntry,
@@ -18,8 +24,12 @@ from eoehelp_api.models.user import User
 
 __all__ = [
     "AuditLog",
+    "CatalogIngredient",
     "ClinicalInstrument",
     "Consent",
+    "CustomIngredient",
+    "FoodLogItem",
+    "FoodLogItemIngredient",
     "MagicLinkToken",
     "Medication",
     "MedicationCatalogEntry",

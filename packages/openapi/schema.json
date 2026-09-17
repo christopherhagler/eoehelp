@@ -136,6 +136,56 @@
         "title": "AdherenceSummary",
         "type": "object"
       },
+      "AllergenGroup": {
+        "description": "The groups elimination diets are built from.\n\nThe first six are the six-food elimination diet (6FED) groups, split where the\ndiet treats them as one \u2014 nuts into peanut and tree nut, seafood into fish and\nshellfish \u2014 so that a 4FED or 2FED is expressible without losing the finer\ngrain. Sesame is here because US labelling added it in 2023, not because the\nEoE diets eliminate it.\n\nPENDING CLINICAL CONFIRMATION: the group assigned to each catalog ingredient\n(migration 0004) needs the clinical advisor's review before it drives any\npatient-facing insight.",
+        "enum": [
+          "milk",
+          "wheat",
+          "egg",
+          "soy",
+          "peanut",
+          "tree_nut",
+          "fish",
+          "shellfish",
+          "sesame"
+        ],
+        "title": "AllergenGroup",
+        "type": "string"
+      },
+      "CatalogIngredientRead": {
+        "properties": {
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "allergen_groups": {
+            "items": {
+              "$ref": "#/components/schemas/AllergenGroup"
+            },
+            "title": "Allergen Groups",
+            "type": "array"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "allergen_groups",
+          "aliases"
+        ],
+        "title": "CatalogIngredientRead",
+        "type": "object"
+      },
       "ConsentAcceptance": {
         "additionalProperties": false,
         "description": "The three documents required to hold an account.\n\nThree separate booleans rather than one \"I agree\": Washington's My Health My\nData Act requires specific consent to the consumer health data disclosure,\nand a single checkbox covering everything is exactly what it prohibits.\nResearch participation is deliberately not here \u2014 it is a separate decision,\nmade later, and never a condition of using the product.",
@@ -202,6 +252,67 @@
         ],
         "title": "CopingAction",
         "type": "string"
+      },
+      "CustomIngredientRead": {
+        "properties": {
+          "allergen_groups": {
+            "items": {
+              "$ref": "#/components/schemas/AllergenGroup"
+            },
+            "title": "Allergen Groups",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "allergen_groups"
+        ],
+        "title": "CustomIngredientRead",
+        "type": "object"
+      },
+      "CustomIngredientUpdate": {
+        "additionalProperties": false,
+        "description": "Rename an ingredient or tag its allergen groups.\n\nRetagging applies to every past day it was eaten, deliberately: the tag\ndescribes what the ingredient is, and \"hot sauce turned out to contain soy\"\nis a correction to history, not a change from now on.",
+        "properties": {
+          "allergen_groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AllergenGroup"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allergen Groups"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "CustomIngredientUpdate",
+        "type": "object"
       },
       "DoseCreate": {
         "additionalProperties": false,
@@ -312,6 +423,120 @@
         "title": "EntryMethod",
         "type": "string"
       },
+      "FoodItemInput": {
+        "additionalProperties": false,
+        "properties": {
+          "eaten_on": {
+            "format": "date",
+            "title": "Eaten On",
+            "type": "string"
+          },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/IngredientRef"
+            },
+            "maxItems": 40,
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "meal": {
+            "$ref": "#/components/schemas/Meal"
+          },
+          "name": {
+            "maxLength": 120,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "eaten_on",
+          "meal",
+          "name"
+        ],
+        "title": "FoodItemInput",
+        "type": "object"
+      },
+      "FoodItemList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FoodItemRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "range_end": {
+            "format": "date",
+            "title": "Range End",
+            "type": "string"
+          },
+          "range_start": {
+            "format": "date",
+            "title": "Range Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "range_start",
+          "range_end",
+          "items"
+        ],
+        "title": "FoodItemList",
+        "type": "object"
+      },
+      "FoodItemRead": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "eaten_on": {
+            "format": "date",
+            "title": "Eaten On",
+            "type": "string"
+          },
+          "entry_method": {
+            "$ref": "#/components/schemas/EntryMethod"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/IngredientRead"
+            },
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "meal": {
+            "$ref": "#/components/schemas/Meal"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "eaten_on",
+          "meal",
+          "name",
+          "entry_method",
+          "ingredients",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "FoodItemRead",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -323,6 +548,111 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IngredientRead": {
+        "description": "An ingredient as the patient sees it, from whichever table it lives in.",
+        "properties": {
+          "allergen_groups": {
+            "items": {
+              "$ref": "#/components/schemas/AllergenGroup"
+            },
+            "title": "Allergen Groups",
+            "type": "array"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "custom_ingredient_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Ingredient Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "custom_ingredient_id",
+          "name",
+          "allergen_groups"
+        ],
+        "title": "IngredientRead",
+        "type": "object"
+      },
+      "IngredientRef": {
+        "additionalProperties": false,
+        "description": "One ingredient of a food, in exactly one of three forms.\n\n- `code`: a catalog ingredient the patient picked.\n- `custom_ingredient_id`: one of the patient's own ingredients.\n- `name`: typed text. The server matches it against the catalog (names and\n  aliases) and the patient's own ingredients, and creates a new one of the\n  patient's only if nothing matches \u2014 so a typed \"flour\" still counts as wheat.\n\n`allergen_groups` applies only when a typed name creates a new ingredient.\nCatalog groups are authoritative, and an existing ingredient's groups are\nchanged through its own endpoint rather than as a side effect of logging.",
+        "properties": {
+          "allergen_groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AllergenGroup"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allergen Groups"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "custom_ingredient_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Ingredient Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "IngredientRef",
         "type": "object"
       },
       "MagicLinkRequest": {
@@ -367,6 +697,16 @@
         ],
         "title": "MagicLinkVerify",
         "type": "object"
+      },
+      "Meal": {
+        "enum": [
+          "breakfast",
+          "lunch",
+          "dinner",
+          "snack"
+        ],
+        "title": "Meal",
+        "type": "string"
       },
       "MedicationCatalogItem": {
         "properties": {
@@ -939,6 +1279,43 @@
           }
         },
         "title": "PatientProfileUpdate",
+        "type": "object"
+      },
+      "RecentFood": {
+        "description": "A food the patient has logged before, ready to log again in one tap.\n\nThe ingredients are those of the most recent time it was logged, which is the\nbest guess at how the patient makes it now.",
+        "properties": {
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/IngredientRead"
+            },
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "last_eaten_on": {
+            "format": "date",
+            "title": "Last Eaten On",
+            "type": "string"
+          },
+          "meal": {
+            "$ref": "#/components/schemas/Meal"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "times_logged": {
+            "title": "Times Logged",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "meal",
+          "ingredients",
+          "times_logged",
+          "last_eaten_on"
+        ],
+        "title": "RecentFood",
         "type": "object"
       },
       "SessionUser": {
@@ -1538,6 +1915,32 @@
         ]
       }
     },
+    "/api/v1/foods/ingredients": {
+      "get": {
+        "description": "Every catalog ingredient, with its allergen groups and search aliases.\n\nAround a hundred rows, sent whole so the client can search as the patient\ntypes without a request per keystroke.",
+        "operationId": "list_catalog_api_v1_foods_ingredients_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogIngredientRead"
+                  },
+                  "title": "Response List Catalog Api V1 Foods Ingredients Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Catalog",
+        "tags": [
+          "food"
+        ]
+      }
+    },
     "/api/v1/me": {
       "delete": {
         "description": "Erase the record. Not reversible, and not a flag.\n\nWashington's My Health My Data Act gives a working deletion right, and the\nproduct promises the deletion is real. The audit trail of the access and of\nthe deletion survives by design; it holds field names rather than values.",
@@ -1575,6 +1978,329 @@
         "summary": "Read Consents",
         "tags": [
           "patient"
+        ]
+      }
+    },
+    "/api/v1/me/foods": {
+      "get": {
+        "description": "Logged food between two days, inclusive. Both default to the patient's today.",
+        "operationId": "list_foods_api_v1_me_foods_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodItemList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Foods",
+        "tags": [
+          "food"
+        ]
+      },
+      "post": {
+        "operationId": "log_food_api_v1_me_foods_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FoodItemInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodItemRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Log Food",
+        "tags": [
+          "food"
+        ]
+      }
+    },
+    "/api/v1/me/foods/ingredients": {
+      "get": {
+        "description": "The ingredients this patient has added that the catalog does not have.",
+        "operationId": "list_custom_ingredients_api_v1_me_foods_ingredients_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CustomIngredientRead"
+                  },
+                  "title": "Response List Custom Ingredients Api V1 Me Foods Ingredients Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Custom Ingredients",
+        "tags": [
+          "food"
+        ]
+      }
+    },
+    "/api/v1/me/foods/ingredients/{ingredient_id}": {
+      "patch": {
+        "operationId": "update_custom_ingredient_api_v1_me_foods_ingredients__ingredient_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Ingredient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomIngredientUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomIngredientRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Custom Ingredient",
+        "tags": [
+          "food"
+        ]
+      }
+    },
+    "/api/v1/me/foods/recent": {
+      "get": {
+        "operationId": "recent_foods_api_v1_me_foods_recent_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecentFood"
+                  },
+                  "title": "Response Recent Foods Api V1 Me Foods Recent Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recent Foods",
+        "tags": [
+          "food"
+        ]
+      }
+    },
+    "/api/v1/me/foods/{item_id}": {
+      "delete": {
+        "operationId": "delete_food_api_v1_me_foods__item_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Food",
+        "tags": [
+          "food"
+        ]
+      },
+      "put": {
+        "description": "Replace a logged food, ingredients included.",
+        "operationId": "update_food_api_v1_me_foods__item_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FoodItemInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodItemRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Food",
+        "tags": [
+          "food"
         ]
       }
     },

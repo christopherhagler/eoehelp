@@ -1,0 +1,43 @@
+import { AllergenGroup, Meal } from '../core/api-types';
+
+/** One place for these, so the log, the editor, and the eventual insight and
+ * report screens cannot name the same group two ways. */
+export const ALLERGEN_LABELS: Record<AllergenGroup, string> = {
+  milk: 'Milk',
+  wheat: 'Wheat',
+  egg: 'Egg',
+  soy: 'Soy',
+  peanut: 'Peanut',
+  tree_nut: 'Tree nut',
+  fish: 'Fish',
+  shellfish: 'Shellfish',
+  sesame: 'Sesame',
+};
+
+/** Declaration order from the API, which is also the order groups are stored in. */
+export const ALLERGEN_GROUPS = Object.keys(ALLERGEN_LABELS) as AllergenGroup[];
+
+export const MEAL_LABELS: Record<Meal, string> = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch',
+  dinner: 'Dinner',
+  snack: 'Snack',
+};
+
+export const MEALS = Object.keys(MEAL_LABELS) as Meal[];
+
+export function allergenSummary(groups: readonly AllergenGroup[]): string {
+  return groups.map((group) => ALLERGEN_LABELS[group]).join(', ');
+}
+
+/**
+ * The meal a patient is most likely logging right now. Only a default: the
+ * editor shows it selected, and changing it is one tap.
+ */
+export function mealForTime(date = new Date()): Meal {
+  const hour = date.getHours();
+  if (hour < 11) return 'breakfast';
+  if (hour < 16) return 'lunch';
+  if (hour < 21) return 'dinner';
+  return 'snack';
+}

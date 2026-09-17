@@ -147,6 +147,21 @@
         </mat-card>
       }
 
+      <!-- Food. Saved as each item is added, independently of the answers above,
+           so a patient can log breakfast in the morning and the day's symptoms
+           in the evening without either waiting on the other. -->
+      <mat-card appearance="outlined">
+        <mat-card-content class="!p-6">
+          <h2 class="m-0 text-lg font-semibold tracking-tight">What did you eat?</h2>
+          <p class="mt-1 text-sm text-on-surface-variant">
+            Optional. Each food saves as you add it.
+          </p>
+          <div class="mt-4">
+            <app-food-log [day]="entryDate()" />
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <!-- Medications, on the same screen rather than behind a separate flow.
            This is the other thing a patient does every day, and separating it is
            how adherence data stops being collected. Shown only for today, since a
@@ -235,7 +250,12 @@
         </mat-card>
       }
 
-      <div class="sticky bottom-4 mt-2 flex flex-wrap items-center gap-3">
+      <!-- Opaque, so content scrolling underneath it stays unreadable rather than
+           showing through the buttons. -->
+      <div
+        class="sticky bottom-0 z-10 -mx-6 mt-2 flex flex-wrap items-center gap-3
+               border-t border-outline-variant bg-surface px-6 py-3"
+      >
         <button
           mat-flat-button
           type="button"
