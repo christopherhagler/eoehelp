@@ -11,34 +11,60 @@
     <div class="mx-auto flex w-full max-w-6xl items-center gap-4 px-1">
       <a
         routerLink="/"
+        aria-label="eoehelp home"
         class="flex items-center gap-2.5 font-semibold tracking-tight text-on-surface no-underline"
       >
         <app-logo [size]="26" class="text-brand" />
-        <span class="text-lg">eoehelp</span>
+        <span class="hidden text-lg sm:inline" aria-hidden="true">eoehelp</span>
       </a>
 
       <span class="flex-1"></span>
 
       <nav aria-label="Main" class="flex items-center gap-1">
         @if (auth.isSignedIn()) {
+          <!-- Icons alone below the sm breakpoint, where the labelled bar is
+               wider than a phone. The aria-labels keep every link named. -->
           <a
             mat-button
+            class="max-sm:!min-w-0 max-sm:!px-3"
+            aria-label="Today"
             routerLink="/today"
             routerLinkActive="!text-brand"
             [routerLinkActiveOptions]="{ exact: true }"
           >
             <mat-icon>today</mat-icon>
-            Today
+            <span class="hidden sm:inline">Today</span>
           </a>
-          <a mat-button routerLink="/log" routerLinkActive="!text-brand">
+          <a
+            mat-button
+            class="max-sm:!min-w-0 max-sm:!px-3"
+            aria-label="Log"
+            routerLink="/log"
+            routerLinkActive="!text-brand"
+          >
             <mat-icon>edit_note</mat-icon>
-            Log
+            <span class="hidden sm:inline">Log</span>
           </a>
-          <a mat-button routerLink="/medications" routerLinkActive="!text-brand">
+          <a
+            mat-button
+            class="max-sm:!min-w-0 max-sm:!px-3"
+            aria-label="Medications"
+            routerLink="/medications"
+            routerLinkActive="!text-brand"
+          >
             <mat-icon>medication</mat-icon>
-            Medications
+            <span class="hidden sm:inline">Medications</span>
           </a>
-          <button mat-button type="button" (click)="signOut()">Sign out</button>
+          <button
+            mat-button
+            type="button"
+            class="max-sm:!min-w-0 max-sm:!px-3"
+            aria-label="Sign out"
+            (click)="signOut()"
+          >
+            <mat-icon class="sm:!hidden">logout</mat-icon>
+            <span class="hidden sm:inline">Sign out</span>
+          </button>
         } @else if (!auth.isRestoring()) {
           <a mat-flat-button routerLink="/sign-in">Sign in</a>
         }
