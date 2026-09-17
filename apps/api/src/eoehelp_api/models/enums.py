@@ -237,3 +237,20 @@ class DilationComplication(enum.StrEnum):
     BLEEDING = "bleeding"
     PERFORATION = "perforation"
     OTHER = "other"
+
+
+class FoodDataSource(enum.StrEnum):
+    OPEN_FOOD_FACTS = "open_food_facts"
+    USDA_FDC = "usda_fdc"
+
+
+class IngredientProvenance(enum.StrEnum):
+    """Who says this ingredient was in the food.
+
+    ``label`` comes from a product's printed ingredient list. ``patient`` is the
+    patient's own account, whether picked from the catalog or typed. An analysis
+    can weigh them differently; a label is evidence, a recollection is testimony.
+    """
+
+    LABEL = "label"
+    PATIENT = "patient"

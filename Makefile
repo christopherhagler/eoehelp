@@ -86,11 +86,14 @@ seed: ## Seed the dev database with synthetic patients (n=3 months=18)
 	$(COMPOSE) exec -T api python -m eoehelp_api.synthetic \
 		--patients $(or $(n),3) --months $(or $(months),18) --seed $(or $(seed),1)
 
+# Written to a temporary file first: a failed export must not leave an empty
+# contract behind for the next command to generate types from.
 openapi: ## Regenerate the committed OpenAPI contract
 	$(COMPOSE) exec -T api python -c "\
 import json; from eoehelp_api.main import create_app; \
 print(json.dumps(create_app().openapi(), indent=2, sort_keys=True))" \
-		> packages/openapi/schema.json
+		> packages/openapi/schema.json.tmp
+	mv packages/openapi/schema.json.tmp packages/openapi/schema.json
 	@echo "wrote packages/openapi/schema.json"
 
 mail: ## Open the local mail catcher

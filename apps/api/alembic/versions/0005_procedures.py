@@ -89,13 +89,13 @@ def upgrade() -> None:
             "(erefs_version IS NULL) = (erefs_edema IS NULL AND erefs_rings IS NULL "
             "AND erefs_exudates IS NULL AND erefs_furrows IS NULL "
             "AND erefs_stricture IS NULL)",
-            name="ck_endoscopies_erefs_version_matches_scores",
+            name=op.f("ck_endoscopies_erefs_version_matches_scores"),
         ),
         *(
             sa.CheckConstraint(
                 f"erefs_{feature} IS NULL OR erefs_{feature} BETWEEN 0 AND "
                 f"CASE erefs_version WHEN 'classic' THEN {classic} ELSE {graded} END",
-                name=f"ck_endoscopies_erefs_{feature}_in_range",
+                name=op.f(f"ck_endoscopies_erefs_{feature}_in_range"),
             )
             for feature, classic, graded in EREFS_MAXIMA
         ),
@@ -130,7 +130,7 @@ def upgrade() -> None:
         ),
         sa.UniqueConstraint("endoscopy_id", "location", name="uq_biopsies_endoscopy_id_location"),
         sa.CheckConstraint(
-            "peak_eos_per_hpf BETWEEN 0 AND 1000", name="ck_biopsies_peak_eos_in_range"
+            "peak_eos_per_hpf BETWEEN 0 AND 1000", name=op.f("ck_biopsies_peak_eos_in_range")
         ),
     )
     op.create_index("ix_biopsies_patient_id", "biopsies", ["patient_id"])
@@ -160,16 +160,16 @@ def upgrade() -> None:
         sa.UniqueConstraint("endoscopy_id", name="uq_dilations_endoscopy_id"),
         sa.CheckConstraint(
             "pre_diameter_mm IS NULL OR pre_diameter_mm BETWEEN 5 AND 25",
-            name="ck_dilations_pre_diameter_in_range",
+            name=op.f("ck_dilations_pre_diameter_in_range"),
         ),
         sa.CheckConstraint(
             "final_diameter_mm IS NULL OR final_diameter_mm BETWEEN 5 AND 25",
-            name="ck_dilations_final_diameter_in_range",
+            name=op.f("ck_dilations_final_diameter_in_range"),
         ),
         sa.CheckConstraint(
             "pre_diameter_mm IS NULL OR final_diameter_mm IS NULL "
             "OR final_diameter_mm >= pre_diameter_mm",
-            name="ck_dilations_dilation_does_not_narrow",
+            name=op.f("ck_dilations_dilation_does_not_narrow"),
         ),
     )
     op.create_index("ix_dilations_patient_id", "dilations", ["patient_id"])

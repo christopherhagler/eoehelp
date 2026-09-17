@@ -303,6 +303,23 @@ class TestReadingBack:
 
 
 class TestRecentFoods:
+    async def test_a_food_eaten_today_outranks_one_eaten_often_long_ago(
+        self, client: AsyncClient, onboard, session: AsyncSession
+    ) -> None:
+        """Ranking by count alone would keep a new food off the list for good."""
+        access, _ = await onboard()
+        for _ in range(8):
+            await log(client, access, name="Old habit", ingredients=[{"code": "oats"}])
+        await session.execute(
+            text("UPDATE food_log_items SET eaten_on = CURRENT_DATE - 70 WHERE name = 'Old habit'")
+        )
+        await session.commit()
+        await log(client, access, name="New thing", ingredients=[{"code": "rice"}])
+
+        recent = (await client.get(f"{FOODS}/recent", headers=auth(access))).json()
+        assert [r["name"] for r in recent] == ["New thing", "Old habit"]
+        assert recent[1]["times_logged"] == 8
+
     async def test_recent_foods_rank_by_frequency_with_the_latest_ingredients(
         self, client: AsyncClient, onboard
     ) -> None:

@@ -29,12 +29,7 @@ import { Component, input } from '@angular/core';
     } @else {
       <!-- Solid silhouette: the channel is knocked out of a filled square, which
            holds its shape as a favicon where two hairlines would disappear. -->
-      <svg
-        [attr.width]="size()"
-        [attr.height]="size()"
-        viewBox="0 0 48 48"
-        aria-hidden="true"
-      >
+      <svg [attr.width]="size()" [attr.height]="size()" viewBox="0 0 48 48" aria-hidden="true">
         <path
           fill="currentColor"
           fill-rule="evenodd"

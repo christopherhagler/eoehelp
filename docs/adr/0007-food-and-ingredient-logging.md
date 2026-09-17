@@ -2,6 +2,8 @@
 
 **Status:** Accepted · 2026-09-16
 **Relates to:** [ADR 0002](0002-patient-data-isolation.md) (patient data isolation)
+**Extended by:** [ADR 0008](0008-food-product-data.md), which adds real product labels. That ADR is
+why catalog dishes such as mayonnaise are now marked composite rather than asserted.
 
 ## Context
 

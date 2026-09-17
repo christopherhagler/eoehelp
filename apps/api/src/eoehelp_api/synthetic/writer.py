@@ -19,8 +19,8 @@ from eoehelp_api.core.security import FieldCipher
 from eoehelp_api.db.session import apply_rls_scope, session_scope
 from eoehelp_api.models.clinical import SymptomEntry
 from eoehelp_api.models.consent import Consent
-from eoehelp_api.models.enums import UserRole, UserStatus
-from eoehelp_api.models.food import FoodLogItem, FoodLogItemIngredient
+from eoehelp_api.models.enums import IngredientProvenance, UserRole, UserStatus
+from eoehelp_api.models.food import CatalogIngredient, FoodLogItem, FoodLogItemIngredient
 from eoehelp_api.models.medication import Medication, MedicationDose
 from eoehelp_api.models.patient import Patient
 from eoehelp_api.models.user import User
@@ -182,6 +182,10 @@ class SyntheticWriter:
                 )
                 dose_count += 1
 
+        catalog = {
+            row.code: row
+            for row in (await self._session.execute(select(CatalogIngredient))).scalars()
+        }
         for food in plan.foods:
             self._session.add(
                 FoodLogItem(
@@ -194,7 +198,12 @@ class SyntheticWriter:
                     entry_method=food.entry_method,
                     ingredients=[
                         FoodLogItemIngredient(
-                            patient_id=patient_id, ingredient_code=code, position=position
+                            patient_id=patient_id,
+                            ingredient_code=code,
+                            canonical_key=catalog[code].canonical_key,
+                            display_name=catalog[code].name,
+                            provenance=IngredientProvenance.PATIENT,
+                            position=position,
                         )
                         for position, code in enumerate(food.ingredient_codes)
                     ],

@@ -30,12 +30,15 @@ interface MealGroup {
   readonly items: readonly FoodItemRead[];
 }
 
+/** The patient's own ingredients, as references; label rows come with the product. */
 function refsFor(ingredients: readonly IngredientRead[]): FoodItemInput['ingredients'] {
-  return ingredients.map((ingredient) =>
-    ingredient.code
-      ? { code: ingredient.code }
-      : { custom_ingredient_id: ingredient.custom_ingredient_id },
-  );
+  return ingredients
+    .filter((ingredient) => ingredient.provenance === 'patient')
+    .map((ingredient) =>
+      ingredient.code
+        ? { code: ingredient.code }
+        : { custom_ingredient_id: ingredient.custom_ingredient_id },
+    );
 }
 
 /**
@@ -48,13 +51,7 @@ function refsFor(ingredients: readonly IngredientRead[]): FoodItemInput['ingredi
  */
 @Component({
   selector: 'app-food-log',
-  imports: [
-    FoodEditor,
-    MatButtonModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
-    MatTooltipModule,
-  ],
+  imports: [FoodEditor, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule],
   template: `
     @if (loading()) {
       <div class="flex justify-center py-6"><mat-spinner diameter="24" /></div>
@@ -65,8 +62,8 @@ function refsFor(ingredients: readonly IngredientRead[]): FoodItemInput['ingredi
 
       @if (groups().length === 0 && !editing()) {
         <p class="m-0 text-sm leading-relaxed text-on-surface-variant">
-          Nothing logged yet. Adding what you ate, down to the ingredients, is how
-          patterns become visible over time.
+          Nothing logged yet. Adding what you ate, down to the ingredients, is how patterns become
+          visible over time.
         </p>
       }
 
@@ -96,9 +93,20 @@ function refsFor(ingredients: readonly IngredientRead[]): FoodItemInput['ingredi
                     <div class="flex items-start justify-between gap-3">
                       <div class="min-w-0">
                         <p class="m-0 font-medium">{{ item.name }}</p>
-                        @if (item.ingredients.length > 0) {
-                          <p class="m-0 mt-1 text-sm text-on-surface-variant">
-                            {{ ingredientNames(item) }}
+                        @if (item.product; as product) {
+                          <p
+                            class="m-0 mt-0.5 flex items-center gap-1 text-xs text-on-surface-variant"
+                          >
+                            <mat-icon class="!size-4 !text-base" aria-hidden="true">
+                              qr_code_2
+                            </mat-icon>
+                            {{ product.brand ? product.brand + ' · ' : '' }}ingredients from the
+                            label
+                          </p>
+                        }
+                        @if (ingredientNames(item); as names) {
+                          <p class="m-0 mt-1 line-clamp-2 text-sm text-on-surface-variant">
+                            {{ names }}
                           </p>
                         }
                         @if (containsLabel(item); as contains) {
@@ -107,6 +115,11 @@ function refsFor(ingredients: readonly IngredientRead[]): FoodItemInput['ingredi
                               info
                             </mat-icon>
                             Contains {{ contains }}
+                          </p>
+                        }
+                        @if (item.product && item.product.may_contain.length > 0) {
+                          <p class="m-0 mt-0.5 text-xs text-on-surface-variant">
+                            May contain {{ mayContainLabel(item) }}
                           </p>
                         }
                       </div>
@@ -247,14 +260,28 @@ export class FoodLog implements OnInit {
     return open?.kind === 'edit' && open.item.id === item.id;
   }
 
+  /** Top-level ingredients only; nested ones belong to the label's detail. */
   protected ingredientNames(item: FoodItemRead): string {
-    return item.ingredients.map((ingredient) => ingredient.name).join(', ');
+    return item.ingredients
+      .filter((ingredient) => ingredient.depth === 0)
+      .map((ingredient) => ingredient.name)
+      .join(', ');
   }
 
-  /** The groups across all of a food's ingredients, shown as text rather than colour. */
+  /**
+   * Every group the food is known to contain: the label's declaration and
+   * whatever its ingredients imply. Shown as text rather than colour.
+   */
   protected containsLabel(item: FoodItemRead): string {
-    const present = new Set(item.ingredients.flatMap((ingredient) => ingredient.allergen_groups));
+    const present = new Set([
+      ...item.ingredients.flatMap((ingredient) => ingredient.allergen_groups),
+      ...(item.product?.declared_allergens ?? []),
+    ]);
     return allergenSummary(ALLERGEN_GROUPS.filter((group) => present.has(group))).toLowerCase();
+  }
+
+  protected mayContainLabel(item: FoodItemRead): string {
+    return allergenSummary(item.product?.may_contain ?? []).toLowerCase();
   }
 
   protected startFrom(food: RecentFood): void {
@@ -287,6 +314,7 @@ export class FoodLog implements OnInit {
         eaten_on: item.eaten_on,
         meal: item.meal,
         name: item.name,
+        product: item.product ? { snapshot_id: item.product.snapshot_id } : null,
         ingredients: refsFor(item.ingredients),
       });
     } catch (failure: unknown) {

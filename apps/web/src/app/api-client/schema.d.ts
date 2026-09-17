@@ -112,6 +112,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/foods/products/barcode/{barcode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Product By Barcode */
+        get: operations["product_by_barcode_api_v1_foods_products_barcode__barcode__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/foods/products/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Products */
+        get: operations["search_products_api_v1_foods_products_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/foods/products/{source}/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Product Detail */
+        get: operations["product_detail_api_v1_foods_products__source___source_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -787,8 +838,12 @@ export interface components {
             aliases: string[];
             /** Allergen Groups */
             allergen_groups: components["schemas"]["AllergenGroup"][];
+            /** Canonical Key */
+            canonical_key: string;
             /** Code */
             code: string;
+            /** Is Composite */
+            is_composite: boolean;
             /** Name */
             name: string;
         };
@@ -1093,6 +1148,11 @@ export interface components {
          * @enum {string}
          */
         ErefsVersion: "classic" | "graded";
+        /**
+         * FoodDataSource
+         * @enum {string}
+         */
+        FoodDataSource: "open_food_facts" | "usda_fdc";
         /** FoodItemInput */
         FoodItemInput: {
             /**
@@ -1105,6 +1165,7 @@ export interface components {
             meal: components["schemas"]["Meal"];
             /** Name */
             name: string;
+            product?: components["schemas"]["ProductRef"] | null;
         };
         /** FoodItemList */
         FoodItemList: {
@@ -1144,6 +1205,7 @@ export interface components {
             meal: components["schemas"]["Meal"];
             /** Name */
             name: string;
+            product: components["schemas"]["ProductSnapshotRead"] | null;
             /**
              * Updated At
              * Format: date-time
@@ -1165,18 +1227,41 @@ export interface components {
          */
         HistologyStatus: "below_threshold" | "at_or_above_threshold" | "indeterminate";
         /**
+         * IngredientProvenance
+         * @description Who says this ingredient was in the food.
+         *
+         *     ``label`` comes from a product's printed ingredient list. ``patient`` is the
+         *     patient's own account, whether picked from the catalog or typed. An analysis
+         *     can weigh them differently; a label is evidence, a recollection is testimony.
+         * @enum {string}
+         */
+        IngredientProvenance: "label" | "patient";
+        /**
          * IngredientRead
-         * @description An ingredient as the patient sees it, from whichever table it lives in.
+         * @description An ingredient as the patient sees it, from whichever source it came.
          */
         IngredientRead: {
+            /** Additive Class */
+            additive_class: string | null;
             /** Allergen Groups */
             allergen_groups: components["schemas"]["AllergenGroup"][];
+            /** Canonical Key */
+            canonical_key: string;
             /** Code */
             code: string | null;
             /** Custom Ingredient Id */
             custom_ingredient_id: string | null;
+            /** Depth */
+            depth: number;
             /** Name */
             name: string;
+            /** Note */
+            note: string | null;
+            provenance: components["schemas"]["IngredientProvenance"];
+            /** Recognized */
+            recognized: boolean;
+            /** Typical */
+            typical: boolean;
         };
         /**
          * IngredientRef
@@ -1444,6 +1529,114 @@ export interface components {
             /** Value */
             value: number;
         };
+        /** ProductIngredientRead */
+        ProductIngredientRead: {
+            /** Additive Class */
+            additive_class: string | null;
+            /** Allergen Groups */
+            allergen_groups: components["schemas"]["AllergenGroup"][];
+            /** Depth */
+            depth: number;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Note */
+            note: string | null;
+            /** Recognized */
+            recognized: boolean;
+        };
+        /**
+         * ProductRead
+         * @description A product's label, freshly looked up and not yet logged.
+         */
+        ProductRead: {
+            /** Attribution */
+            attribution: string;
+            /** Barcode */
+            barcode: string | null;
+            /** Brand */
+            brand: string | null;
+            /** Declared Allergens */
+            declared_allergens: components["schemas"]["AllergenGroup"][];
+            /** Inferred Allergens */
+            inferred_allergens: components["schemas"]["AllergenGroup"][];
+            /** Ingredients */
+            ingredients: components["schemas"]["ProductIngredientRead"][];
+            /** Ingredients Complete */
+            ingredients_complete: boolean;
+            /** Ingredients Text */
+            ingredients_text: string | null;
+            /** May Contain */
+            may_contain: components["schemas"]["AllergenGroup"][];
+            /** Name */
+            name: string;
+            source: components["schemas"]["FoodDataSource"];
+            /** Source Id */
+            source_id: string;
+            /** Source Updated At */
+            source_updated_at: string | null;
+        };
+        /**
+         * ProductRef
+         * @description Which product was eaten.
+         *
+         *     Either a source record, which the server fetches itself — label data is never
+         *     accepted from the client, since the point of it is that it came from the
+         *     label — or an existing snapshot, which is how a recent food is logged again.
+         */
+        ProductRef: {
+            /** Snapshot Id */
+            snapshot_id?: string | null;
+            source?: components["schemas"]["FoodDataSource"] | null;
+            /** Source Id */
+            source_id?: string | null;
+        };
+        /**
+         * ProductSnapshotRead
+         * @description The label snapshot a logged food points at.
+         */
+        ProductSnapshotRead: {
+            /** Attribution */
+            attribution: string;
+            /** Barcode */
+            barcode: string | null;
+            /** Brand */
+            brand: string | null;
+            /** Declared Allergens */
+            declared_allergens: components["schemas"]["AllergenGroup"][];
+            /**
+             * Fetched At
+             * Format: date-time
+             */
+            fetched_at: string;
+            /** Ingredients Complete */
+            ingredients_complete: boolean;
+            /** May Contain */
+            may_contain: components["schemas"]["AllergenGroup"][];
+            /** Name */
+            name: string;
+            /**
+             * Snapshot Id
+             * Format: uuid
+             */
+            snapshot_id: string;
+            source: components["schemas"]["FoodDataSource"];
+            /** Source Id */
+            source_id: string;
+        };
+        /** ProductSummaryRead */
+        ProductSummaryRead: {
+            /** Barcode */
+            barcode: string | null;
+            /** Brand */
+            brand: string | null;
+            /** Name */
+            name: string;
+            source: components["schemas"]["FoodDataSource"];
+            /** Source Id */
+            source_id: string;
+        };
         /**
          * RecentFood
          * @description A food the patient has logged before, ready to log again in one tap.
@@ -1462,6 +1655,7 @@ export interface components {
             meal: components["schemas"]["Meal"];
             /** Name */
             name: string;
+            product: components["schemas"]["ProductSnapshotRead"] | null;
             /** Times Logged */
             times_logged: number;
         };
@@ -1800,6 +1994,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CatalogIngredientRead"][];
+                };
+            };
+        };
+    };
+    product_by_barcode_api_v1_foods_products_barcode__barcode__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                barcode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_products_api_v1_foods_products_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductSummaryRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    product_detail_api_v1_foods_products__source___source_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source: components["schemas"]["FoodDataSource"];
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

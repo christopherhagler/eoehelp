@@ -17,24 +17,34 @@ make both problems impossible instead of carefully avoided, at the price of one
 """
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     CheckConstraint,
     Date,
+    DateTime,
     Enum,
     ForeignKey,
     Index,
     SmallInteger,
     String,
+    Text,
     UniqueConstraint,
+    func,
+    text,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from eoehelp_api.db.base import Base, Timestamps, UUIDPrimaryKey
-from eoehelp_api.models.enums import AllergenGroup, EntryMethod, Meal
+from eoehelp_api.models.enums import (
+    AllergenGroup,
+    EntryMethod,
+    FoodDataSource,
+    IngredientProvenance,
+    Meal,
+)
 
 
 def _pg_enum(enum_type: type, name: str) -> Enum:
@@ -67,6 +77,13 @@ class CatalogIngredient(Base):
     aliases: Mapped[list[str]] = mapped_column(
         postgresql.ARRAY(String(120)), nullable=False, default=list
     )
+    # The same identity a label ingredient gets (fooddata/vocabulary.py), so
+    # "egg" picked from this list and "EGGS" read off a label are one thing.
+    canonical_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    # A dish rather than an ingredient: mayonnaise, bread, soy sauce. Its groups
+    # are what the usual recipe contains, not a fact about what was eaten, and
+    # the screen says so and suggests scanning the actual product.
+    is_composite: Mapped[bool] = mapped_column(nullable=False, default=False)
 
 
 class CustomIngredient(UUIDPrimaryKey, Base):
@@ -96,8 +113,54 @@ class CustomIngredient(UUIDPrimaryKey, Base):
     # patient-owned, and excluded from research export: a name can say anything.
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     name_key: Mapped[str] = mapped_column(String(120), nullable=False)
+    # Fixed at creation. A recognized name ("sodium benzoate") gets its standard
+    # key, so it lines up with the same ingredient read off a label.
+    canonical_key: Mapped[str] = mapped_column(String(160), nullable=False)
     allergen_groups: Mapped[list[AllergenGroup]] = mapped_column(
         _allergen_array(), nullable=False, default=list
+    )
+
+
+class FoodProduct(UUIDPrimaryKey, Base):
+    """A snapshot of one product's label, as a source reported it.
+
+    Public data, so not patient-scoped: the link between a patient and a product
+    lives only in their own log rows. Snapshots are immutable — the application
+    role may insert and read, never update or delete — because a logged meal
+    must keep pointing at the label as it was. A changed label is a new row.
+    """
+
+    __tablename__ = "food_products"
+    __table_args__ = (
+        UniqueConstraint(
+            "source", "source_id", "content_hash", name="uq_food_products_source_version"
+        ),
+        Index("ix_food_products_barcode", "barcode"),
+    )
+
+    source: Mapped[FoodDataSource] = mapped_column(
+        _pg_enum(FoodDataSource, "food_data_source"), nullable=False
+    )
+    source_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    barcode: Mapped[str | None] = mapped_column(String(14))
+    name: Mapped[str] = mapped_column(String(300), nullable=False)
+    brand: Mapped[str | None] = mapped_column(String(200))
+    ingredients_text: Mapped[str | None] = mapped_column(Text)
+    # Flattened, in reading order: [{key, name, depth, recognized, note}].
+    ingredients: Mapped[list[dict[str, Any]]] = mapped_column(
+        postgresql.JSONB, nullable=False, default=list
+    )
+    ingredients_complete: Mapped[bool] = mapped_column(nullable=False)
+    declared_allergens: Mapped[list[AllergenGroup]] = mapped_column(
+        _allergen_array(), nullable=False, default=list
+    )
+    may_contain: Mapped[list[AllergenGroup]] = mapped_column(
+        _allergen_array(), nullable=False, default=list
+    )
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
 
@@ -131,6 +194,12 @@ class FoodLogItem(UUIDPrimaryKey, Timestamps, Base):
         _pg_enum(EntryMethod, "entry_method"), nullable=False
     )
 
+    # The exact label snapshot, when the food was a scanned or searched product.
+    product_id: Mapped[uuid.UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True), ForeignKey("food_products.id")
+    )
+    product: Mapped[FoodProduct | None] = relationship(lazy="joined")
+
     ingredients: Mapped[list["FoodLogItemIngredient"]] = relationship(
         back_populates="item",
         cascade="all, delete-orphan",
@@ -144,9 +213,13 @@ class FoodLogItemIngredient(UUIDPrimaryKey, Base):
 
     __tablename__ = "food_log_item_ingredients"
     __table_args__ = (
+        # A patient's ingredient points at the catalog or at their own list; a
+        # label ingredient points at neither, and is identified by its key.
         CheckConstraint(
-            "(ingredient_code IS NULL) <> (custom_ingredient_id IS NULL)",
-            name="exactly_one_ingredient",
+            "CASE provenance WHEN 'label' "
+            "THEN ingredient_code IS NULL AND custom_ingredient_id IS NULL "
+            "ELSE (ingredient_code IS NULL) <> (custom_ingredient_id IS NULL) END",
+            name="ingredient_matches_provenance",
         ),
         UniqueConstraint(
             "item_id", "ingredient_code", name="uq_food_log_item_ingredients_item_id_code"
@@ -185,6 +258,24 @@ class FoodLogItemIngredient(UUIDPrimaryKey, Base):
         ),
     )
     position: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+
+    # Snapshotted for every row, so exposure queries need no joins and a label
+    # ingredient, which has no row elsewhere, has an identity at all.
+    canonical_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(300), nullable=False)
+    provenance: Mapped[IngredientProvenance] = mapped_column(
+        _pg_enum(IngredientProvenance, "ingredient_provenance"), nullable=False
+    )
+    # Nesting within a label: "WATER" inside "MUSTARD (WATER, ...)" is depth 1.
+    depth: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=0, server_default=text("0")
+    )
+    # False when a label ingredient could not be matched to a standard identity.
+    recognized: Mapped[bool] = mapped_column(
+        nullable=False, default=True, server_default=text("true")
+    )
+    # A label's stated purpose: "to protect freshness", "sweetener".
+    note: Mapped[str | None] = mapped_column(String(200))
 
     item: Mapped[FoodLogItem] = relationship(back_populates="ingredients")
     catalog: Mapped[CatalogIngredient | None] = relationship(lazy="joined")

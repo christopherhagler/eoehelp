@@ -26,26 +26,20 @@ export class SymptomService {
    * replayed on reconnect — cannot produce a second entry for the same day.
    */
   async save(entryDate: string, entry: SymptomEntryInput): Promise<SymptomEntryRead> {
-    return firstValueFrom(
-      this.http.put<SymptomEntryRead>(`${this.symptoms}/${entryDate}`, entry),
-    );
+    return firstValueFrom(this.http.put<SymptomEntryRead>(`${this.symptoms}/${entryDate}`, entry));
   }
 
   /** Resolves to null when the day has not been logged, which is not an error. */
   async get(entryDate: string): Promise<SymptomEntryRead | null> {
     try {
-      return await firstValueFrom(
-        this.http.get<SymptomEntryRead>(`${this.symptoms}/${entryDate}`),
-      );
+      return await firstValueFrom(this.http.get<SymptomEntryRead>(`${this.symptoms}/${entryDate}`));
     } catch {
       return null;
     }
   }
 
   async list(from: string, to: string): Promise<SymptomEntryList> {
-    return firstValueFrom(
-      this.http.get<SymptomEntryList>(this.symptoms, { params: { from, to } }),
-    );
+    return firstValueFrom(this.http.get<SymptomEntryList>(this.symptoms, { params: { from, to } }));
   }
 
   async remove(entryDate: string): Promise<void> {

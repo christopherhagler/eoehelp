@@ -1,4 +1,9 @@
-"""Food logging: the ingredient catalog, patient ingredients, and logged foods.
+"""Food logging: ingredients, product label snapshots, and logged foods.
+
+Every logged ingredient carries a canonical identity (``en:soya-oil``,
+``en:e202``) and a provenance: read off a product label, or given by the
+patient. Label snapshots are shared, public data that the application may add
+and read but never change.
 
 Hand-written like its predecessors, for the same reasons: autogenerate cannot
 express row-level security or grants, and grants do not reach tables created
@@ -195,12 +200,50 @@ CATALOG: list[tuple[str, str, tuple[str, ...], tuple[str, ...]]] = [
 ]
 
 
+# Catalog codes whose standard key is not simply "en:" plus the code. The
+# catalog-agreement test holds these in line with fooddata/vocabulary.py.
+KEY_OVERRIDES = {
+    "soybean": "en:soya",
+    "soy_lecithin": "en:soya-lecithin",
+    "chickpeas": "en:chickpea",
+    "spices": "en:spice",
+}
+
+# Dishes, not ingredients: their allergen groups describe the usual recipe, and
+# the screen says so. Vegan mayonnaise exists; tamari-based "soy sauce" exists.
+COMPOSITES = frozenset(
+    {
+        "bread",
+        "pasta",
+        "crackers",
+        "tortilla_flour",
+        "breadcrumbs",
+        "mayonnaise",
+        "egg_noodles",
+        "soy_sauce",
+        "hummus",
+        "ice_cream",
+        "milk_chocolate",
+    }
+)
+
+
+def _canonical_key(code: str) -> str:
+    return KEY_OVERRIDES.get(code, "en:" + code.replace("_", "-"))
+
+
 def upgrade() -> None:
     allergen_group = postgresql.ENUM(*ALLERGEN_GROUPS, name="allergen_group", create_type=False)
     meal = postgresql.ENUM("breakfast", "lunch", "dinner", "snack", name="meal", create_type=False)
     # entry_method already exists, created by 0002.
     entry_method = postgresql.ENUM("same_day", "backfill", name="entry_method", create_type=False)
-    for enum in (allergen_group, meal):
+    source = postgresql.ENUM(
+        "open_food_facts", "usda_fdc", name="food_data_source", create_type=False
+    )
+    provenance = postgresql.ENUM(
+        "label", "patient", name="ingredient_provenance", create_type=False
+    )
+    for enum in (allergen_group, meal, source, provenance):
         enum.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
@@ -209,6 +252,8 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("allergen_groups", postgresql.ARRAY(allergen_group), nullable=False),
         sa.Column("aliases", postgresql.ARRAY(sa.String(length=120)), nullable=False),
+        sa.Column("canonical_key", sa.String(length=160), nullable=False),
+        sa.Column("is_composite", sa.Boolean(), nullable=False),
         sa.PrimaryKeyConstraint("code", name="pk_ingredient_catalog"),
     )
     op.bulk_insert(
@@ -218,6 +263,8 @@ def upgrade() -> None:
             sa.column("name", sa.String),
             sa.column("allergen_groups", postgresql.ARRAY(allergen_group)),
             sa.column("aliases", postgresql.ARRAY(sa.String)),
+            sa.column("canonical_key", sa.String),
+            sa.column("is_composite", sa.Boolean),
         ),
         [
             {
@@ -227,6 +274,8 @@ def upgrade() -> None:
                 # so the same set never reads back in two different orders.
                 "allergen_groups": sorted(groups, key=ALLERGEN_GROUPS.index),
                 "aliases": list(aka),
+                "canonical_key": _canonical_key(code),
+                "is_composite": code in COMPOSITES,
             }
             for code, name, groups, aka in CATALOG
         ],
@@ -243,6 +292,7 @@ def upgrade() -> None:
         sa.Column("patient_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("name_key", sa.String(length=120), nullable=False),
+        sa.Column("canonical_key", sa.String(length=160), nullable=False),
         sa.Column("allergen_groups", postgresql.ARRAY(allergen_group), nullable=False),
         sa.PrimaryKeyConstraint("id", name="pk_custom_ingredients"),
         sa.ForeignKeyConstraint(
@@ -255,6 +305,36 @@ def upgrade() -> None:
             "patient_id", "name_key", name="uq_custom_ingredients_patient_id_name_key"
         ),
     )
+
+    op.create_table(
+        "food_products",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            server_default=sa.text("gen_random_uuid()"),
+            nullable=False,
+        ),
+        sa.Column("source", source, nullable=False),
+        sa.Column("source_id", sa.String(length=64), nullable=False),
+        sa.Column("barcode", sa.String(length=14), nullable=True),
+        sa.Column("name", sa.String(length=300), nullable=False),
+        sa.Column("brand", sa.String(length=200), nullable=True),
+        sa.Column("ingredients_text", sa.Text(), nullable=True),
+        sa.Column("ingredients", postgresql.JSONB(), nullable=False),
+        sa.Column("ingredients_complete", sa.Boolean(), nullable=False),
+        sa.Column("declared_allergens", postgresql.ARRAY(allergen_group), nullable=False),
+        sa.Column("may_contain", postgresql.ARRAY(allergen_group), nullable=False),
+        sa.Column("content_hash", sa.String(length=64), nullable=False),
+        sa.Column("source_updated_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "fetched_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.PrimaryKeyConstraint("id", name="pk_food_products"),
+        sa.UniqueConstraint(
+            "source", "source_id", "content_hash", name="uq_food_products_source_version"
+        ),
+    )
+    op.create_index("ix_food_products_barcode", "food_products", ["barcode"])
 
     op.create_table(
         "food_log_items",
@@ -270,6 +350,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("name_key", sa.String(length=120), nullable=False),
         sa.Column("entry_method", entry_method, nullable=False),
+        sa.Column("product_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
@@ -282,6 +363,11 @@ def upgrade() -> None:
             ["patients.id"],
             name="fk_food_log_items_patient_id_patients",
             ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["product_id"],
+            ["food_products.id"],
+            name="fk_food_log_items_product_id_food_products",
         ),
     )
     op.create_index(
@@ -301,6 +387,12 @@ def upgrade() -> None:
         sa.Column("ingredient_code", sa.String(length=64), nullable=True),
         sa.Column("custom_ingredient_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("position", sa.SmallInteger(), nullable=False),
+        sa.Column("canonical_key", sa.String(length=160), nullable=False),
+        sa.Column("display_name", sa.String(length=300), nullable=False),
+        sa.Column("provenance", provenance, nullable=False),
+        sa.Column("depth", sa.SmallInteger(), server_default="0", nullable=False),
+        sa.Column("recognized", sa.Boolean(), server_default=sa.true(), nullable=False),
+        sa.Column("note", sa.String(length=200), nullable=True),
         sa.PrimaryKeyConstraint("id", name="pk_food_log_item_ingredients"),
         sa.ForeignKeyConstraint(
             ["patient_id"],
@@ -328,9 +420,13 @@ def upgrade() -> None:
             ["custom_ingredients.id"],
             name="fk_food_log_item_ingredients_custom_ingredient_id",
         ),
+        # A patient's ingredient points at the catalog or at their own list; a
+        # label ingredient points at neither and is identified by its key.
         sa.CheckConstraint(
-            "(ingredient_code IS NULL) <> (custom_ingredient_id IS NULL)",
-            name="ck_food_log_item_ingredients_exactly_one_ingredient",
+            "CASE provenance WHEN 'label' "
+            "THEN ingredient_code IS NULL AND custom_ingredient_id IS NULL "
+            "ELSE (ingredient_code IS NULL) <> (custom_ingredient_id IS NULL) END",
+            name=op.f("ck_food_log_item_ingredients_ingredient_matches_provenance"),
         ),
         sa.UniqueConstraint(
             "item_id", "ingredient_code", name="uq_food_log_item_ingredients_item_id_code"
@@ -367,6 +463,8 @@ def _apply_runtime_grants() -> None:
                 GRANT SELECT, INSERT, UPDATE, DELETE ON food_log_item_ingredients TO app_runtime;
                 -- Reference data: readable, never writable by the application.
                 GRANT SELECT ON ingredient_catalog TO app_runtime;
+                -- Label snapshots are evidence: added and read, never changed.
+                GRANT SELECT, INSERT ON food_products TO app_runtime;
             END IF;
         END
         $$
@@ -377,9 +475,10 @@ def _apply_runtime_grants() -> None:
 def downgrade() -> None:
     op.drop_table("food_log_item_ingredients")
     op.drop_table("food_log_items")
+    op.drop_table("food_products")
     op.drop_table("custom_ingredients")
     op.drop_table("ingredient_catalog")
 
     # entry_method belongs to 0002 and stays.
-    for enum_name in ("meal", "allergen_group"):
+    for enum_name in ("ingredient_provenance", "food_data_source", "meal", "allergen_group"):
         op.execute(f"DROP TYPE IF EXISTS {enum_name}")

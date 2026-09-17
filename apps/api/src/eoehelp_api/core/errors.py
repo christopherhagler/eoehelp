@@ -51,3 +51,10 @@ class InvalidTokenError(AppError):
 class ConflictError(AppError):
     def __init__(self, detail: str = "Conflict") -> None:
         super().__init__(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+
+class ServiceUnavailableError(AppError):
+    """An upstream the request depends on is down; the client can retry later."""
+
+    def __init__(self, detail: str = "That service is unavailable right now.") -> None:
+        super().__init__(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)

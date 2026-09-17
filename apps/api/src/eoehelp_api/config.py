@@ -45,6 +45,19 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = False
     email_from: str = "no-reply@eoehelp.org"
 
+    # Packaged-food data, called from the server only. Open Food Facts asks every
+    # client to identify itself with a contact; anonymous clients get throttled.
+    food_data_user_agent: str = "eoehelp/{version} (https://eoehelp.org; security@eoehelp.org)"
+    openfoodfacts_url: str = "https://world.openfoodfacts.org"
+    openfoodfacts_search_url: str = "https://search.openfoodfacts.org"
+    usda_fdc_url: str = "https://api.nal.usda.gov/fdc/v1"
+    # DEMO_KEY allows about 30 requests an hour: enough to develop against, not to
+    # run on. Production refuses to start with it.
+    usda_fdc_api_key: SecretStr = SecretStr("DEMO_KEY")
+    food_data_timeout_seconds: float = 6.0
+    # Launch is US-only, so search prefers products sold there.
+    food_data_country: str = "en:united-states"
+
     # NoDecode: pydantic-settings would otherwise JSON-parse a list-typed env var
     # before validators run, so a plain comma-separated value fails at startup.
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:4200"]
@@ -84,6 +97,8 @@ class Settings(BaseSettings):
             insecure.append("field_encryption_key")
         if self.debug:
             insecure.append("debug")
+        if self.usda_fdc_api_key.get_secret_value() == "DEMO_KEY":
+            insecure.append("usda_fdc_api_key")
         if insecure:
             raise RuntimeError(
                 f"Refusing to start in production with insecure settings: {', '.join(insecure)}"

@@ -20,8 +20,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   return next(authorized).pipe(
     catchError((error: unknown) => {
       const isAuthCall = AUTH_ENDPOINTS.some((path) => request.url.includes(path));
-      const isExpired =
-        error instanceof HttpErrorResponse && error.status === 401 && !isAuthCall;
+      const isExpired = error instanceof HttpErrorResponse && error.status === 401 && !isAuthCall;
 
       if (!isExpired) {
         return throwError(() => error);

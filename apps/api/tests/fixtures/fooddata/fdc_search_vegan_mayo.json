@@ -1,0 +1,43 @@
+{
+ "totalHits": 2317,
+ "currentPage": 1,
+ "totalPages": 773,
+ "foods": [
+  {
+   "fdcId": 2655306,
+   "description": "VEGAN MAYO SPREAD, VEGAN MAYO",
+   "brandOwner": "Wegmans Food Markets, Inc. ",
+   "brandName": "WEGMANS",
+   "gtinUpc": "07789056069",
+   "ingredients": "CANOLA OIL, CHICKPEA BROTH (WATER, CHICKPEAS), WHITE VINEGAR, SUGAR CANE, SALT, WATER, CULTURED DEXTROSE, XANTHAN GUM, CITRIC ACID, ROSEMARY EXTRACT, NISIN, LEMON JUICE POWDER.",
+   "publishedDate": "2023-10-26",
+   "modifiedDate": "2023-09-13",
+   "dataType": "Branded",
+   "marketCountry": "United States"
+  },
+  {
+   "fdcId": 2668943,
+   "description": "VEGAN MAYO DRESSING & SPREAD, VEGAN MAYO",
+   "brandOwner": "Whole Foods Market, Inc.",
+   "brandName": "365 WHOLE FOODS MARKET",
+   "gtinUpc": "099482522858",
+   "ingredients": "SUNFLOWER SEED OIL, WATER, SUGAR, SPIRIT VINEGAR, GLUCOSE SYRUP, SALT, RICE SYRUP, MODIFIED CORNSTARCH, NATURAL FLAVORS, YEAST EXTRACT, XANTHAN GUM, RICE PROTEIN, FRUIT AND VEGETABLE JUICE CONCENTRATE (COLOR), LEMON JUICE CONCENTRATE.",
+   "publishedDate": "2023-11-16",
+   "modifiedDate": "2023-10-30",
+   "dataType": "Branded",
+   "marketCountry": "United States"
+  },
+  {
+   "fdcId": 2450138,
+   "description": "VEGAN MAYO SPREAD & DIP, VEGAN MAYO",
+   "brandOwner": "Primal Nutrition",
+   "brandName": "PRIMAL KITCHEN",
+   "gtinUpc": "855232007804",
+   "ingredients": "AVOCADO OIL, WATER, ORGANIC VINEGAR, SALT, POTATO PROTEIN, TAMARIND GUM, KONJAC GUM, CITRUS FIBER, ROSEMARY EXTRACT, MUSTARD OIL",
+   "publishedDate": "2023-01-26",
+   "modifiedDate": "2022-12-08",
+   "dataType": "Branded",
+   "marketCountry": "United States"
+  }
+ ]
+}

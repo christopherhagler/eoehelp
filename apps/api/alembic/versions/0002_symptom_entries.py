@@ -146,15 +146,15 @@ def upgrade() -> None:
         # shakes, which is the opposite of the truth.
         sa.CheckConstraint(
             "ate_solid_food OR (dysphagia_occurred IS NULL AND dysphagia_severity IS NULL)",
-            name="ck_symptom_entries_dysphagia_requires_solid_food",
+            name=op.f("ck_symptom_entries_dysphagia_requires_solid_food"),
         ),
         sa.CheckConstraint(
             "dysphagia_occurred IS NOT TRUE OR dysphagia_severity IS NOT NULL",
-            name="ck_symptom_entries_dysphagia_needs_severity",
+            name=op.f("ck_symptom_entries_dysphagia_needs_severity"),
         ),
         sa.CheckConstraint(
             "odynophagia_severity IS NULL OR odynophagia_severity BETWEEN 0 AND 3",
-            name="ck_symptom_entries_odynophagia_severity_range",
+            name=op.f("ck_symptom_entries_odynophagia_severity_range"),
         ),
     )
     op.create_index(

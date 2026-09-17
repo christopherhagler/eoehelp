@@ -7,7 +7,7 @@ authentication, and everything patient-owned sits under /me.
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +19,9 @@ from eoehelp_api.core.deps import (
     get_principal,
     get_session,
 )
+from eoehelp_api.core.errors import NotFoundError, ServiceUnavailableError
+from eoehelp_api.fooddata.provider import FoodData, FoodDataUnavailableError, get_food_data
+from eoehelp_api.models.enums import FoodDataSource
 from eoehelp_api.models.food import CatalogIngredient
 from eoehelp_api.models.patient import Patient
 from eoehelp_api.schemas.food import (
@@ -28,10 +31,14 @@ from eoehelp_api.schemas.food import (
     FoodItemInput,
     FoodItemList,
     FoodItemRead,
+    ProductRead,
+    ProductSummaryRead,
     RecentFood,
 )
 from eoehelp_api.services.audit import AuditContext
-from eoehelp_api.services.food import MAX_RECENT_FOODS, FoodService
+from eoehelp_api.services.food import MAX_RECENT_FOODS, FoodService, product_read
+
+UNAVAILABLE = "Product lookup is unavailable right now. You can add the food by name."
 
 catalog_router = APIRouter(prefix="/foods", tags=["food"])
 router = APIRouter(prefix="/me/foods", tags=["food"])
@@ -49,6 +56,70 @@ async def list_catalog(
     """
     result = await session.execute(select(CatalogIngredient).order_by(CatalogIngredient.name))
     return [CatalogIngredientRead.model_validate(row) for row in result.scalars()]
+
+
+# --- products -----------------------------------------------------------------
+#
+# Lookups against Open Food Facts and USDA, made by this server so that neither
+# learns who is asking. Nothing is stored until a product is logged. The query
+# text is never logged: what someone searches for is what they are eating.
+
+
+@catalog_router.get("/products/search", response_model=list[ProductSummaryRead])
+async def search_products(
+    q: str = Query(min_length=2, max_length=100),
+    limit: int = Query(default=20, ge=1, le=40),
+    _principal: Principal = Depends(get_principal),
+    food_data: FoodData = Depends(get_food_data),
+) -> list[ProductSummaryRead]:
+    try:
+        found = await food_data.search(q.strip(), limit)
+    except FoodDataUnavailableError as error:
+        raise ServiceUnavailableError(UNAVAILABLE) from error
+    return [
+        ProductSummaryRead(
+            source=hit.source,
+            source_id=hit.source_id,
+            barcode=hit.barcode,
+            name=hit.name,
+            brand=hit.brand,
+        )
+        for hit in found
+    ]
+
+
+@catalog_router.get("/products/barcode/{barcode}", response_model=ProductRead)
+async def product_by_barcode(
+    barcode: str = Path(pattern=r"^\d{8,14}$"),
+    _principal: Principal = Depends(get_principal),
+    food_data: FoodData = Depends(get_food_data),
+) -> ProductRead:
+    try:
+        record = await food_data.by_barcode(barcode)
+    except FoodDataUnavailableError as error:
+        raise ServiceUnavailableError(UNAVAILABLE) from error
+    if record is None:
+        raise NotFoundError("No product with that barcode was found.")
+    return product_read(record)
+
+
+@catalog_router.get("/products/{source}/{source_id}", response_model=ProductRead)
+async def product_detail(
+    source: FoodDataSource,
+    source_id: str = Path(max_length=64, pattern=r"^[0-9A-Za-z_-]+$"),
+    _principal: Principal = Depends(get_principal),
+    food_data: FoodData = Depends(get_food_data),
+) -> ProductRead:
+    try:
+        record = await food_data.product(source, source_id)
+    except FoodDataUnavailableError as error:
+        raise ServiceUnavailableError(UNAVAILABLE) from error
+    if record is None:
+        raise NotFoundError("No such product.")
+    return product_read(record)
+
+
+# --- the patient's food log -----------------------------------------------------
 
 
 @router.get("", response_model=FoodItemList)
@@ -73,8 +144,9 @@ async def log_food(
     patient: Patient = Depends(get_current_patient),
     session: AsyncSession = Depends(get_patient_session),
     context: AuditContext = Depends(get_authenticated_audit_context),
+    food_data: FoodData = Depends(get_food_data),
 ) -> FoodItemRead:
-    return await FoodService(session, patient).create(payload=payload, context=context)
+    return await FoodService(session, patient, food_data).create(payload=payload, context=context)
 
 
 # Literal paths are declared before /{item_id} so they are not captured as ids.
@@ -118,9 +190,10 @@ async def update_food(
     patient: Patient = Depends(get_current_patient),
     session: AsyncSession = Depends(get_patient_session),
     context: AuditContext = Depends(get_authenticated_audit_context),
+    food_data: FoodData = Depends(get_food_data),
 ) -> FoodItemRead:
     """Replace a logged food, ingredients included."""
-    return await FoodService(session, patient).update(
+    return await FoodService(session, patient, food_data).update(
         item_id=item_id, payload=payload, context=context
     )
 

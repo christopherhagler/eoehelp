@@ -49,9 +49,7 @@ export class AuthService {
   }
 
   async requestMagicLink(email: string): Promise<void> {
-    await firstValueFrom(
-      this.http.post(`${this.baseUrl}/auth/magic-link`, { email }),
-    );
+    await firstValueFrom(this.http.post(`${this.baseUrl}/auth/magic-link`, { email }));
   }
 
   async verifyMagicLink(token: string): Promise<void> {
@@ -101,9 +99,7 @@ export class AuthService {
   }
 
   private async loadSession(): Promise<void> {
-    const user = await firstValueFrom(
-      this.http.get<SessionUser>(`${this.baseUrl}/auth/session`),
-    );
+    const user = await firstValueFrom(this.http.get<SessionUser>(`${this.baseUrl}/auth/session`));
     this.currentUser.set(user);
   }
 

@@ -13,6 +13,7 @@ from eoehelp_api.models.food import (
     CustomIngredient,
     FoodLogItem,
     FoodLogItemIngredient,
+    FoodProduct,
 )
 from eoehelp_api.models.medication import (
     Medication,
@@ -34,6 +35,7 @@ __all__ = [
     "Endoscopy",
     "FoodLogItem",
     "FoodLogItemIngredient",
+    "FoodProduct",
     "MagicLinkToken",
     "Medication",
     "MedicationCatalogEntry",

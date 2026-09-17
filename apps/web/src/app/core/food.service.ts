@@ -9,7 +9,10 @@ import {
   CustomIngredientUpdate,
   FoodItemInput,
   FoodItemList,
+  FoodDataSource,
   FoodItemRead,
+  ProductRead,
+  ProductSummaryRead,
   RecentFood,
 } from './api-types';
 
@@ -36,6 +39,34 @@ export class FoodService {
       throw failure;
     });
     return this.catalogRequest;
+  }
+
+  /**
+   * Product search and lookup go through our API, never straight to the food
+   * databases, so neither learns which patient is asking.
+   */
+  async searchProducts(query: string, limit = 12): Promise<ProductSummaryRead[]> {
+    return firstValueFrom(
+      this.http.get<ProductSummaryRead[]>(`${this.baseUrl}/foods/products/search`, {
+        params: { q: query, limit },
+      }),
+    );
+  }
+
+  async productByBarcode(barcode: string): Promise<ProductRead> {
+    return firstValueFrom(
+      this.http.get<ProductRead>(
+        `${this.baseUrl}/foods/products/barcode/${encodeURIComponent(barcode)}`,
+      ),
+    );
+  }
+
+  async product(source: FoodDataSource, sourceId: string): Promise<ProductRead> {
+    return firstValueFrom(
+      this.http.get<ProductRead>(
+        `${this.baseUrl}/foods/products/${source}/${encodeURIComponent(sourceId)}`,
+      ),
+    );
   }
 
   async customIngredients(): Promise<CustomIngredientRead[]> {

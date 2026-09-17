@@ -6,6 +6,9 @@ requires-python = ">=3.12"
 
 dependencies = [
     "fastapi>=0.115",
+    # Server-side calls to Open Food Facts and USDA FoodData Central. The browser
+    # never calls them directly, so neither learns which patient is asking.
+    "httpx>=0.28",
     "uvicorn[standard]>=0.32",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
@@ -35,7 +38,6 @@ dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
-    "httpx>=0.28",
     # Linters are CI gates, so they are pinned exactly: a new release that adds a
     # rule turns an untouched main branch red, which is a failure of the pipeline
     # rather than of the code. Bumping these is a deliberate, reviewed change.

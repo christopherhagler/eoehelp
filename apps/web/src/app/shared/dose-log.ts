@@ -18,13 +18,7 @@ import { frequencyLabel } from './frequency-labels';
  */
 @Component({
   selector: 'app-dose-log',
-  imports: [
-    RouterLink,
-    MatButtonModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
-    MatTooltipModule,
-  ],
+  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule],
   template: `
     @if (loading()) {
       <div class="flex justify-center py-6"><mat-spinner diameter="24" /></div>

@@ -117,7 +117,7 @@ async def clean_tables(_database: None) -> AsyncIterator[None]:
             "TRUNCATE users, patients, consents, research_consent_scopes, "
             "magic_link_tokens, refresh_tokens, symptom_entries, medications, "
             "medication_doses, custom_ingredients, food_log_items, "
-            "food_log_item_ingredients, endoscopies, biopsies, dilations, "
+            "food_log_item_ingredients, food_products, endoscopies, biopsies, dilations, "
             "audit_log RESTART IDENTITY CASCADE"
         )
     await engine.dispose()
@@ -155,11 +155,37 @@ def email_sender() -> CapturingEmailSender:
     return CapturingEmailSender()
 
 
+class OfflineFoodData:
+    """The default in tests: product lookups behave as if both sources are down.
+
+    Tests never reach Open Food Facts or USDA. One that needs product data
+    installs recorded responses instead (see test_food_products.py).
+    """
+
+    async def search(self, query: str, limit: int) -> Any:
+        from eoehelp_api.fooddata.provider import FoodDataUnavailableError
+
+        raise FoodDataUnavailableError()
+
+    async def by_barcode(self, barcode: str) -> Any:
+        return await self.search(barcode, 1)
+
+    async def product(self, source: Any, source_id: str) -> Any:
+        return await self.search(source_id, 1)
+
+
 @pytest_asyncio.fixture
-async def client(clean_tables: None) -> AsyncIterator[AsyncClient]:
+async def app(clean_tables: None) -> Any:
+    from eoehelp_api.fooddata.provider import get_food_data
     from eoehelp_api.main import create_app
 
-    app = create_app()
+    application = create_app()
+    application.dependency_overrides[get_food_data] = OfflineFoodData
+    return application
+
+
+@pytest_asyncio.fixture
+async def client(app: Any) -> AsyncIterator[AsyncClient]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
         yield async_client

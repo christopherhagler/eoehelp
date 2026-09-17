@@ -157,17 +157,17 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "ended_on IS NULL OR ended_on >= started_on",
-            name="ck_medications_medication_ends_after_it_starts",
+            name=op.f("ck_medications_medication_ends_after_it_starts"),
         ),
         # Half a stop — a date with no reason, or a reason with no date — reads as
         # missing data months later, when nobody remembers which it was.
         sa.CheckConstraint(
             "(ended_on IS NULL) = (stop_reason IS NULL)",
-            name="ck_medications_medication_stop_is_complete",
+            name=op.f("ck_medications_medication_stop_is_complete"),
         ),
         sa.CheckConstraint(
             "dose_amount IS NULL OR dose_amount > 0",
-            name="ck_medications_medication_dose_is_positive",
+            name=op.f("ck_medications_medication_dose_is_positive"),
         ),
     )
     op.create_index(

@@ -98,8 +98,9 @@ async def two_patients(session) -> tuple[uuid.UUID, uuid.UUID]:
         custom_id = (
             await session.execute(
                 text(
-                    "INSERT INTO custom_ingredients (patient_id, name, name_key, allergen_groups) "
-                    "VALUES (:pid, 'Relish', 'relish', '{}') RETURNING id"
+                    "INSERT INTO custom_ingredients "
+                    "(patient_id, name, name_key, canonical_key, allergen_groups) "
+                    "VALUES (:pid, 'Relish', 'relish', 'en:relish', '{}') RETURNING id"
                 ),
                 {"pid": patient_id},
             )
@@ -118,8 +119,10 @@ async def two_patients(session) -> tuple[uuid.UUID, uuid.UUID]:
         await session.execute(
             text(
                 "INSERT INTO food_log_item_ingredients "
-                "(patient_id, item_id, ingredient_code, custom_ingredient_id, position) "
-                "VALUES (:pid, :item, 'bread', NULL, 0), (:pid, :item, NULL, :custom, 1)"
+                "(patient_id, item_id, ingredient_code, custom_ingredient_id, position, "
+                " canonical_key, display_name, provenance) "
+                "VALUES (:pid, :item, 'bread', NULL, 0, 'en:bread', 'Bread', 'patient'), "
+                "(:pid, :item, NULL, :custom, 1, 'en:relish', 'Relish', 'patient')"
             ),
             {"pid": patient_id, "item": item_id, "custom": custom_id},
         )
@@ -332,3 +335,40 @@ class TestRowLevelSecurity:
             with pytest.raises(ProgrammingError, match="permission denied"):
                 async with app_role_engine.connect() as conn, conn.begin():
                     await conn.execute(text(statement))
+
+
+async def test_database_constraint_names_match_the_models(session) -> None:
+    """Names are how a later migration finds a constraint to change.
+
+    Migrations 0002-0005 once produced doubled names (``ck_x_ck_x_...``) that no
+    later migration could drop by the name the model gives. This compares the
+    database with the models, so that cannot recur unnoticed.
+    """
+    from sqlalchemy import CheckConstraint
+
+    from eoehelp_api.db.base import Base
+
+    def conventional(table: str, name: str) -> str:
+        # The metadata may already have applied the convention to the name.
+        prefix = f"ck_{table}_"
+        return name if name.startswith(prefix) else prefix + name
+
+    expected = {
+        (table.name, conventional(table.name, str(constraint.name)))
+        for table in Base.metadata.tables.values()
+        for constraint in table.constraints
+        if isinstance(constraint, CheckConstraint) and constraint.name
+    }
+    actual = set(
+        (
+            await session.execute(
+                text(
+                    "SELECT c.relname, k.conname FROM pg_constraint k "
+                    "JOIN pg_class c ON c.oid = k.conrelid "
+                    "WHERE k.contype = 'c' AND k.connamespace = 'public'::regnamespace "
+                    "AND c.relname <> 'alembic_version'"
+                )
+            )
+        ).all()
+    )
+    assert actual == expected

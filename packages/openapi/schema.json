@@ -274,9 +274,17 @@
             "title": "Allergen Groups",
             "type": "array"
           },
+          "canonical_key": {
+            "title": "Canonical Key",
+            "type": "string"
+          },
           "code": {
             "title": "Code",
             "type": "string"
+          },
+          "is_composite": {
+            "title": "Is Composite",
+            "type": "boolean"
           },
           "name": {
             "title": "Name",
@@ -287,7 +295,9 @@
           "code",
           "name",
           "allergen_groups",
-          "aliases"
+          "aliases",
+          "canonical_key",
+          "is_composite"
         ],
         "title": "CatalogIngredientRead",
         "type": "object"
@@ -1061,6 +1071,14 @@
         "title": "ErefsVersion",
         "type": "string"
       },
+      "FoodDataSource": {
+        "enum": [
+          "open_food_facts",
+          "usda_fdc"
+        ],
+        "title": "FoodDataSource",
+        "type": "string"
+      },
       "FoodItemInput": {
         "additionalProperties": false,
         "properties": {
@@ -1084,6 +1102,16 @@
             "maxLength": 120,
             "title": "Name",
             "type": "string"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -1156,6 +1184,16 @@
             "title": "Name",
             "type": "string"
           },
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductSnapshotRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -1168,6 +1206,7 @@
           "meal",
           "name",
           "entry_method",
+          "product",
           "ingredients",
           "created_at",
           "updated_at"
@@ -1198,15 +1237,39 @@
         "title": "HistologyStatus",
         "type": "string"
       },
+      "IngredientProvenance": {
+        "description": "Who says this ingredient was in the food.\n\n``label`` comes from a product's printed ingredient list. ``patient`` is the\npatient's own account, whether picked from the catalog or typed. An analysis\ncan weigh them differently; a label is evidence, a recollection is testimony.",
+        "enum": [
+          "label",
+          "patient"
+        ],
+        "title": "IngredientProvenance",
+        "type": "string"
+      },
       "IngredientRead": {
-        "description": "An ingredient as the patient sees it, from whichever table it lives in.",
+        "description": "An ingredient as the patient sees it, from whichever source it came.",
         "properties": {
+          "additive_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additive Class"
+          },
           "allergen_groups": {
             "items": {
               "$ref": "#/components/schemas/AllergenGroup"
             },
             "title": "Allergen Groups",
             "type": "array"
+          },
+          "canonical_key": {
+            "title": "Canonical Key",
+            "type": "string"
           },
           "code": {
             "anyOf": [
@@ -1231,16 +1294,49 @@
             ],
             "title": "Custom Ingredient Id"
           },
+          "depth": {
+            "title": "Depth",
+            "type": "integer"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/IngredientProvenance"
+          },
+          "recognized": {
+            "title": "Recognized",
+            "type": "boolean"
+          },
+          "typical": {
+            "title": "Typical",
+            "type": "boolean"
           }
         },
         "required": [
           "code",
           "custom_ingredient_id",
           "name",
-          "allergen_groups"
+          "canonical_key",
+          "provenance",
+          "allergen_groups",
+          "typical",
+          "recognized",
+          "depth",
+          "note",
+          "additive_class"
         ],
         "title": "IngredientRead",
         "type": "object"
@@ -1951,6 +2047,354 @@
         "title": "PeakCount",
         "type": "object"
       },
+      "ProductIngredientRead": {
+        "properties": {
+          "additive_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additive Class"
+          },
+          "allergen_groups": {
+            "items": {
+              "$ref": "#/components/schemas/AllergenGroup"
+            },
+            "title": "Allergen Groups",
+            "type": "array"
+          },
+          "depth": {
+            "title": "Depth",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "recognized": {
+            "title": "Recognized",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "depth",
+          "recognized",
+          "note",
+          "allergen_groups",
+          "additive_class"
+        ],
+        "title": "ProductIngredientRead",
+        "type": "object"
+      },
+      "ProductRead": {
+        "description": "A product's label, freshly looked up and not yet logged.",
+        "properties": {
+          "attribution": {
+            "title": "Attribution",
+            "type": "string"
+          },
+          "barcode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "declared_allergens": {
+            "items": {
+              "$ref": "#/components/schemas/AllergenGroup"
+            },
+            "title": "Declared Allergens",
+            "type": "array"
+          },
+          "inferred_allergens": {
+            "items": {
+              "$ref": "#/components/schemas/AllergenGroup"
+            },
+            "title": "Inferred Allergens",
+            "type": "array"
+          },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/ProductIngredientRead"
+            },
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "ingredients_complete": {
+            "title": "Ingredients Complete",
+            "type": "boolean"
+          },
+          "ingredients_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingredients Text"
+          },
+          "may_contain": {
+            "items": {
+              "$ref": "#/components/schemas/AllergenGroup"
+            },
+            "title": "May Contain",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/FoodDataSource"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Updated At"
+          }
+        },
+        "required": [
+          "source",
+          "source_id",
+          "barcode",
+          "name",
+          "brand",
+          "ingredients_text",
+          "ingredients",
+          "ingredients_complete",
+          "declared_allergens",
+          "may_contain",
+          "inferred_allergens",
+          "source_updated_at",
+          "attribution"
+        ],
+        "title": "ProductRead",
+        "type": "object"
+      },
+      "ProductRef": {
+        "additionalProperties": false,
+        "description": "Which product was eaten.\n\nEither a source record, which the server fetches itself \u2014 label data is never\naccepted from the client, since the point of it is that it came from the\nlabel \u2014 or an existing snapshot, which is how a recent food is logged again.",
+        "properties": {
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FoodDataSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          }
+        },
+        "title": "ProductRef",
+        "type": "object"
+      },
+      "ProductSnapshotRead": {
+        "description": "The label snapshot a logged food points at.",
+        "properties": {
+          "attribution": {
+            "title": "Attribution",
+            "type": "string"
+          },
+          "barcode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "declared_allergens": {
+            "items": {
+              "$ref": "#/components/schemas/AllergenGroup"
+            },
+            "title": "Declared Allergens",
+            "type": "array"
+          },
+          "fetched_at": {
+            "format": "date-time",
+            "title": "Fetched At",
+            "type": "string"
+          },
+          "ingredients_complete": {
+            "title": "Ingredients Complete",
+            "type": "boolean"
+          },
+          "may_contain": {
+            "items": {
+              "$ref": "#/components/schemas/AllergenGroup"
+            },
+            "title": "May Contain",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "format": "uuid",
+            "title": "Snapshot Id",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/FoodDataSource"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "source_id",
+          "barcode",
+          "name",
+          "brand",
+          "snapshot_id",
+          "ingredients_complete",
+          "declared_allergens",
+          "may_contain",
+          "fetched_at",
+          "attribution"
+        ],
+        "title": "ProductSnapshotRead",
+        "type": "object"
+      },
+      "ProductSummaryRead": {
+        "properties": {
+          "barcode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/FoodDataSource"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "source_id",
+          "barcode",
+          "name",
+          "brand"
+        ],
+        "title": "ProductSummaryRead",
+        "type": "object"
+      },
       "RecentFood": {
         "description": "A food the patient has logged before, ready to log again in one tap.\n\nThe ingredients are those of the most recent time it was logged, which is the\nbest guess at how the patient makes it now.",
         "properties": {
@@ -1973,6 +2417,16 @@
             "title": "Name",
             "type": "string"
           },
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductSnapshotRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "times_logged": {
             "title": "Times Logged",
             "type": "integer"
@@ -1981,6 +2435,7 @@
         "required": [
           "name",
           "meal",
+          "product",
           "ingredients",
           "times_logged",
           "last_eaten_on"
@@ -2606,6 +3061,161 @@
           }
         },
         "summary": "List Catalog",
+        "tags": [
+          "food"
+        ]
+      }
+    },
+    "/api/v1/foods/products/barcode/{barcode}": {
+      "get": {
+        "operationId": "product_by_barcode_api_v1_foods_products_barcode__barcode__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "barcode",
+            "required": true,
+            "schema": {
+              "pattern": "^\\d{8,14}$",
+              "title": "Barcode",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Product By Barcode",
+        "tags": [
+          "food"
+        ]
+      }
+    },
+    "/api/v1/foods/products/search": {
+      "get": {
+        "operationId": "search_products_api_v1_foods_products_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 2,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 40,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductSummaryRead"
+                  },
+                  "title": "Response Search Products Api V1 Foods Products Search Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Products",
+        "tags": [
+          "food"
+        ]
+      }
+    },
+    "/api/v1/foods/products/{source}/{source_id}": {
+      "get": {
+        "operationId": "product_detail_api_v1_foods_products__source___source_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/FoodDataSource"
+            }
+          },
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "pattern": "^[0-9A-Za-z_-]+$",
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Product Detail",
         "tags": [
           "food"
         ]

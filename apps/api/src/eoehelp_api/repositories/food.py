@@ -9,8 +9,15 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.core.errors import NotFoundError
+from eoehelp_api.fooddata.records import ProductRecord
+from eoehelp_api.fooddata.vocabulary import ordered
 from eoehelp_api.models.enums import AllergenGroup
-from eoehelp_api.models.food import CatalogIngredient, CustomIngredient, FoodLogItem
+from eoehelp_api.models.food import (
+    CatalogIngredient,
+    CustomIngredient,
+    FoodLogItem,
+    FoodProduct,
+)
 
 
 class FoodRepository:
@@ -91,7 +98,12 @@ class FoodRepository:
         return result.scalar_one_or_none()
 
     async def get_or_create_custom(
-        self, *, name: str, key: str, allergen_groups: list[AllergenGroup]
+        self,
+        *,
+        name: str,
+        key: str,
+        canonical_key: str,
+        allergen_groups: list[AllergenGroup],
     ) -> tuple[CustomIngredient, bool]:
         """The patient's ingredient with this key, creating it if absent.
 
@@ -106,6 +118,7 @@ class FoodRepository:
                 patient_id=self._patient_id,
                 name=name,
                 name_key=key,
+                canonical_key=canonical_key,
                 allergen_groups=allergen_groups,
             )
             .on_conflict_do_nothing(constraint="uq_custom_ingredients_patient_id_name_key")
@@ -116,6 +129,45 @@ class FoodRepository:
         if existing is None:  # pragma: no cover - the row was just written or already there
             raise RuntimeError("Custom ingredient vanished between insert and select.")
         return existing, created
+
+    # --- product snapshots ----------------------------------------------------
+    #
+    # Public label data, so unscoped like the catalog. Which patient ate a
+    # product is recorded only on their own log rows.
+
+    async def product_snapshot(self, snapshot_id: uuid.UUID) -> FoodProduct | None:
+        return await self._session.get(FoodProduct, snapshot_id)
+
+    async def snapshot_for(self, record: ProductRecord) -> FoodProduct:
+        """The stored snapshot matching this label exactly, writing it if new."""
+        content_hash = record.content_hash()
+        await self._session.execute(
+            insert(FoodProduct)
+            .values(
+                id=uuid.uuid4(),
+                source=record.source,
+                source_id=record.source_id,
+                barcode=record.barcode,
+                name=record.name[:300],
+                brand=record.brand[:200] if record.brand else None,
+                ingredients_text=record.ingredients_text,
+                ingredients=[i.as_json() for i in record.ingredients],
+                ingredients_complete=record.ingredients_complete,
+                declared_allergens=ordered(record.declared_allergens),
+                may_contain=ordered(record.may_contain),
+                content_hash=content_hash,
+                source_updated_at=record.source_updated_at,
+            )
+            .on_conflict_do_nothing(constraint="uq_food_products_source_version")
+        )
+        stored = await self._session.execute(
+            select(FoodProduct).where(
+                FoodProduct.source == record.source,
+                FoodProduct.source_id == record.source_id,
+                FoodProduct.content_hash == content_hash,
+            )
+        )
+        return stored.scalar_one()
 
     # --- logged food ----------------------------------------------------------
 

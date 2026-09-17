@@ -1,5 +1,6 @@
 import {
   Component,
+  OnDestroy,
   OnInit,
   computed,
   inject,
@@ -8,6 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import {
   MatAutocompleteModule,
@@ -32,13 +34,20 @@ import {
   IngredientRead,
   IngredientRef,
   Meal,
+  ProductRead,
+  ProductRef,
+  ProductSnapshotRead,
+  ProductSummaryRead,
 } from '../core/api-types';
 import { FoodService } from '../core/food.service';
+import { BarcodeScanner, canScanBarcodes } from './barcode-scanner';
 import {
+  ADDITIVE_LABELS,
   ALLERGEN_GROUPS,
   ALLERGEN_LABELS,
   MEALS,
   MEAL_LABELS,
+  SOURCE_LABELS,
   allergenSummary,
   mealForTime,
 } from './food-labels';
@@ -48,15 +57,18 @@ export interface FoodDraftSeed {
   readonly name: string;
   readonly meal: Meal;
   readonly ingredients: readonly IngredientRead[];
+  readonly product: ProductSnapshotRead | null;
 }
 
-/** One chip in the editor. */
+/** One chip in the editor: an ingredient the patient is adding. */
 interface DraftIngredient {
   /** Stable identity for de-duplication and `track`. */
   readonly key: string;
   readonly name: string;
   readonly code: string | null;
   readonly customId: string | null;
+  /** A dish from the catalog, whose groups are only the usual recipe's. */
+  readonly typical: boolean;
   /** Groups as the patient currently has them, which may differ from `savedGroups`. */
   readonly groups: readonly AllergenGroup[];
   /** Groups as stored, so a change to an existing ingredient can be sent on save. */
@@ -68,12 +80,38 @@ interface SearchOption {
   readonly name: string;
   readonly code: string | null;
   readonly customId: string | null;
+  readonly typical: boolean;
   readonly groups: readonly AllergenGroup[];
   readonly terms: readonly string[];
 }
 
+interface LabelLine {
+  readonly name: string;
+  readonly depth: number;
+  readonly recognized: boolean;
+  readonly note: string | null;
+  readonly additiveClass: string | null;
+}
+
+/** The product chosen for this food, from a fresh lookup or an earlier snapshot. */
+interface SelectedProduct {
+  readonly ref: ProductRef;
+  readonly name: string;
+  readonly brand: string | null;
+  readonly declared: readonly AllergenGroup[];
+  readonly mayContain: readonly AllergenGroup[];
+  /** Groups the ingredient list implies that the "Contains" line does not name. */
+  readonly undeclared: readonly AllergenGroup[];
+  readonly complete: boolean;
+  /** Empty for a re-log, where the label is the stored snapshot's. */
+  readonly lines: readonly LabelLine[];
+  readonly attribution: string;
+}
+
 const MAX_OPTIONS = 8;
 const NAME_MAX_LENGTH = 120;
+const SEARCH_DELAY_MS = 350;
+const LABEL_PREVIEW_LINES = 8;
 
 function keyFor(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
@@ -87,6 +125,7 @@ function draftFrom(ingredient: IngredientRead): DraftIngredient {
     name: ingredient.name,
     code: ingredient.code,
     customId: ingredient.custom_ingredient_id,
+    typical: ingredient.typical,
     groups: ingredient.allergen_groups,
     savedGroups: ingredient.allergen_groups,
   };
@@ -96,18 +135,68 @@ function sameGroups(a: readonly AllergenGroup[], b: readonly AllergenGroup[]): b
   return a.length === b.length && a.every((group) => b.includes(group));
 }
 
+function fromLookup(product: ProductRead): SelectedProduct {
+  return {
+    ref: { source: product.source, source_id: product.source_id },
+    name: product.name,
+    brand: product.brand,
+    declared: product.declared_allergens,
+    mayContain: product.may_contain,
+    undeclared: product.inferred_allergens.filter(
+      (group) => !product.declared_allergens.includes(group),
+    ),
+    complete: product.ingredients_complete,
+    lines: product.ingredients.map((line) => ({
+      name: line.name,
+      depth: line.depth,
+      recognized: line.recognized,
+      note: line.note,
+      additiveClass: line.additive_class,
+    })),
+    attribution: product.attribution,
+  };
+}
+
+function fromSnapshot(
+  snapshot: ProductSnapshotRead,
+  labelRows: readonly IngredientRead[],
+): SelectedProduct {
+  const inferred = new Set(labelRows.flatMap((row) => row.allergen_groups));
+  return {
+    ref: { snapshot_id: snapshot.snapshot_id },
+    name: snapshot.name,
+    brand: snapshot.brand,
+    declared: snapshot.declared_allergens,
+    mayContain: snapshot.may_contain,
+    undeclared: ALLERGEN_GROUPS.filter(
+      (group) => inferred.has(group) && !snapshot.declared_allergens.includes(group),
+    ),
+    complete: snapshot.ingredients_complete,
+    lines: labelRows.map((row) => ({
+      name: row.name,
+      depth: row.depth,
+      recognized: row.recognized,
+      note: row.note,
+      additiveClass: row.additive_class,
+    })),
+    attribution: snapshot.attribution,
+  };
+}
+
 /**
  * Add or edit one eaten food.
  *
- * Built for speed, since a slow food log is one nobody keeps. Typing finds
- * catalog ingredients by name or alias, and Enter takes the top match. Text that
- * matches nothing becomes the patient's own ingredient when saved, with an
- * optional "contains" tag. The catalog decides groups for its own ingredients;
- * the patient decides them for theirs.
+ * Two routes, because precision matters and so does speed. A packaged product is
+ * found by search or barcode, and its ingredients come from its actual label —
+ * the only way to know that this mayonnaise contains soy and a preservative, or
+ * that that one contains no egg at all. Anything else is typed, and typing finds
+ * catalog ingredients by name or alias; text that matches nothing becomes the
+ * patient's own ingredient, with an optional "contains" tag.
  */
 @Component({
   selector: 'app-food-editor',
   imports: [
+    BarcodeScanner,
     FormsModule,
     MatAutocompleteModule,
     MatButtonModule,
@@ -147,6 +236,176 @@ function sameGroups(a: readonly AllergenGroup[], b: readonly AllergenGroup[]): b
         }
       </mat-button-toggle-group>
 
+      <!-- A packaged product: its real label, not a guess. -->
+      <section class="rounded-lg border border-outline-variant px-4 py-3" aria-label="Product">
+        @if (product(); as chosen) {
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="m-0 font-medium">{{ chosen.name }}</p>
+              @if (chosen.brand) {
+                <p class="m-0 text-sm text-on-surface-variant">{{ chosen.brand }}</p>
+              }
+            </div>
+            <button mat-button type="button" class="!min-h-tap shrink-0" (click)="clearProduct()">
+              Change
+            </button>
+          </div>
+
+          <dl class="m-0 mt-3 grid gap-1 text-sm">
+            <div class="flex gap-2">
+              <dt class="font-medium">Contains:</dt>
+              <dd class="m-0">{{ summaryOr(chosen.declared, 'none declared') }}</dd>
+            </div>
+            @if (chosen.mayContain.length > 0) {
+              <div class="flex gap-2">
+                <dt class="font-medium">May contain:</dt>
+                <dd class="m-0">{{ summary(chosen.mayContain) }}</dd>
+              </div>
+            }
+            @if (chosen.undeclared.length > 0) {
+              <div class="flex gap-2">
+                <dt class="font-medium">Ingredients also suggest:</dt>
+                <dd class="m-0">{{ summary(chosen.undeclared) }}</dd>
+              </div>
+            }
+          </dl>
+
+          @if (!chosen.complete) {
+            <p class="m-0 mt-3 flex items-start gap-2 text-sm">
+              <mat-icon class="!size-5 shrink-0 !text-xl" aria-hidden="true">warning</mat-icon>
+              <span>
+                Some of this label could not be read reliably. Check the package, and add anything
+                missing below.
+              </span>
+            </p>
+          }
+
+          @if (chosen.lines.length > 0) {
+            <ul class="m-0 mt-3 list-none p-0 text-sm" aria-label="Ingredients from the label">
+              @for (line of visibleLines(); track $index) {
+                <li class="py-0.5" [style.padding-left.rem]="line.depth * 1.25">
+                  {{ line.name }}
+                  @if (line.additiveClass) {
+                    <span class="ml-1 text-xs text-on-surface-variant">
+                      · {{ additiveLabel(line.additiveClass) }}
+                    </span>
+                  }
+                  @if (line.note) {
+                    <span class="ml-1 text-xs text-on-surface-variant">({{ line.note }})</span>
+                  }
+                  @if (!line.recognized) {
+                    <span class="ml-1 text-xs italic text-on-surface-variant">
+                      · not recognized
+                    </span>
+                  }
+                </li>
+              }
+            </ul>
+            @if (chosen.lines.length > previewLines) {
+              <button
+                mat-button
+                type="button"
+                class="!min-h-tap !px-2"
+                (click)="showAllLines.set(!showAllLines())"
+              >
+                {{ showAllLines() ? 'Show fewer' : 'Show all ' + chosen.lines.length }}
+              </button>
+            }
+          } @else {
+            <p class="m-0 mt-3 text-sm text-on-surface-variant">
+              Its label ingredients are recorded as they were last time.
+            </p>
+          }
+          <p class="m-0 mt-2 text-xs text-on-surface-variant">{{ chosen.attribution }}</p>
+        } @else if (scanning()) {
+          <app-barcode-scanner
+            (detected)="lookUpBarcode($event)"
+            (cancelled)="scanning.set(false)"
+          />
+        } @else {
+          <p class="m-0 text-sm font-medium">From a package?</p>
+          <p class="m-0 mt-1 text-sm text-on-surface-variant">
+            Find it to record the ingredients on its actual label.
+          </p>
+          <div class="mt-3 flex flex-wrap items-start gap-2">
+            <mat-form-field appearance="outline" class="min-w-0 flex-1" subscriptSizing="dynamic">
+              <mat-label>Search products</mat-label>
+              <input
+                matInput
+                name="product-search"
+                autocomplete="off"
+                maxlength="100"
+                placeholder="Brand and product"
+                [ngModel]="productQuery()"
+                (ngModelChange)="onProductQuery($event)"
+              />
+            </mat-form-field>
+            @if (scanAvailable) {
+              <button
+                mat-stroked-button
+                type="button"
+                class="!min-h-tap"
+                (click)="scanning.set(true)"
+              >
+                <mat-icon>barcode_scanner</mat-icon>
+                Scan
+              </button>
+            }
+          </div>
+          <mat-form-field appearance="outline" class="mt-2 w-full" subscriptSizing="dynamic">
+            <mat-label>Or type the barcode</mat-label>
+            <input
+              matInput
+              name="barcode"
+              inputmode="numeric"
+              autocomplete="off"
+              maxlength="14"
+              [ngModel]="barcode()"
+              (ngModelChange)="barcode.set($event)"
+              (keydown.enter)="$event.preventDefault(); lookUpBarcode(barcode())"
+            />
+            <button
+              mat-icon-button
+              matSuffix
+              type="button"
+              aria-label="Look up this barcode"
+              [disabled]="!validBarcode()"
+              (click)="lookUpBarcode(barcode())"
+            >
+              <mat-icon>search</mat-icon>
+            </button>
+          </mat-form-field>
+
+          @if (looking()) {
+            <div class="mt-3 flex justify-center"><mat-spinner diameter="22" /></div>
+          }
+          @if (lookupError()) {
+            <p role="alert" class="m-0 mt-3 text-sm text-danger">{{ lookupError() }}</p>
+          }
+          @if (productResults().length > 0) {
+            <ul class="m-0 mt-2 flex list-none flex-col gap-1 p-0" aria-label="Products found">
+              @for (hit of productResults(); track hit.source + hit.source_id) {
+                <li>
+                  <button
+                    mat-button
+                    type="button"
+                    class="!h-auto !min-h-tap w-full !justify-start !py-2 text-left"
+                    (click)="chooseProduct(hit)"
+                  >
+                    <span class="flex flex-col items-start">
+                      <span>{{ hit.name }}</span>
+                      <span class="text-xs text-on-surface-variant">
+                        {{ hit.brand ?? 'Unknown brand' }} · {{ sourceLabels[hit.source] }}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        }
+      </section>
+
       <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
         <mat-label>What was it?</mat-label>
         <input
@@ -158,18 +417,18 @@ function sameGroups(a: readonly AllergenGroup[], b: readonly AllergenGroup[]): b
           [ngModel]="name()"
           (ngModelChange)="name.set($event)"
         />
-        <mat-hint>Optional if you add ingredients.</mat-hint>
+        <mat-hint>Optional if you add a product or ingredients.</mat-hint>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
-        <mat-label>Ingredients</mat-label>
+        <mat-label>{{ product() ? 'Anything you added?' : 'Ingredients' }}</mat-label>
         <mat-chip-grid #grid aria-label="Ingredients">
           @for (item of draft(); track item.key) {
             <mat-chip-row (removed)="remove(item)">
               {{ item.name }}
               @if (item.groups.length > 0) {
                 <span class="ml-1 text-xs text-on-surface-variant">
-                  · {{ summary(item.groups) }}
+                  · {{ item.typical ? 'usually ' : '' }}{{ summary(item.groups) }}
                 </span>
               }
               <button matChipRemove type="button" [attr.aria-label]="'Remove ' + item.name">
@@ -197,17 +456,27 @@ function sameGroups(a: readonly AllergenGroup[], b: readonly AllergenGroup[]): b
               <span>{{ option.name }}</span>
               @if (option.groups.length > 0) {
                 <span class="ml-2 text-xs text-on-surface-variant">
-                  {{ summary(option.groups) }}
+                  {{ option.typical ? 'usually ' : '' }}{{ summary(option.groups) }}
                 </span>
               }
             </mat-option>
           }
         </mat-autocomplete>
         <mat-hint>
-          Allergen groups are filled in for ingredients we know. Anything else is saved
-          as your own.
+          Allergen groups are filled in for ingredients we know. Anything else is saved as your own.
         </mat-hint>
       </mat-form-field>
+
+      <!-- Dishes vary by recipe; the label is the reliable source. -->
+      @for (item of typicalIngredients(); track item.key) {
+        <p class="m-0 flex items-start gap-2 text-sm">
+          <mat-icon class="!size-5 shrink-0 !text-xl text-brand" aria-hidden="true">info</mat-icon>
+          <span>
+            Recipes for {{ item.name.toLowerCase() }} vary. If it came from a package, finding the
+            product above records what it really contained.
+          </span>
+        </p>
+      }
 
       <!-- Tagging, only for ingredients the catalog does not describe. -->
       @for (item of ownIngredients(); track item.key) {
@@ -260,7 +529,7 @@ function sameGroups(a: readonly AllergenGroup[], b: readonly AllergenGroup[]): b
     </form>
   `,
 })
-export class FoodEditor implements OnInit {
+export class FoodEditor implements OnInit, OnDestroy {
   readonly day = input.required<string>();
   readonly itemId = input<string | null>(null);
   readonly seed = input<FoodDraftSeed | null>(null);
@@ -278,7 +547,10 @@ export class FoodEditor implements OnInit {
   protected readonly mealLabels = MEAL_LABELS;
   protected readonly groups = ALLERGEN_GROUPS;
   protected readonly groupLabels = ALLERGEN_LABELS;
+  protected readonly sourceLabels = SOURCE_LABELS;
   protected readonly nameMaxLength = NAME_MAX_LENGTH;
+  protected readonly previewLines = LABEL_PREVIEW_LINES;
+  protected readonly scanAvailable = canScanBarcodes();
 
   protected readonly meal = signal<Meal>(mealForTime());
   protected readonly name = signal('');
@@ -287,13 +559,37 @@ export class FoodEditor implements OnInit {
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
 
+  protected readonly product = signal<SelectedProduct | null>(null);
+  protected readonly productQuery = signal('');
+  protected readonly productResults = signal<readonly ProductSummaryRead[]>([]);
+  protected readonly barcode = signal('');
+  protected readonly looking = signal(false);
+  protected readonly lookupError = signal<string | null>(null);
+  protected readonly scanning = signal(false);
+  protected readonly showAllLines = signal(false);
+
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
+  // Responses can arrive out of order; only the newest request may update the list.
+  private searchGeneration = 0;
+
   protected readonly canSave = computed(
-    () => this.name().trim() !== '' || this.draft().length > 0,
+    () => this.name().trim() !== '' || this.draft().length > 0 || this.product() !== null,
   );
+
+  protected readonly validBarcode = computed(() => /^\d{8,14}$/.test(this.barcode().trim()));
 
   protected readonly ownIngredients = computed(() =>
     this.draft().filter((item) => item.code === null),
   );
+
+  protected readonly typicalIngredients = computed(() =>
+    this.product() ? [] : this.draft().filter((item) => item.typical),
+  );
+
+  protected readonly visibleLines = computed(() => {
+    const lines = this.product()?.lines ?? [];
+    return this.showAllLines() ? lines : lines.slice(0, LABEL_PREVIEW_LINES);
+  });
 
   private readonly searchIndex = computed<SearchOption[]>(() => [
     ...this.customIngredients().map((row) => ({
@@ -301,6 +597,7 @@ export class FoodEditor implements OnInit {
       name: row.name,
       code: null,
       customId: row.id,
+      typical: false,
       groups: row.allergen_groups,
       terms: [keyFor(row.name)],
     })),
@@ -309,6 +606,7 @@ export class FoodEditor implements OnInit {
       name: row.name,
       code: row.code,
       customId: null,
+      typical: row.is_composite,
       groups: row.allergen_groups,
       terms: [keyFor(row.name), ...row.aliases],
     })),
@@ -337,28 +635,116 @@ export class FoodEditor implements OnInit {
   ngOnInit(): void {
     // Read once: the seed is where the draft starts, not something it tracks.
     const seed = this.seed();
-    if (seed) {
-      this.name.set(seed.name);
-      // A re-log from the recent list takes the current meal; an edit keeps its own.
-      if (this.itemId()) this.meal.set(seed.meal);
-      this.draft.set(seed.ingredients.map(draftFrom));
-    }
+    if (!seed) return;
+    this.name.set(seed.name);
+    // A re-log from the recent list takes the current meal; an edit keeps its own.
+    if (this.itemId()) this.meal.set(seed.meal);
+    const own = seed.ingredients.filter((row) => row.provenance === 'patient');
+    const label = seed.ingredients.filter((row) => row.provenance === 'label');
+    this.draft.set(own.map(draftFrom));
+    if (seed.product) this.product.set(fromSnapshot(seed.product, label));
+  }
+
+  ngOnDestroy(): void {
+    if (this.searchTimer !== null) clearTimeout(this.searchTimer);
   }
 
   protected summary(groups: readonly AllergenGroup[]): string {
     return allergenSummary(groups);
   }
 
+  protected summaryOr(groups: readonly AllergenGroup[], empty: string): string {
+    return groups.length > 0 ? allergenSummary(groups) : empty;
+  }
+
+  protected additiveLabel(additiveClass: string): string {
+    return ADDITIVE_LABELS[additiveClass] ?? additiveClass;
+  }
+
+  // --- products ----------------------------------------------------------------
+
+  protected onProductQuery(value: string): void {
+    this.productQuery.set(value);
+    this.lookupError.set(null);
+    if (this.searchTimer !== null) clearTimeout(this.searchTimer);
+    const text = value.trim();
+    if (text.length < 2) {
+      this.searchGeneration++;
+      this.productResults.set([]);
+      return;
+    }
+    this.searchTimer = setTimeout(() => void this.search(text), SEARCH_DELAY_MS);
+  }
+
+  private async search(text: string): Promise<void> {
+    const generation = ++this.searchGeneration;
+    this.looking.set(true);
+    try {
+      const results = await this.foods.searchProducts(text);
+      if (generation !== this.searchGeneration) return;
+      this.productResults.set(results);
+      if (results.length === 0) {
+        this.lookupError.set('No products matched. Try the brand name, or add the food below.');
+      }
+    } catch (failure: unknown) {
+      if (generation !== this.searchGeneration) return;
+      this.lookupError.set(describeApiError(failure, 'Product search failed. Try again.'));
+    } finally {
+      if (generation === this.searchGeneration) this.looking.set(false);
+    }
+  }
+
+  protected async chooseProduct(hit: ProductSummaryRead): Promise<void> {
+    await this.load(() => this.foods.product(hit.source, hit.source_id));
+  }
+
+  protected async lookUpBarcode(raw: string): Promise<void> {
+    this.scanning.set(false);
+    const code = raw.replace(/\D/g, '');
+    if (!/^\d{8,14}$/.test(code)) {
+      this.lookupError.set('A barcode is 8 to 14 digits.');
+      return;
+    }
+    this.barcode.set(code);
+    await this.load(() => this.foods.productByBarcode(code));
+  }
+
+  private async load(fetch: () => Promise<ProductRead>): Promise<void> {
+    const generation = ++this.searchGeneration;
+    this.looking.set(true);
+    this.lookupError.set(null);
+    try {
+      const found = await fetch();
+      if (generation !== this.searchGeneration) return;
+      this.product.set(fromLookup(found));
+      this.productResults.set([]);
+      this.showAllLines.set(false);
+      if (!this.name().trim()) this.name.set(found.name.slice(0, NAME_MAX_LENGTH));
+    } catch (failure: unknown) {
+      if (generation !== this.searchGeneration) return;
+      const missing = failure instanceof HttpErrorResponse && failure.status === 404;
+      this.lookupError.set(
+        missing
+          ? 'That product is not in the food databases yet. Add it by name below.'
+          : describeApiError(failure, 'That product could not be loaded. Try again.'),
+      );
+    } finally {
+      if (generation === this.searchGeneration) this.looking.set(false);
+    }
+  }
+
+  protected clearProduct(): void {
+    this.product.set(null);
+    this.productQuery.set('');
+    this.productResults.set([]);
+    this.barcode.set('');
+  }
+
+  // --- the patient's own ingredients ------------------------------------------
+
   protected pick(event: MatAutocompleteSelectedEvent): void {
     const option = event.option.value as SearchOption;
-    this.add({
-      key: option.key,
-      name: option.name,
-      code: option.code,
-      customId: option.customId,
-      groups: option.groups,
-      savedGroups: option.groups,
-    });
+    this.add({ ...option, savedGroups: option.groups });
     event.option.deselect();
   }
 
@@ -379,6 +765,7 @@ export class FoodEditor implements OnInit {
         name: text,
         code: null,
         customId: null,
+        typical: false,
         groups: [],
         savedGroups: [],
       });
@@ -409,6 +796,8 @@ export class FoodEditor implements OnInit {
     );
   }
 
+  // --- saving -------------------------------------------------------------------
+
   protected async save(): Promise<void> {
     if (!this.canSave() || this.saving()) return;
     this.saving.set(true);
@@ -426,9 +815,7 @@ export class FoodEditor implements OnInit {
 
       const payload = this.buildPayload();
       const id = this.itemId();
-      const result = id
-        ? await this.foods.update(id, payload)
-        : await this.foods.log(payload);
+      const result = id ? await this.foods.update(id, payload) : await this.foods.log(payload);
       this.saved.emit(result);
     } catch (failure: unknown) {
       this.error.set(describeApiError(failure, 'That did not save. Try again.'));
@@ -443,16 +830,19 @@ export class FoodEditor implements OnInit {
       if (item.customId) return { custom_ingredient_id: item.customId };
       return { name: item.name, allergen_groups: [...item.groups] };
     });
-    // A food named only by its ingredients ("Coffee") needs no separate name.
-    const typed = this.name().trim();
-    const fallback = this.draft()
-      .map((item) => item.name)
-      .join(', ')
-      .slice(0, NAME_MAX_LENGTH);
+    // A food named only by its product or ingredients needs no separate name.
+    const product = this.product();
+    const fallback = (
+      product?.name ??
+      this.draft()
+        .map((item) => item.name)
+        .join(', ')
+    ).slice(0, NAME_MAX_LENGTH);
     return {
       eaten_on: this.day(),
       meal: this.meal(),
-      name: typed || fallback,
+      name: this.name().trim() || fallback,
+      product: product?.ref ?? null,
       ingredients,
     };
   }

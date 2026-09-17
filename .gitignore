@@ -43,3 +43,6 @@ npm-debug.log*
 /tmp/
 *.pdf
 !docs/**/*.pdf
+
+# A failed `make openapi` leaves this behind.
+packages/openapi/*.tmp

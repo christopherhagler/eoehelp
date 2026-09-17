@@ -93,9 +93,7 @@ export class MonthPicker {
     // Both or neither. A year without a month would have to guess January, which
     // would be a date the patient never gave.
     const iso =
-      month !== null && year !== null
-        ? `${year}-${`${month}`.padStart(2, '0')}-01`
-        : null;
+      month !== null && year !== null ? `${year}-${`${month}`.padStart(2, '0')}-01` : null;
     this.value.set(iso);
   }
 }

@@ -4,7 +4,11 @@
       {{ dayLabel() }}
     </p>
     <h1 class="m-0 mt-1 text-3xl font-semibold tracking-tight">
-      @if (alreadyLogged()) { Edit this day } @else { How was swallowing? }
+      @if (alreadyLogged()) {
+        Edit this day
+      } @else {
+        How was swallowing?
+      }
     </h1>
     @if (isBackfill()) {
       <p class="mt-2 flex items-center gap-2 text-sm text-on-surface-variant">
@@ -20,8 +24,7 @@
     @if (error()) {
       <div
         role="alert"
-        class="mb-5 flex items-start gap-2 rounded-lg border border-danger/40
-               bg-danger/10 px-4 py-3 text-sm text-danger"
+        class="mb-5 flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger"
       >
         <mat-icon class="!size-5 shrink-0 !text-xl">error</mat-icon>
         <span>{{ error() }}</span>
@@ -49,9 +52,8 @@
             <p class="mt-4 flex items-start gap-2 text-sm text-on-surface-variant">
               <mat-icon class="!size-5 shrink-0 !text-xl text-brand">info</mat-icon>
               <span>
-                A day without solid food is recorded as its own thing, not as a
-                symptom-free day — counting it as zero would understate how you
-                were doing.
+                A day without solid food is recorded as its own thing, not as a symptom-free day —
+                counting it as zero would understate how you were doing.
               </span>
             </p>
           }
@@ -75,9 +77,7 @@
             </mat-button-toggle-group>
 
             @if (dysphagia() === true) {
-              <h3 id="q-severity" class="m-0 mt-6 text-base font-semibold">
-                What happened?
-              </h3>
+              <h3 id="q-severity" class="m-0 mt-6 text-base font-semibold">What happened?</h3>
               <mat-button-toggle-group
                 class="stacked mt-3"
                 aria-labelledby="q-severity"
@@ -195,8 +195,8 @@
             } @else {
               <h2 class="m-0 text-lg font-semibold tracking-tight">How you ate</h2>
               <p class="mt-1 text-sm text-on-surface-variant">
-                The habits people build around EoE without noticing. Your
-                gastroenterologist will ask about these.
+                The habits people build around EoE without noticing. Your gastroenterologist will
+                ask about these.
               </p>
               <div class="mt-4 flex flex-col gap-3">
                 <mat-checkbox
@@ -241,9 +241,7 @@
                   [(ngModel)]="notes"
                   placeholder="Anything worth remembering about today"
                 ></textarea>
-                <mat-hint>
-                  Encrypted, and never included in research data.
-                </mat-hint>
+                <mat-hint> Encrypted, and never included in research data. </mat-hint>
               </mat-form-field>
             }
           </mat-card-content>
@@ -253,8 +251,7 @@
       <!-- Opaque, so content scrolling underneath it stays unreadable rather than
            showing through the buttons. -->
       <div
-        class="sticky bottom-0 z-10 -mx-6 mt-2 flex flex-wrap items-center gap-3
-               border-t border-outline-variant bg-surface px-6 py-3"
+        class="sticky bottom-0 z-10 -mx-6 mt-2 flex flex-wrap items-center gap-3 border-t border-outline-variant bg-surface px-6 py-3"
       >
         <button
           mat-flat-button

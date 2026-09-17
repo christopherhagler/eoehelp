@@ -1,4 +1,4 @@
-import { AllergenGroup, Meal } from '../core/api-types';
+import { AllergenGroup, FoodDataSource, Meal } from '../core/api-types';
 
 /** One place for these, so the log, the editor, and the eventual insight and
  * report screens cannot name the same group two ways. */
@@ -25,6 +25,27 @@ export const MEAL_LABELS: Record<Meal, string> = {
 };
 
 export const MEALS = Object.keys(MEAL_LABELS) as Meal[];
+
+export const SOURCE_LABELS: Record<FoodDataSource, string> = {
+  open_food_facts: 'Open Food Facts',
+  usda_fdc: 'USDA',
+};
+
+/** Additive classes as the API names them. Unknown classes fall back to the raw name. */
+export const ADDITIVE_LABELS: Record<string, string> = {
+  preservative: 'preservative',
+  antioxidant: 'antioxidant',
+  emulsifier: 'emulsifier',
+  thickener: 'thickener',
+  colour: 'colour',
+  sweetener: 'sweetener',
+  flavour_enhancer: 'flavour enhancer',
+  acidity_regulator: 'acidity regulator',
+  raising_agent: 'raising agent',
+  anti_caking: 'anti-caking agent',
+  humectant: 'humectant',
+  glazing: 'glazing agent',
+};
 
 export function allergenSummary(groups: readonly AllergenGroup[]): string {
   return groups.map((group) => ALLERGEN_LABELS[group]).join(', ');

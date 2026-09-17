@@ -100,9 +100,16 @@ full list; the load-bearing ones:
   catalog, patient-defined ingredients, and recent foods for fast re-logging. See
   [ADR 0007](docs/adr/0007-food-and-ingredient-logging.md), including the limits
   on what a future food-trigger insight may claim.
+- **Packaged products: complete.** Search or scan a product, and its real label
+  (ingredients, additives, "Contains" and "May contain") is recorded from Open
+  Food Facts or USDA FoodData Central. See
+  [ADR 0008](docs/adr/0008-food-product-data.md).
+- **M2 (clinical context): in progress.** The endoscopy, biopsy, and dilation API
+  is done; its screen is next.
 
-Next are the clinical context tables (M2), then the doctor report, the
-food-symptom insight, and the progress dashboards (M3).
+Next is the rest of M2 (the endoscopy screen, diet phases, food challenges, and the
+timeline), then the doctor report, the food-symptom insight, and the progress
+dashboards (M3).
 
 ## Before this serves a real patient
 

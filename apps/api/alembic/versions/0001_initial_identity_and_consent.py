@@ -124,7 +124,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("user_id", name="uq_patients_user_id"),
         sa.CheckConstraint(
             "birth_year IS NULL OR (birth_year BETWEEN 1900 AND 2100)",
-            name="ck_patients_birth_year_plausible",
+            name=op.f("ck_patients_birth_year_plausible"),
         ),
     )
 

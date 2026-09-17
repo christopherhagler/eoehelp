@@ -6,7 +6,13 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-from eoehelp_api.models.enums import AllergenGroup, EntryMethod, Meal
+from eoehelp_api.models.enums import (
+    AllergenGroup,
+    EntryMethod,
+    FoodDataSource,
+    IngredientProvenance,
+    Meal,
+)
 
 MAX_INGREDIENTS_PER_FOOD = 40
 NAME_MAX_LENGTH = 120
@@ -65,24 +71,101 @@ class IngredientRef(BaseModel):
         return self
 
 
+class ProductRef(BaseModel):
+    """Which product was eaten.
+
+    Either a source record, which the server fetches itself — label data is never
+    accepted from the client, since the point of it is that it came from the
+    label — or an existing snapshot, which is how a recent food is logged again.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: FoodDataSource | None = None
+    source_id: str | None = Field(default=None, min_length=1, max_length=64)
+    snapshot_id: uuid.UUID | None = None
+
+    @model_validator(mode="after")
+    def _one_form(self) -> "ProductRef":
+        by_source = self.source is not None and self.source_id is not None
+        partial = (self.source is None) != (self.source_id is None)
+        if partial or by_source == (self.snapshot_id is not None):
+            raise ValueError("Give either source and source_id, or snapshot_id.")
+        return self
+
+
 class FoodItemInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     eaten_on: date
     meal: Meal
     name: FoodName
+    product: ProductRef | None = None
+    # With a product these are additions to its label ("with added cheese").
     ingredients: list[IngredientRef] = Field(
         default_factory=list, max_length=MAX_INGREDIENTS_PER_FOOD
     )
 
 
 class IngredientRead(BaseModel):
-    """An ingredient as the patient sees it, from whichever table it lives in."""
+    """An ingredient as the patient sees it, from whichever source it came."""
 
     code: str | None
     custom_ingredient_id: uuid.UUID | None
     name: str
+    canonical_key: str
+    provenance: IngredientProvenance
     allergen_groups: list[AllergenGroup]
+    # True for a dish from the catalog: its groups are the usual recipe's.
+    typical: bool
+    # False when a label ingredient could not be matched to a standard identity.
+    recognized: bool
+    depth: int
+    note: str | None
+    additive_class: str | None
+
+
+class ProductIngredientRead(BaseModel):
+    key: str
+    name: str
+    depth: int
+    recognized: bool
+    note: str | None
+    allergen_groups: list[AllergenGroup]
+    additive_class: str | None
+
+
+class ProductSummaryRead(BaseModel):
+    source: FoodDataSource
+    source_id: str
+    barcode: str | None
+    name: str
+    brand: str | None
+
+
+class ProductRead(ProductSummaryRead):
+    """A product's label, freshly looked up and not yet logged."""
+
+    ingredients_text: str | None
+    ingredients: list[ProductIngredientRead]
+    ingredients_complete: bool
+    declared_allergens: list[AllergenGroup]
+    may_contain: list[AllergenGroup]
+    # From the ingredient list itself; may add to or disagree with the label.
+    inferred_allergens: list[AllergenGroup]
+    source_updated_at: datetime | None
+    attribution: str
+
+
+class ProductSnapshotRead(ProductSummaryRead):
+    """The label snapshot a logged food points at."""
+
+    snapshot_id: uuid.UUID
+    ingredients_complete: bool
+    declared_allergens: list[AllergenGroup]
+    may_contain: list[AllergenGroup]
+    fetched_at: datetime
+    attribution: str
 
 
 class FoodItemRead(BaseModel):
@@ -91,6 +174,7 @@ class FoodItemRead(BaseModel):
     meal: Meal
     name: str
     entry_method: EntryMethod
+    product: ProductSnapshotRead | None
     ingredients: list[IngredientRead]
     created_at: datetime
     updated_at: datetime
@@ -111,6 +195,9 @@ class RecentFood(BaseModel):
 
     name: str
     meal: Meal
+    product: ProductSnapshotRead | None
+    # The patient's own additions only when a product is set; its label
+    # ingredients come from the snapshot.
     ingredients: list[IngredientRead]
     times_logged: int
     last_eaten_on: date
@@ -123,6 +210,8 @@ class CatalogIngredientRead(BaseModel):
     name: str
     allergen_groups: list[AllergenGroup]
     aliases: list[str]
+    canonical_key: str
+    is_composite: bool
 
 
 class CustomIngredientRead(BaseModel):

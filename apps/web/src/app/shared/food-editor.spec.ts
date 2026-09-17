@@ -6,28 +6,135 @@ import {
   CustomIngredientRead,
   FoodItemInput,
   FoodItemRead,
+  IngredientRead,
+  ProductRead,
+  ProductSnapshotRead,
+  ProductSummaryRead,
 } from '../core/api-types';
 import { FoodService } from '../core/food.service';
 import { FoodDraftSeed, FoodEditor } from './food-editor';
 import { mealForTime } from './food-labels';
 
+function catalogRow(
+  code: string,
+  name: string,
+  groups: CatalogIngredientRead['allergen_groups'],
+  aliases: string[] = [],
+  isComposite = false,
+): CatalogIngredientRead {
+  return {
+    code,
+    name,
+    allergen_groups: groups,
+    aliases,
+    canonical_key: `en:${code}`,
+    is_composite: isComposite,
+  };
+}
+
 const CATALOG: CatalogIngredientRead[] = [
-  { code: 'cheese', name: 'Cheese', allergen_groups: ['milk'], aliases: ['cheddar'] },
-  { code: 'cream_cheese', name: 'Cream cheese', allergen_groups: ['milk'], aliases: [] },
-  {
-    code: 'wheat_flour',
-    name: 'Wheat flour',
-    allergen_groups: ['wheat'],
-    aliases: ['flour'],
-  },
-  { code: 'rice', name: 'Rice', allergen_groups: [], aliases: [] },
+  catalogRow('cheese', 'Cheese', ['milk'], ['cheddar']),
+  catalogRow('cream_cheese', 'Cream cheese', ['milk']),
+  catalogRow('wheat_flour', 'Wheat flour', ['wheat'], ['flour']),
+  catalogRow('rice', 'Rice', []),
+  catalogRow('mayonnaise', 'Mayonnaise', ['egg'], ['mayo'], true),
 ];
+
+function row(overrides: Partial<IngredientRead>): IngredientRead {
+  return {
+    code: null,
+    custom_ingredient_id: null,
+    name: 'x',
+    canonical_key: 'en:x',
+    provenance: 'patient',
+    allergen_groups: [],
+    typical: false,
+    recognized: true,
+    depth: 0,
+    note: null,
+    additive_class: null,
+    ...overrides,
+  };
+}
+
+const HELLMANNS: ProductRead = {
+  source: 'open_food_facts',
+  source_id: '0048001213487',
+  barcode: '0048001213487',
+  name: 'Real Mayonnaise',
+  brand: "Hellmann's",
+  ingredients_text: 'soybean oil, water, whole eggs, calcium disodium edta',
+  ingredients: [
+    {
+      key: 'en:soya-oil',
+      name: 'soybean oil',
+      depth: 0,
+      recognized: true,
+      note: null,
+      allergen_groups: ['soy'],
+      additive_class: null,
+    },
+    {
+      key: 'en:whole-egg',
+      name: 'whole eggs',
+      depth: 0,
+      recognized: true,
+      note: null,
+      allergen_groups: ['egg'],
+      additive_class: null,
+    },
+    {
+      key: 'en:e385',
+      name: 'calcium disodium edta',
+      depth: 0,
+      recognized: true,
+      note: 'to protect quality',
+      allergen_groups: [],
+      additive_class: 'preservative',
+    },
+  ],
+  ingredients_complete: true,
+  declared_allergens: ['egg'],
+  may_contain: ['milk'],
+  inferred_allergens: ['egg', 'soy'],
+  source_updated_at: null,
+  attribution: 'Product data from Open Food Facts.',
+};
+
+const SNAPSHOT: ProductSnapshotRead = {
+  snapshot_id: 'snap-1',
+  source: 'open_food_facts',
+  source_id: '0048001213487',
+  barcode: '0048001213487',
+  name: 'Real Mayonnaise',
+  brand: "Hellmann's",
+  ingredients_complete: true,
+  declared_allergens: ['egg', 'soy'],
+  may_contain: [],
+  fetched_at: '2026-09-16T00:00:00Z',
+  attribution: 'Product data from Open Food Facts.',
+};
 
 const RELISH: CustomIngredientRead = { id: 'relish-id', name: 'Relish', allergen_groups: [] };
 
 class StubFoodService {
   readonly calls: string[] = [];
   logged: FoodItemInput | null = null;
+  searches: { query: string; resolve: (hits: ProductSummaryRead[]) => void }[] = [];
+
+  searchProducts(query: string): Promise<ProductSummaryRead[]> {
+    return new Promise((resolve) => this.searches.push({ query, resolve }));
+  }
+
+  async product(): Promise<ProductRead> {
+    this.calls.push('product');
+    return HELLMANNS;
+  }
+
+  async productByBarcode(code: string): Promise<ProductRead> {
+    this.calls.push(`barcode:${code}`);
+    return HELLMANNS;
+  }
 
   async updateCustomIngredient(id: string, update: { allergen_groups?: string[] }) {
     this.calls.push(`retag:${id}:${update.allergen_groups?.join('+')}`);
@@ -51,9 +158,15 @@ class StubFoodService {
 // rather than widening the class's public surface for tests.
 type Internals = {
   query: { set(value: string): void };
+  product(): { name: string; declared: string[]; undeclared: string[]; lines: unknown[] } | null;
+  productResults(): ProductSummaryRead[];
+  onProductQuery(value: string): void;
+  chooseProduct(hit: ProductSummaryRead): Promise<void>;
+  lookUpBarcode(raw: string): Promise<void>;
+  typicalIngredients(): { name: string }[];
   options(): { name: string }[];
   draft(): { name: string; code: string | null; customId: string | null }[];
-  name: { set(value: string): void };
+  name: { (): string; set(value: string): void };
   meal(): string;
   addTyped(event: MatChipInputEvent): void;
   toggleGroup(item: unknown, group: string, selected: boolean): void;
@@ -146,6 +259,7 @@ describe('FoodEditor', () => {
         eaten_on: '2026-09-16',
         meal: mealForTime(),
         name: 'Rice, Hot relish',
+        product: null,
         ingredients: [{ code: 'rice' }, { name: 'Hot relish', allergen_groups: [] }],
       });
     });
@@ -180,9 +294,8 @@ describe('FoodEditor', () => {
       const seed: FoodDraftSeed = {
         name: 'Late snack',
         meal: mealForTime() === 'snack' ? 'breakfast' : 'snack',
-        ingredients: [
-          { code: 'rice', custom_ingredient_id: null, name: 'Rice', allergen_groups: [] },
-        ],
+        ingredients: [row({ code: 'rice', name: 'Rice' })],
+        product: null,
       };
       const { editor } = create({ seed, itemId: 'item-1' });
       expect(editor.meal()).toBe(seed.meal);
@@ -196,9 +309,84 @@ describe('FoodEditor', () => {
         name: 'Porridge',
         meal: mealForTime() === 'snack' ? 'breakfast' : 'snack',
         ingredients: [],
+        product: null,
       };
       const { editor } = create({ seed });
       expect(editor.meal()).toBe(mealForTime());
+    });
+  });
+  describe('products', () => {
+    it('a looked-up product shows its label and names the food', async () => {
+      const { editor } = create();
+      await editor.lookUpBarcode('0 48001 21348 7');
+      expect(stub.calls).toEqual(['barcode:048001213487']);
+      const chosen = editor.product();
+      expect(chosen?.name).toBe('Real Mayonnaise');
+      expect(chosen?.declared).toEqual(['egg']);
+      // Soy is in the ingredients but missing from the "Contains" line.
+      expect(chosen?.undeclared).toEqual(['soy']);
+      expect(chosen?.lines.length).toBe(3);
+      expect(editor.name()).toBe('Real Mayonnaise');
+    });
+
+    it('sends a reference to the product, never its ingredients', async () => {
+      const { editor } = create();
+      await editor.chooseProduct(HELLMANNS);
+      editor.addTyped(typed('rice'));
+      await editor.save();
+      expect(stub.logged).toEqual({
+        eaten_on: '2026-09-16',
+        meal: mealForTime(),
+        name: 'Real Mayonnaise',
+        product: { source: 'open_food_facts', source_id: '0048001213487' },
+        ingredients: [{ code: 'rice' }],
+      });
+    });
+
+    it('an edited product food keeps its snapshot and splits label from additions', async () => {
+      const seed: FoodDraftSeed = {
+        name: 'Mayo toast',
+        meal: 'lunch',
+        product: SNAPSHOT,
+        ingredients: [
+          row({ name: 'soybean oil', provenance: 'label', allergen_groups: ['soy'] }),
+          row({ name: 'water', provenance: 'label', depth: 1 }),
+          row({ code: 'rice', name: 'Rice' }),
+        ],
+      };
+      const { editor } = create({ seed, itemId: 'item-9' });
+      expect(editor.draft().map((d) => d.name)).toEqual(['Rice']);
+      expect(editor.product()?.lines.length).toBe(2);
+      await editor.save();
+      expect(stub.logged?.product).toEqual({ snapshot_id: 'snap-1' });
+      expect(stub.logged?.ingredients).toEqual([{ code: 'rice' }]);
+    });
+
+    it('a slow search cannot overwrite a newer one', async () => {
+      vi.useFakeTimers();
+      try {
+        const { editor } = create();
+        editor.onProductQuery('hel');
+        await vi.advanceTimersByTimeAsync(400);
+        editor.onProductQuery('hellmann');
+        await vi.advanceTimersByTimeAsync(400);
+        const [first, second] = stub.searches;
+        second.resolve([{ ...HELLMANNS }]);
+        await vi.advanceTimersByTimeAsync(0);
+        first.resolve([]);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(editor.productResults().map((hit) => hit.name)).toEqual(['Real Mayonnaise']);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('suggests the label for a dish, until a product is chosen', async () => {
+      const { editor } = create();
+      editor.addTyped(typed('mayo'));
+      expect(editor.typicalIngredients().map((i) => i.name)).toEqual(['Mayonnaise']);
+      await editor.chooseProduct(HELLMANNS);
+      expect(editor.typicalIngredients()).toEqual([]);
     });
   });
 });

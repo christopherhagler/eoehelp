@@ -80,8 +80,6 @@ export class MedicationService {
     const params: Record<string, string> = {};
     if (from) params['from'] = from;
     if (to) params['to'] = to;
-    return firstValueFrom(
-      this.http.get<AdherenceSummary>(`${this.meds}/adherence`, { params }),
-    );
+    return firstValueFrom(this.http.get<AdherenceSummary>(`${this.meds}/adherence`, { params }));
   }
 }
