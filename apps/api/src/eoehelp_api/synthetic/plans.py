@@ -11,10 +11,12 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from eoehelp_api.models.enums import (
+    AllergenGroup,
     CopingAction,
     DoseStatus,
     DysphagiaSeverity,
     EntryMethod,
+    Meal,
     MedicationStopReason,
     SexAtBirth,
 )
@@ -69,6 +71,21 @@ class MedicationPlan:
 
 
 @dataclass(frozen=True)
+class FoodPlan:
+    """One eaten food, named by catalog codes only.
+
+    Catalog codes rather than typed names, so a seeded history exercises the
+    allergen-group path deterministically and never creates custom ingredients.
+    """
+
+    eaten_on: date
+    meal: Meal
+    name: str
+    ingredient_codes: tuple[str, ...]
+    entry_method: EntryMethod
+
+
+@dataclass(frozen=True)
 class EpochPlan:
     """A stretch of time under one treatment approach.
 
@@ -90,6 +107,13 @@ class HistoryPlan:
     days: list[DayPlan]
     medications: list[MedicationPlan]
     epochs: list[EpochPlan]
+    foods: list[FoodPlan] = field(default_factory=list)
+
+    # Ground truth for validating a future food-symptom analysis: the groups that
+    # actually drive this patient's symptoms. Held on the plan and never written
+    # to the database, because a real patient's triggers are exactly what nobody
+    # knows in advance — the analysis has to find them from the log alone.
+    hidden_triggers: frozenset[AllergenGroup] = frozenset()
 
     @property
     def dose_count(self) -> int:

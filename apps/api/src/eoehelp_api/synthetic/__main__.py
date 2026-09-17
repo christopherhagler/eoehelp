@@ -14,7 +14,12 @@ from eoehelp_api.config import get_settings
 from eoehelp_api.db.session import dispose_engine
 from eoehelp_api.observability import configure_logging
 from eoehelp_api.synthetic.generator import HistoryGenerator
-from eoehelp_api.synthetic.writer import SyntheticDataRefusedError, assert_writable, write_history
+from eoehelp_api.synthetic.writer import (
+    SyntheticDataRefusedError,
+    SyntheticPatientExistsError,
+    assert_writable,
+    write_history,
+)
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -49,7 +54,11 @@ async def _run(args: argparse.Namespace) -> int:
     try:
         for index in range(args.patients):
             plan = HistoryGenerator(seed=args.seed + index).generate(months=args.months)
-            written = await write_history(plan, allow_staging=args.allow_staging)
+            try:
+                written = await write_history(plan, allow_staging=args.allow_staging)
+            except SyntheticPatientExistsError:
+                print(f"  {plan.email}\n    already seeded, skipped\n")
+                continue
             print(f"  {written.email}")
             print(f"    timezone {written.timezone}")
             print(
@@ -57,6 +66,11 @@ async def _run(args: argparse.Namespace) -> int:
                 f"({written.first_day} to {written.last_day})"
             )
             print(f"    {written.medications} medications, {written.doses} doses")
+            print(f"    {written.foods} foods logged")
+            # Printed for demos and for checking a future food analysis by eye.
+            # It exists only in this output and on the plan, never in the database.
+            triggers = ", ".join(written.hidden_triggers) or "none"
+            print(f"    hidden food triggers: {triggers}")
             for epoch in written.epochs:
                 print(f"    - {epoch}")
             print()

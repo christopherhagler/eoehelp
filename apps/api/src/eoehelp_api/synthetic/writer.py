@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.config import Settings, get_settings
@@ -19,9 +20,11 @@ from eoehelp_api.db.session import apply_rls_scope, session_scope
 from eoehelp_api.models.clinical import SymptomEntry
 from eoehelp_api.models.consent import Consent
 from eoehelp_api.models.enums import UserRole, UserStatus
+from eoehelp_api.models.food import FoodLogItem, FoodLogItemIngredient
 from eoehelp_api.models.medication import Medication, MedicationDose
 from eoehelp_api.models.patient import Patient
 from eoehelp_api.models.user import User
+from eoehelp_api.schemas.food import name_key
 from eoehelp_api.services import scoring
 from eoehelp_api.services.schedules import rrule_for
 from eoehelp_api.synthetic.plans import HistoryPlan
@@ -29,6 +32,10 @@ from eoehelp_api.synthetic.plans import HistoryPlan
 
 class SyntheticDataRefusedError(RuntimeError):
     """Raised rather than writing fabricated records where real ones live."""
+
+
+class SyntheticPatientExistsError(RuntimeError):
+    """The seed was already written. Seeding is repeatable, so this is a skip."""
 
 
 @dataclass(frozen=True)
@@ -39,6 +46,8 @@ class WrittenHistory:
     symptom_entries: int
     medications: int
     doses: int
+    foods: int
+    hidden_triggers: list[str]
     first_day: str
     last_day: str
     epochs: list[str]
@@ -70,6 +79,13 @@ class SyntheticWriter:
 
     async def write(self, plan: HistoryPlan) -> WrittenHistory:
         zone = ZoneInfo(plan.profile.timezone)
+
+        # A seed's address is derived from its seed number, so running the same
+        # seed twice names the same patient. Say so, rather than failing on the
+        # unique constraint with a traceback.
+        existing = await self._session.execute(select(User.id).where(User.email == plan.email))
+        if existing.scalar_one_or_none() is not None:
+            raise SyntheticPatientExistsError(plan.email)
 
         user = User(
             email=plan.email,
@@ -166,6 +182,25 @@ class SyntheticWriter:
                 )
                 dose_count += 1
 
+        for food in plan.foods:
+            self._session.add(
+                FoodLogItem(
+                    id=uuid.uuid4(),
+                    patient_id=patient_id,
+                    eaten_on=food.eaten_on,
+                    meal=food.meal,
+                    name=food.name,
+                    name_key=name_key(food.name),
+                    entry_method=food.entry_method,
+                    ingredients=[
+                        FoodLogItemIngredient(
+                            patient_id=patient_id, ingredient_code=code, position=position
+                        )
+                        for position, code in enumerate(food.ingredient_codes)
+                    ],
+                )
+            )
+
         await self._session.flush()
 
         # No audit rows. The audit log records who touched a real record and when;
@@ -178,6 +213,8 @@ class SyntheticWriter:
             symptom_entries=len(plan.days),
             medications=len(plan.medications),
             doses=dose_count,
+            foods=len(plan.foods),
+            hidden_triggers=sorted(group.value for group in plan.hidden_triggers),
             first_day=plan.days[0].entry_date.isoformat() if plan.days else "-",
             last_day=plan.days[-1].entry_date.isoformat() if plan.days else "-",
             epochs=[f"{e.label} ({e.started_on} to {e.ended_on})" for e in plan.epochs],

@@ -5,20 +5,28 @@ make the properties that matter assertable without a database.
 """
 
 import statistics
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.config import Settings
-from eoehelp_api.models.enums import DoseStatus, EntryMethod
+from eoehelp_api.models.enums import AllergenGroup, DoseStatus, EntryMethod
 from eoehelp_api.schemas.auth import MagicLinkRequest
+from eoehelp_api.schemas.food import FoodItemInput, IngredientRef
 from eoehelp_api.schemas.symptoms import SymptomEntryInput
 from eoehelp_api.services import scoring
 from eoehelp_api.synthetic import HistoryGenerator, SyntheticDataRefusedError, assert_writable
+from eoehelp_api.synthetic.generator import (
+    INGREDIENT_GROUPS,
+    MENU,
+    TRIGGER_LAG_DAYS,
+    groups_of,
+)
 from eoehelp_api.synthetic.plans import DayPlan, HistoryPlan
-from eoehelp_api.synthetic.writer import SyntheticWriter
+from eoehelp_api.synthetic.writer import SyntheticPatientExistsError, SyntheticWriter
 
 TODAY = date(2026, 9, 16)
 
@@ -195,6 +203,26 @@ class TestTimezoneSpread:
         assert any(zone.startswith("America/") for zone in zones)
         assert any(zone.startswith(("Asia/", "Australia/", "Pacific/")) for zone in zones)
 
+    def test_history_ends_on_the_patients_today_not_utcs(self) -> None:
+        """At 01:00 UTC it is still yesterday evening in the Americas. A history
+        ending on the UTC date would contain a day the API refuses as future."""
+        now = datetime(2026, 9, 17, 1, 0, tzinfo=UTC)
+        checked = set()
+        for seed in range(60):
+            history = HistoryGenerator(seed=seed, now=now).generate(months=2)
+            zone = ZoneInfo(history.profile.timezone)
+            local_now = now.astimezone(zone)
+            checked.add(local_now.date())
+            assert all(day.entry_date <= local_now.date() for day in history.days)
+            assert all(food.eaten_on <= local_now.date() for food in history.foods)
+            for medication in history.medications:
+                assert medication.ended_on is None or medication.ended_on <= local_now.date()
+                for dose in medication.doses:
+                    # Doses carry local wall-clock time; see writer.py.
+                    assert dose.taken_at.replace(tzinfo=zone) <= local_now
+        # Both sides of the date line were exercised, or this proved nothing.
+        assert checked == {date(2026, 9, 16), date(2026, 9, 17)}
+
 
 class TestProductionGuard:
     def test_production_is_refused(self) -> None:
@@ -216,6 +244,94 @@ class TestProductionGuard:
         assert_writable(Settings(environment="local"))
 
 
+def _dysphagia_rates(history: HistoryPlan, group: AllergenGroup) -> tuple[list[bool], list[bool]]:
+    """Symptom days split by logged exposure to one group, as an analysis would see them.
+
+    Built from the logged foods only, not the hidden full diet, because the log is
+    all a real analysis will ever have.
+    """
+    exposed: set[date] = set()
+    for food in history.foods:
+        if group in groups_of(food.ingredient_codes):
+            exposed.update(
+                food.eaten_on + timedelta(days=lag) for lag in range(TRIGGER_LAG_DAYS + 1)
+            )
+    food_days = {food.eaten_on for food in history.foods}
+    after, otherwise = [], []
+    for day in history.days:
+        if day.ate_solid_food and day.entry_date in food_days:
+            bucket = after if day.entry_date in exposed else otherwise
+            bucket.append(bool(day.dysphagia_occurred))
+    return after, otherwise
+
+
+class TestFood:
+    def test_every_food_passes_the_api_validator(self) -> None:
+        for seed in range(12):
+            for food in plan(seed=seed).foods:
+                FoodItemInput(
+                    eaten_on=food.eaten_on,
+                    meal=food.meal,
+                    name=food.name,
+                    ingredients=[IngredientRef(code=code) for code in food.ingredient_codes],
+                )
+
+    def test_food_is_logged_only_on_logged_days_with_solid_food(self) -> None:
+        history = plan()
+        solid_days = {day.entry_date: day for day in history.days if day.ate_solid_food}
+        assert history.foods
+        for food in history.foods:
+            day = solid_days[food.eaten_on]
+            assert food.entry_method is day.entry_method
+
+    def test_the_menu_uses_only_ingredients_with_known_groups(self) -> None:
+        codes = {code for options in MENU.values() for _, recipe in options for code in recipe}
+        assert codes == set(INGREDIENT_GROUPS)
+
+    def test_the_menu_leaves_a_baseline_for_every_group(self) -> None:
+        """A group present in every meal could never be compared with its absence."""
+        for group in AllergenGroup:
+            meals = [recipe for options in MENU.values() for _, recipe in options]
+            assert any(group in groups_of(recipe) for recipe in meals), group
+            assert any(group not in groups_of(recipe) for recipe in meals), group
+
+    def test_some_patients_have_no_trigger_at_all(self) -> None:
+        """They are the false-alarm check for any future food analysis."""
+        counts = [len(plan(seed=seed).hidden_triggers) for seed in range(40)]
+        assert 0 in counts
+        assert sum(1 for c in counts if c > 0) > len(counts) / 2
+
+    def test_planted_triggers_stand_out_from_noise_in_the_log(self) -> None:
+        """The fixture is only useful for validating an analysis if its answer is
+        recoverable from the logged data at all.
+
+        Averaged across patients: a single patient's signal is weak and can be
+        swamped by a co-eaten group (milk and wheat share mac and cheese), which is
+        realistic and is exactly what the eventual analysis must cope with.
+        """
+        trigger_gaps, other_gaps = [], []
+        for seed in range(40):
+            history = plan(seed=seed)
+            for group in AllergenGroup:
+                after, otherwise = _dysphagia_rates(history, group)
+                if len(after) < 20 or len(otherwise) < 20:
+                    continue
+                gap = statistics.fmean(after) - statistics.fmean(otherwise)
+                (trigger_gaps if group in history.hidden_triggers else other_gaps).append(gap)
+
+        assert len(trigger_gaps) >= 20
+        assert statistics.fmean(trigger_gaps) > statistics.fmean(other_gaps) + 0.07
+
+    def test_hidden_triggers_never_reach_the_database_model(self) -> None:
+        """Ground truth is for tests. Nothing in the written schema can hold it."""
+        from eoehelp_api.db.base import Base
+
+        columns = {
+            column.name for table in Base.metadata.tables.values() for column in table.columns
+        }
+        assert not any("trigger" in name for name in columns)
+
+
 class TestWriting:
     async def test_a_generated_history_persists_and_scores(self, session: AsyncSession) -> None:
         """End of the loop: plan, write, and score what came back.
@@ -229,6 +345,15 @@ class TestWriting:
 
         assert written.symptom_entries == len(history.days)
         assert written.doses == history.dose_count
+        assert written.foods == len(history.foods) > 0
+
+        ingredient_rows = (
+            await session.execute(
+                text("SELECT count(*) FROM food_log_item_ingredients WHERE patient_id = :pid"),
+                {"pid": written.patient_id},
+            )
+        ).scalar_one()
+        assert ingredient_rows == sum(len(food.ingredient_codes) for food in history.foods)
 
         entries = (
             await session.execute(
@@ -250,6 +375,16 @@ class TestWriting:
         ).scalar_one()
         assert readable == 0
 
+    async def test_writing_the_same_seed_twice_is_reported_not_crashed(
+        self, session: AsyncSession
+    ) -> None:
+        """Seeds are repeatable by design, so a second run names the same patient."""
+        history = plan(seed=5, months=1)
+        await SyntheticWriter(session).write(history)
+        await session.commit()
+        with pytest.raises(SyntheticPatientExistsError, match=history.email):
+            await SyntheticWriter(session).write(history)
+
     async def test_no_audit_rows_are_fabricated(self, session: AsyncSession) -> None:
         """The audit log records who touched a real record.
 
@@ -266,6 +401,21 @@ class TestWriting:
             )
         ).scalar_one()
         assert rows == 0
+
+
+async def test_the_generators_allergen_groups_match_the_catalog(session: AsyncSession) -> None:
+    """The generator keeps its own copy of part of the catalog, since it never
+    reads the database. This is what stops the copy drifting."""
+    rows = (
+        await session.execute(
+            text(
+                "SELECT code, allergen_groups::text[] FROM ingredient_catalog WHERE code = ANY(:c)"
+            ),
+            {"c": sorted(INGREDIENT_GROUPS)},
+        )
+    ).all()
+    catalog = {code: frozenset(AllergenGroup(g) for g in groups) for code, groups in rows}
+    assert catalog == INGREDIENT_GROUPS
 
 
 def _score(day: DayPlan) -> int:
