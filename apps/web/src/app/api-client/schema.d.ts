@@ -153,6 +153,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/endoscopies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Endoscopies
+         * @description Every recorded endoscopy, newest first.
+         */
+        get: operations["list_endoscopies_api_v1_me_endoscopies_get"];
+        put?: never;
+        /** Add Endoscopy */
+        post: operations["add_endoscopy_api_v1_me_endoscopies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/endoscopies/{endoscopy_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Endoscopy */
+        get: operations["read_endoscopy_api_v1_me_endoscopies__endoscopy_id__get"];
+        /**
+         * Replace Endoscopy
+         * @description Replace the whole record, findings included.
+         *
+         *     Biopsy results usually arrive a week after the scope, so adding them is an
+         *     edit of the same document rather than a separate resource.
+         */
+        put: operations["replace_endoscopy_api_v1_me_endoscopies__endoscopy_id__put"];
+        post?: never;
+        /** Delete Endoscopy */
+        delete: operations["delete_endoscopy_api_v1_me_endoscopies__endoscopy_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/foods": {
         parameters: {
             query?: never;
@@ -525,6 +571,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reference/erefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Erefs Scales
+         * @description The EREFS gradings this API accepts, with each feature's maximum.
+         *
+         *     Served rather than duplicated in the client, for the same reason as the
+         *     timezones: the form can only offer scores the validator will accept.
+         */
+        get: operations["list_erefs_scales_api_v1_reference_erefs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reference/timezones": {
         parameters: {
             query?: never;
@@ -682,6 +751,36 @@ export interface components {
          * @enum {string}
          */
         AllergenGroup: "milk" | "wheat" | "egg" | "soy" | "peanut" | "tree_nut" | "fish" | "shellfish" | "sesame";
+        /** BiopsyInput */
+        BiopsyInput: {
+            /** Basal Zone Hyperplasia */
+            basal_zone_hyperplasia?: boolean | null;
+            /** Lamina Propria Fibrosis */
+            lamina_propria_fibrosis?: boolean | null;
+            location: components["schemas"]["BiopsyLocation"];
+            /** @default exact */
+            peak_eos_comparator: components["schemas"]["EosComparator"];
+            /** Peak Eos Per Hpf */
+            peak_eos_per_hpf: number;
+        };
+        /**
+         * BiopsyLocation
+         * @enum {string}
+         */
+        BiopsyLocation: "proximal" | "mid" | "distal" | "unspecified";
+        /** BiopsyRead */
+        BiopsyRead: {
+            /** Basal Zone Hyperplasia */
+            basal_zone_hyperplasia?: boolean | null;
+            histology: components["schemas"]["HistologyStatus"];
+            /** Lamina Propria Fibrosis */
+            lamina_propria_fibrosis?: boolean | null;
+            location: components["schemas"]["BiopsyLocation"];
+            /** @default exact */
+            peak_eos_comparator: components["schemas"]["EosComparator"];
+            /** Peak Eos Per Hpf */
+            peak_eos_per_hpf: number;
+        };
         /** CatalogIngredientRead */
         CatalogIngredientRead: {
             /** Aliases */
@@ -761,6 +860,36 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /**
+         * DilationComplication
+         * @enum {string}
+         */
+        DilationComplication: "none" | "chest_pain" | "bleeding" | "perforation" | "other";
+        /** DilationInput */
+        DilationInput: {
+            complication?: components["schemas"]["DilationComplication"] | null;
+            /** @default unknown */
+            dilator_type: components["schemas"]["DilatorType"];
+            /** Final Diameter Mm */
+            final_diameter_mm?: number | string | null;
+            /** Pre Diameter Mm */
+            pre_diameter_mm?: number | string | null;
+        };
+        /** DilationRead */
+        DilationRead: {
+            complication?: components["schemas"]["DilationComplication"] | null;
+            /** @default unknown */
+            dilator_type: components["schemas"]["DilatorType"];
+            /** Final Diameter Mm */
+            final_diameter_mm?: string | null;
+            /** Pre Diameter Mm */
+            pre_diameter_mm?: string | null;
+        };
+        /**
+         * DilatorType
+         * @enum {string}
+         */
+        DilatorType: "balloon" | "bougie" | "unknown";
         /** DoseCreate */
         DoseCreate: {
             /** @default taken */
@@ -828,6 +957,68 @@ export interface components {
          */
         DysphagiaSeverity: "none" | "mild_slow" | "stuck_self_resolved" | "stuck_intervention";
         /**
+         * EndoscopyIndication
+         * @description Why the scope was done, which changes how its findings are read.
+         *
+         *     A diagnostic scope and a scope checking treatment response answer different
+         *     questions, and a food-impaction scope is often done without biopsies.
+         * @enum {string}
+         */
+        EndoscopyIndication: "diagnosis" | "treatment_response" | "food_impaction" | "surveillance" | "other";
+        /** EndoscopyInput */
+        EndoscopyInput: {
+            /** Biopsies */
+            biopsies?: components["schemas"]["BiopsyInput"][];
+            dilation?: components["schemas"]["DilationInput"] | null;
+            erefs?: components["schemas"]["ErefsInput"] | null;
+            /** Facility */
+            facility?: string | null;
+            indication: components["schemas"]["EndoscopyIndication"];
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Performed On
+             * Format: date
+             */
+            performed_on: string;
+        };
+        /** EndoscopyRead */
+        EndoscopyRead: {
+            /** Biopsies */
+            biopsies: components["schemas"]["BiopsyRead"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            dilation: components["schemas"]["DilationRead"] | null;
+            erefs: components["schemas"]["ErefsRead"] | null;
+            /** Facility */
+            facility: string | null;
+            histology: components["schemas"]["HistologyStatus"] | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            indication: components["schemas"]["EndoscopyIndication"];
+            /** Notes */
+            notes: string | null;
+            peak: components["schemas"]["PeakCount"] | null;
+            /**
+             * Performed On
+             * Format: date
+             */
+            performed_on: string;
+            /** Remission Threshold Eos Per Hpf */
+            remission_threshold_eos_per_hpf: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
          * EntryMethod
          * @description Whether the entry was logged on the day it describes.
          *
@@ -837,6 +1028,71 @@ export interface components {
          * @enum {string}
          */
         EntryMethod: "same_day" | "backfill";
+        /**
+         * EosComparator
+         * @description How a pathology report stated the count.
+         *
+         *     Reports often say ">50" or "<15" rather than a number. Recording "50" as if
+         *     it were exact would understate the first and invent precision in the second.
+         * @enum {string}
+         */
+        EosComparator: "exact" | "greater_than" | "less_than";
+        /**
+         * ErefsInput
+         * @description EREFS as the report states it. Features the report omits stay null.
+         */
+        ErefsInput: {
+            /** Edema */
+            edema?: number | null;
+            /** Exudates */
+            exudates?: number | null;
+            /** Furrows */
+            furrows?: number | null;
+            /** Rings */
+            rings?: number | null;
+            /** Stricture */
+            stricture?: number | null;
+            version: components["schemas"]["ErefsVersion"];
+        };
+        /** ErefsRead */
+        ErefsRead: {
+            /** Edema */
+            edema: number | null;
+            /** Exudates */
+            exudates: number | null;
+            /** Furrows */
+            furrows: number | null;
+            /** Max Total */
+            max_total: number;
+            /** Rings */
+            rings: number | null;
+            /** Stricture */
+            stricture: number | null;
+            /** Total */
+            total: number | null;
+            version: components["schemas"]["ErefsVersion"];
+        };
+        /** ErefsScaleRead */
+        ErefsScaleRead: {
+            /** Label */
+            label: string;
+            /** Max Total */
+            max_total: number;
+            /** Maxima */
+            maxima: {
+                [key: string]: number;
+            };
+            version: components["schemas"]["ErefsVersion"];
+        };
+        /**
+         * ErefsVersion
+         * @description Which EREFS grading a set of sub-scores was recorded under.
+         *
+         *     The sub-score ranges differ between gradings, so a score is meaningless
+         *     without its version. See services/erefs.py for the ranges.
+         * @enum {string}
+         */
+        ErefsVersion: "classic" | "graded";
         /** FoodItemInput */
         FoodItemInput: {
             /**
@@ -899,6 +1155,15 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HistologyStatus
+         * @description A reading of a peak count against the remission threshold.
+         *
+         *     Derived when read, never stored: the threshold is a clinical convention that
+         *     may be refined, and history must not need rewriting when it is.
+         * @enum {string}
+         */
+        HistologyStatus: "below_threshold" | "at_or_above_threshold" | "indeterminate";
         /**
          * IngredientRead
          * @description An ingredient as the patient sees it, from whichever table it lives in.
@@ -1168,6 +1433,16 @@ export interface components {
             display_name?: string | null;
             /** Timezone */
             timezone?: string | null;
+        };
+        /**
+         * PeakCount
+         * @description The procedure's highest reported count, with how it was stated.
+         */
+        PeakCount: {
+            comparator: components["schemas"]["EosComparator"];
+            location: components["schemas"]["BiopsyLocation"];
+            /** Value */
+            value: number;
         };
         /**
          * RecentFood
@@ -1563,6 +1838,154 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConsentRecord"][];
+                };
+            };
+        };
+    };
+    list_endoscopies_api_v1_me_endoscopies_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndoscopyRead"][];
+                };
+            };
+        };
+    };
+    add_endoscopy_api_v1_me_endoscopies_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndoscopyInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndoscopyRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_endoscopy_api_v1_me_endoscopies__endoscopy_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                endoscopy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndoscopyRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replace_endoscopy_api_v1_me_endoscopies__endoscopy_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                endoscopy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndoscopyInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndoscopyRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_endoscopy_api_v1_me_endoscopies__endoscopy_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                endoscopy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2330,6 +2753,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MedicationCatalogItem"][];
+                };
+            };
+        };
+    };
+    list_erefs_scales_api_v1_reference_erefs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErefsScaleRead"][];
                 };
             };
         };

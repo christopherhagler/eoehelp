@@ -152,6 +152,112 @@
         "title": "AllergenGroup",
         "type": "string"
       },
+      "BiopsyInput": {
+        "additionalProperties": false,
+        "properties": {
+          "basal_zone_hyperplasia": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basal Zone Hyperplasia"
+          },
+          "lamina_propria_fibrosis": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lamina Propria Fibrosis"
+          },
+          "location": {
+            "$ref": "#/components/schemas/BiopsyLocation"
+          },
+          "peak_eos_comparator": {
+            "$ref": "#/components/schemas/EosComparator",
+            "default": "exact"
+          },
+          "peak_eos_per_hpf": {
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Peak Eos Per Hpf",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "location",
+          "peak_eos_per_hpf"
+        ],
+        "title": "BiopsyInput",
+        "type": "object"
+      },
+      "BiopsyLocation": {
+        "enum": [
+          "proximal",
+          "mid",
+          "distal",
+          "unspecified"
+        ],
+        "title": "BiopsyLocation",
+        "type": "string"
+      },
+      "BiopsyRead": {
+        "additionalProperties": false,
+        "properties": {
+          "basal_zone_hyperplasia": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basal Zone Hyperplasia"
+          },
+          "histology": {
+            "$ref": "#/components/schemas/HistologyStatus"
+          },
+          "lamina_propria_fibrosis": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lamina Propria Fibrosis"
+          },
+          "location": {
+            "$ref": "#/components/schemas/BiopsyLocation"
+          },
+          "peak_eos_comparator": {
+            "$ref": "#/components/schemas/EosComparator",
+            "default": "exact"
+          },
+          "peak_eos_per_hpf": {
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Peak Eos Per Hpf",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "location",
+          "peak_eos_per_hpf",
+          "histology"
+        ],
+        "title": "BiopsyRead",
+        "type": "object"
+      },
       "CatalogIngredientRead": {
         "properties": {
           "aliases": {
@@ -314,6 +420,126 @@
         "title": "CustomIngredientUpdate",
         "type": "object"
       },
+      "DilationComplication": {
+        "enum": [
+          "none",
+          "chest_pain",
+          "bleeding",
+          "perforation",
+          "other"
+        ],
+        "title": "DilationComplication",
+        "type": "string"
+      },
+      "DilationInput": {
+        "additionalProperties": false,
+        "properties": {
+          "complication": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DilationComplication"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dilator_type": {
+            "$ref": "#/components/schemas/DilatorType",
+            "default": "unknown"
+          },
+          "final_diameter_mm": {
+            "anyOf": [
+              {
+                "maximum": 25.0,
+                "minimum": 5.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,1}0*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Diameter Mm"
+          },
+          "pre_diameter_mm": {
+            "anyOf": [
+              {
+                "maximum": 25.0,
+                "minimum": 5.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,1}0*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pre Diameter Mm"
+          }
+        },
+        "title": "DilationInput",
+        "type": "object"
+      },
+      "DilationRead": {
+        "additionalProperties": false,
+        "properties": {
+          "complication": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DilationComplication"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dilator_type": {
+            "$ref": "#/components/schemas/DilatorType",
+            "default": "unknown"
+          },
+          "final_diameter_mm": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,1}0*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Diameter Mm"
+          },
+          "pre_diameter_mm": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,1}0*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pre Diameter Mm"
+          }
+        },
+        "title": "DilationRead",
+        "type": "object"
+      },
+      "DilatorType": {
+        "enum": [
+          "balloon",
+          "bougie",
+          "unknown"
+        ],
+        "title": "DilatorType",
+        "type": "string"
+      },
       "DoseCreate": {
         "additionalProperties": false,
         "properties": {
@@ -414,6 +640,206 @@
         "title": "DysphagiaSeverity",
         "type": "string"
       },
+      "EndoscopyIndication": {
+        "description": "Why the scope was done, which changes how its findings are read.\n\nA diagnostic scope and a scope checking treatment response answer different\nquestions, and a food-impaction scope is often done without biopsies.",
+        "enum": [
+          "diagnosis",
+          "treatment_response",
+          "food_impaction",
+          "surveillance",
+          "other"
+        ],
+        "title": "EndoscopyIndication",
+        "type": "string"
+      },
+      "EndoscopyInput": {
+        "additionalProperties": false,
+        "properties": {
+          "biopsies": {
+            "items": {
+              "$ref": "#/components/schemas/BiopsyInput"
+            },
+            "maxItems": 4,
+            "title": "Biopsies",
+            "type": "array"
+          },
+          "dilation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DilationInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "erefs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErefsInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "facility": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Facility"
+          },
+          "indication": {
+            "$ref": "#/components/schemas/EndoscopyIndication"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "performed_on": {
+            "format": "date",
+            "title": "Performed On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "performed_on",
+          "indication"
+        ],
+        "title": "EndoscopyInput",
+        "type": "object"
+      },
+      "EndoscopyRead": {
+        "properties": {
+          "biopsies": {
+            "items": {
+              "$ref": "#/components/schemas/BiopsyRead"
+            },
+            "title": "Biopsies",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dilation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DilationRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "erefs": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErefsRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "facility": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Facility"
+          },
+          "histology": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HistologyStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "indication": {
+            "$ref": "#/components/schemas/EndoscopyIndication"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "peak": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PeakCount"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "performed_on": {
+            "format": "date",
+            "title": "Performed On",
+            "type": "string"
+          },
+          "remission_threshold_eos_per_hpf": {
+            "title": "Remission Threshold Eos Per Hpf",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "performed_on",
+          "indication",
+          "facility",
+          "notes",
+          "erefs",
+          "biopsies",
+          "dilation",
+          "peak",
+          "histology",
+          "remission_threshold_eos_per_hpf",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "EndoscopyRead",
+        "type": "object"
+      },
       "EntryMethod": {
         "description": "Whether the entry was logged on the day it describes.\n\nResearch weights same-day entries more heavily than recalled ones, and this\nis derived server-side from the patient's own timezone rather than trusted\nfrom the client.",
         "enum": [
@@ -421,6 +847,218 @@
           "backfill"
         ],
         "title": "EntryMethod",
+        "type": "string"
+      },
+      "EosComparator": {
+        "description": "How a pathology report stated the count.\n\nReports often say \">50\" or \"<15\" rather than a number. Recording \"50\" as if\nit were exact would understate the first and invent precision in the second.",
+        "enum": [
+          "exact",
+          "greater_than",
+          "less_than"
+        ],
+        "title": "EosComparator",
+        "type": "string"
+      },
+      "ErefsInput": {
+        "additionalProperties": false,
+        "description": "EREFS as the report states it. Features the report omits stay null.",
+        "properties": {
+          "edema": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edema"
+          },
+          "exudates": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exudates"
+          },
+          "furrows": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Furrows"
+          },
+          "rings": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rings"
+          },
+          "stricture": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stricture"
+          },
+          "version": {
+            "$ref": "#/components/schemas/ErefsVersion"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "ErefsInput",
+        "type": "object"
+      },
+      "ErefsRead": {
+        "properties": {
+          "edema": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Edema"
+          },
+          "exudates": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exudates"
+          },
+          "furrows": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Furrows"
+          },
+          "max_total": {
+            "title": "Max Total",
+            "type": "integer"
+          },
+          "rings": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rings"
+          },
+          "stricture": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stricture"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          },
+          "version": {
+            "$ref": "#/components/schemas/ErefsVersion"
+          }
+        },
+        "required": [
+          "version",
+          "edema",
+          "rings",
+          "exudates",
+          "furrows",
+          "stricture",
+          "total",
+          "max_total"
+        ],
+        "title": "ErefsRead",
+        "type": "object"
+      },
+      "ErefsScaleRead": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "max_total": {
+            "title": "Max Total",
+            "type": "integer"
+          },
+          "maxima": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Maxima",
+            "type": "object"
+          },
+          "version": {
+            "$ref": "#/components/schemas/ErefsVersion"
+          }
+        },
+        "required": [
+          "version",
+          "label",
+          "maxima",
+          "max_total"
+        ],
+        "title": "ErefsScaleRead",
+        "type": "object"
+      },
+      "ErefsVersion": {
+        "description": "Which EREFS grading a set of sub-scores was recorded under.\n\nThe sub-score ranges differ between gradings, so a score is meaningless\nwithout its version. See services/erefs.py for the ranges.",
+        "enum": [
+          "classic",
+          "graded"
+        ],
+        "title": "ErefsVersion",
         "type": "string"
       },
       "FoodItemInput": {
@@ -549,6 +1187,16 @@
         },
         "title": "HTTPValidationError",
         "type": "object"
+      },
+      "HistologyStatus": {
+        "description": "A reading of a peak count against the remission threshold.\n\nDerived when read, never stored: the threshold is a clinical convention that\nmay be refined, and history must not need rewriting when it is.",
+        "enum": [
+          "below_threshold",
+          "at_or_above_threshold",
+          "indeterminate"
+        ],
+        "title": "HistologyStatus",
+        "type": "string"
       },
       "IngredientRead": {
         "description": "An ingredient as the patient sees it, from whichever table it lives in.",
@@ -1281,6 +1929,28 @@
         "title": "PatientProfileUpdate",
         "type": "object"
       },
+      "PeakCount": {
+        "description": "The procedure's highest reported count, with how it was stated.",
+        "properties": {
+          "comparator": {
+            "$ref": "#/components/schemas/EosComparator"
+          },
+          "location": {
+            "$ref": "#/components/schemas/BiopsyLocation"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value",
+          "comparator",
+          "location"
+        ],
+        "title": "PeakCount",
+        "type": "object"
+      },
       "RecentFood": {
         "description": "A food the patient has logged before, ready to log again in one tap.\n\nThe ingredients are those of the most recent time it was logged, which is the\nbest guess at how the patient makes it now.",
         "properties": {
@@ -1978,6 +2648,200 @@
         "summary": "Read Consents",
         "tags": [
           "patient"
+        ]
+      }
+    },
+    "/api/v1/me/endoscopies": {
+      "get": {
+        "description": "Every recorded endoscopy, newest first.",
+        "operationId": "list_endoscopies_api_v1_me_endoscopies_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EndoscopyRead"
+                  },
+                  "title": "Response List Endoscopies Api V1 Me Endoscopies Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Endoscopies",
+        "tags": [
+          "procedures"
+        ]
+      },
+      "post": {
+        "operationId": "add_endoscopy_api_v1_me_endoscopies_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndoscopyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndoscopyRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Endoscopy",
+        "tags": [
+          "procedures"
+        ]
+      }
+    },
+    "/api/v1/me/endoscopies/{endoscopy_id}": {
+      "delete": {
+        "operationId": "delete_endoscopy_api_v1_me_endoscopies__endoscopy_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "endoscopy_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Endoscopy Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Endoscopy",
+        "tags": [
+          "procedures"
+        ]
+      },
+      "get": {
+        "operationId": "read_endoscopy_api_v1_me_endoscopies__endoscopy_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "endoscopy_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Endoscopy Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndoscopyRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Endoscopy",
+        "tags": [
+          "procedures"
+        ]
+      },
+      "put": {
+        "description": "Replace the whole record, findings included.\n\nBiopsy results usually arrive a week after the scope, so adding them is an\nedit of the same document rather than a separate resource.",
+        "operationId": "replace_endoscopy_api_v1_me_endoscopies__endoscopy_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "endoscopy_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Endoscopy Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndoscopyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndoscopyRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Replace Endoscopy",
+        "tags": [
+          "procedures"
         ]
       }
     },
@@ -3138,6 +4002,32 @@
         "summary": "List Catalog",
         "tags": [
           "medications"
+        ]
+      }
+    },
+    "/api/v1/reference/erefs": {
+      "get": {
+        "description": "The EREFS gradings this API accepts, with each feature's maximum.\n\nServed rather than duplicated in the client, for the same reason as the\ntimezones: the form can only offer scores the validator will accept.",
+        "operationId": "list_erefs_scales_api_v1_reference_erefs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ErefsScaleRead"
+                  },
+                  "title": "Response List Erefs Scales Api V1 Reference Erefs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Erefs Scales",
+        "tags": [
+          "reference"
         ]
       }
     },

@@ -13,6 +13,8 @@ import zoneinfo
 from fastapi import APIRouter, Depends
 
 from eoehelp_api.core.deps import Principal, get_principal
+from eoehelp_api.schemas.procedures import ErefsScaleRead
+from eoehelp_api.services import erefs
 
 router = APIRouter(prefix="/reference", tags=["reference"])
 
@@ -25,3 +27,21 @@ def list_timezones(_principal: Principal = Depends(get_principal)) -> list[str]:
     reader, but there is no reason to serve it to anyone who is not signed in.
     """
     return sorted(zoneinfo.available_timezones())
+
+
+@router.get("/erefs", response_model=list[ErefsScaleRead])
+def list_erefs_scales(_principal: Principal = Depends(get_principal)) -> list[ErefsScaleRead]:
+    """The EREFS gradings this API accepts, with each feature's maximum.
+
+    Served rather than duplicated in the client, for the same reason as the
+    timezones: the form can only offer scores the validator will accept.
+    """
+    return [
+        ErefsScaleRead(
+            version=scale.version,
+            label=scale.label,
+            maxima=dict(scale.maxima),
+            max_total=scale.max_total,
+        )
+        for scale in erefs.SCALES.values()
+    ]

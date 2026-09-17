@@ -20,14 +20,18 @@ from eoehelp_api.models.medication import (
     MedicationDose,
 )
 from eoehelp_api.models.patient import Patient
+from eoehelp_api.models.procedures import Biopsy, Dilation, Endoscopy
 from eoehelp_api.models.user import User
 
 __all__ = [
     "AuditLog",
+    "Biopsy",
     "CatalogIngredient",
     "ClinicalInstrument",
     "Consent",
     "CustomIngredient",
+    "Dilation",
+    "Endoscopy",
     "FoodLogItem",
     "FoodLogItemIngredient",
     "MagicLinkToken",

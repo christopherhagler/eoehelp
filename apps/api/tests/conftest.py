@@ -117,7 +117,8 @@ async def clean_tables(_database: None) -> AsyncIterator[None]:
             "TRUNCATE users, patients, consents, research_consent_scopes, "
             "magic_link_tokens, refresh_tokens, symptom_entries, medications, "
             "medication_doses, custom_ingredients, food_log_items, "
-            "food_log_item_ingredients, audit_log RESTART IDENTITY CASCADE"
+            "food_log_item_ingredients, endoscopies, biopsies, dilations, "
+            "audit_log RESTART IDENTITY CASCADE"
         )
     await engine.dispose()
     yield

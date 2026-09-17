@@ -123,6 +123,29 @@ async def two_patients(session) -> tuple[uuid.UUID, uuid.UUID]:
             ),
             {"pid": patient_id, "item": item_id, "custom": custom_id},
         )
+        scope_id = (
+            await session.execute(
+                text(
+                    "INSERT INTO endoscopies (patient_id, performed_on, indication) "
+                    "VALUES (:pid, CURRENT_DATE, 'diagnosis') RETURNING id"
+                ),
+                {"pid": patient_id},
+            )
+        ).scalar_one()
+        await session.execute(
+            text(
+                "INSERT INTO biopsies (patient_id, endoscopy_id, location, peak_eos_per_hpf, "
+                "peak_eos_comparator, position) VALUES (:pid, :sid, 'distal', 40, 'exact', 0)"
+            ),
+            {"pid": patient_id, "sid": scope_id},
+        )
+        await session.execute(
+            text(
+                "INSERT INTO dilations (patient_id, endoscopy_id, dilator_type) "
+                "VALUES (:pid, :sid, 'balloon')"
+            ),
+            {"pid": patient_id, "sid": scope_id},
+        )
         ids.append(patient_id)
     await session.commit()
     return ids[0], ids[1]
@@ -173,6 +196,8 @@ class TestRowLevelSecurity:
         assert await _scoped_rows(app_role_engine, None, "custom_ingredients") == 0
         assert await _scoped_rows(app_role_engine, None, "food_log_items") == 0
         assert await _scoped_rows(app_role_engine, None, "food_log_item_ingredients") == 0
+        for table in ("endoscopies", "biopsies", "dilations"):
+            assert await _scoped_rows(app_role_engine, None, table) == 0
 
     async def test_scope_limits_results_to_one_patient(self, app_role_engine, two_patients) -> None:
         alice, bob = two_patients
@@ -188,6 +213,9 @@ class TestRowLevelSecurity:
         assert await _scoped_rows(app_role_engine, alice, "food_log_items") == 1
         assert await _scoped_rows(app_role_engine, alice, "food_log_item_ingredients") == 2
         assert await _scoped_rows(app_role_engine, bob, "food_log_item_ingredients") == 2
+        for table in ("endoscopies", "biopsies", "dilations"):
+            assert await _scoped_rows(app_role_engine, alice, table) == 1
+            assert await _scoped_rows(app_role_engine, bob, table) == 1
 
     async def test_one_patient_cannot_read_another_by_id(
         self, app_role_engine, two_patients
