@@ -10,10 +10,12 @@ from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from eoehelp_api import __version__
 from eoehelp_api.config import get_settings
 from eoehelp_api.core.deps import API_V1_PREFIX
+from eoehelp_api.core.ratelimit import limiter, rate_limit_exceeded
 from eoehelp_api.db.session import dispose_engine
 from eoehelp_api.observability import configure_logging, get_logger
 from eoehelp_api.routers import (
@@ -56,6 +58,9 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url="/openapi.json",
     )
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded)  # type: ignore[arg-type]
 
     app.add_middleware(
         CORSMiddleware,
@@ -143,10 +148,12 @@ def create_app() -> FastAPI:
     async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
         # Log the type but never the message: exception text on this codebase can
         # contain row values, which means PHI.
+        # The route template when one matched: a resolved path can carry an id.
+        route = request.scope.get("route")
         logger.error(
             "http.unhandled_exception",
             exc_type=type(exc).__name__,
-            path=request.url.path if request.scope.get("route") is None else None,
+            path=getattr(route, "path", None),
         )
         return JSONResponse(status_code=500, content={"detail": "An unexpected error occurred."})
 

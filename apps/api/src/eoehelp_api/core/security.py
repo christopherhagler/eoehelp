@@ -1,11 +1,11 @@
 """Password hashing, opaque token handling, JWT issuance, and field encryption."""
 
-import base64
 import hashlib
 import hmac
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from typing import Any
 
 import jwt
@@ -13,7 +13,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from eoehelp_api.config import get_settings
+from eoehelp_api.config import FIELD_ENCRYPTION_KEY_BYTES, decode_field_key, get_settings
 
 # argon2id at library defaults, which track OWASP guidance. Deliberately not
 # tuned down for test speed: a weakened KDF in the shared code path is how a
@@ -108,17 +108,13 @@ class FieldCipher:
     """
 
     def __init__(self, key: bytes) -> None:
-        if len(key) != 32:
-            raise ValueError("field encryption key must be 32 bytes")
+        if len(key) != FIELD_ENCRYPTION_KEY_BYTES:
+            raise ValueError(f"field encryption key must be {FIELD_ENCRYPTION_KEY_BYTES} bytes")
         self._aead = AESGCM(key)
 
     @classmethod
     def from_settings(cls) -> "FieldCipher":
-        raw = get_settings().field_encryption_key.get_secret_value()
-        key = base64.urlsafe_b64decode(_pad_base64(raw))
-        if len(key) != 32:
-            key = hashlib.sha256(raw.encode("utf-8")).digest()
-        return cls(key)
+        return _cipher_for(get_settings().field_encryption_key.get_secret_value())
 
     def encrypt(self, plaintext: str | None, *, aad: str) -> bytes | None:
         if plaintext is None:
@@ -134,5 +130,8 @@ class FieldCipher:
         return self._aead.decrypt(nonce, ciphertext, aad.encode("utf-8")).decode("utf-8")
 
 
-def _pad_base64(value: str) -> str:
-    return value + "=" * (-len(value) % 4)
+@lru_cache(maxsize=4)
+def _cipher_for(raw_key: str) -> FieldCipher:
+    # One cipher per key rather than one per request. Keyed on the value, so a
+    # rotated key in a reloaded settings object gets a cipher of its own.
+    return FieldCipher(decode_field_key(raw_key))

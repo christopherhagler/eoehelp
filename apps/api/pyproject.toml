@@ -23,6 +23,9 @@ dependencies = [
     "structlog>=24.4",
     "aiosmtplib>=3.0",
     "slowapi>=0.1.9",
+    # Backs the rate-limit counters wherever more than one API task runs; see
+    # core/ratelimit.py. Production refuses to start without a redis_url.
+    "redis>=5.0",
     # RRULE expansion for the adherence denominator. types-python-dateutil was
     # already in dev deps in anticipation of this.
     "python-dateutil>=2.9",

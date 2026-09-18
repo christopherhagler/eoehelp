@@ -1,5 +1,6 @@
 """Authentication behaviour, including the properties that carry security weight."""
 
+import asyncio
 import re
 
 import pytest
@@ -82,6 +83,32 @@ class TestMagicLink:
         replay = await client.post(f"{AUTH}/magic-link/verify", json={"token": token})
         assert replay.status_code == 400
 
+    async def test_simultaneous_clicks_sign_in_once(self, client: AsyncClient, monkeypatch) -> None:
+        token = await _request_link(client, monkeypatch, "double@example.com")
+        results = await asyncio.gather(
+            *(client.post(f"{AUTH}/magic-link/verify", json={"token": token}) for _ in range(4))
+        )
+        assert sorted(r.status_code for r in results) == [200, 400, 400, 400]
+
+    async def test_repeated_requests_stop_sending_mail_but_answer_the_same(
+        self, client: AsyncClient, monkeypatch, session: AsyncSession
+    ) -> None:
+        """Someone else's inbox is protected even when requests come from many
+        addresses, and the caller still cannot tell anything happened."""
+        sent: list[str] = []
+
+        async def fake_send(self, *, to: str, link: str, ttl_minutes: int) -> None:
+            sent.append(link)
+
+        monkeypatch.setattr("eoehelp_api.services.email.EmailSender.send_magic_link", fake_send)
+        responses = [
+            await client.post(f"{AUTH}/magic-link", json={"email": "victim@example.com"})
+            for _ in range(5)
+        ]
+        assert {r.status_code for r in responses} == {202}
+        assert len({r.text for r in responses}) == 1
+        assert len(sent) == 3
+
     async def test_unknown_token_is_rejected(self, client: AsyncClient) -> None:
         response = await client.post(
             f"{AUTH}/magic-link/verify", json={"token": "not-a-real-token-value"}
@@ -127,6 +154,12 @@ class TestRefreshTokens:
         current = client.cookies.get("eoehelp_refresh")
         assert current != stolen
 
+        # Replayed well after the rotation, which is what a thief's use looks like.
+        await session.execute(
+            text("UPDATE refresh_tokens SET rotated_at = rotated_at - interval '5 minutes'")
+        )
+        await session.commit()
+
         replay = await client.post(f"{AUTH}/refresh", cookies={"eoehelp_refresh": stolen})
         assert replay.status_code == 400
 
@@ -150,6 +183,44 @@ class TestRefreshTokens:
             .all()
         )
         assert audited, "token reuse must leave an audit trail"
+
+    async def test_an_immediate_reuse_is_refused_without_signing_everyone_out(
+        self, client: AsyncClient, monkeypatch, session: AsyncSession
+    ) -> None:
+        """Two tabs refreshing at once present the same token twice within
+        seconds. Treating that as theft would sign the patient out everywhere."""
+        await _sign_in(client, monkeypatch, "tabs@example.com")
+        shared = client.cookies.get("eoehelp_refresh")
+
+        first = await client.post(f"{AUTH}/refresh", cookies={"eoehelp_refresh": shared})
+        assert first.status_code == 200
+        winner = client.cookies.get("eoehelp_refresh")
+
+        second = await client.post(f"{AUTH}/refresh", cookies={"eoehelp_refresh": shared})
+        assert second.status_code == 400
+
+        still_valid = await client.post(f"{AUTH}/refresh", cookies={"eoehelp_refresh": winner})
+        assert still_valid.status_code == 200
+        reuse = (
+            (
+                await session.execute(
+                    select(AuditLog).where(AuditLog.action == "auth.refresh.reuse_detected")
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert reuse == []
+
+    async def test_concurrent_refreshes_rotate_exactly_once(
+        self, client: AsyncClient, monkeypatch
+    ) -> None:
+        await _sign_in(client, monkeypatch, "race@example.com")
+        shared = client.cookies.get("eoehelp_refresh")
+        results = await asyncio.gather(
+            *(client.post(f"{AUTH}/refresh", cookies={"eoehelp_refresh": shared}) for _ in range(5))
+        )
+        assert sorted(r.status_code for r in results) == [200, 400, 400, 400, 400]
 
     async def test_refresh_without_cookie_is_rejected(self, client: AsyncClient) -> None:
         assert (await client.post(f"{AUTH}/refresh")).status_code == 400

@@ -100,6 +100,14 @@ async def _isolate_engine_per_test() -> AsyncIterator[None]:
     await dispose_engine()
 
 
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits() -> None:
+    """Each test starts with empty counters, as if it were the only client."""
+    from eoehelp_api.core.ratelimit import limiter
+
+    limiter.reset()
+
+
 @pytest_asyncio.fixture
 async def clean_tables(_database: None) -> AsyncIterator[None]:
     """Truncate between tests.

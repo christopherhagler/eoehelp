@@ -3,11 +3,11 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.config import Settings, get_settings
-from eoehelp_api.core import security
+from eoehelp_api.core import ratelimit, security
 from eoehelp_api.core.errors import InvalidTokenError
 from eoehelp_api.db.session import session_scope
 from eoehelp_api.models.auth import MagicLinkToken, RefreshToken
@@ -20,6 +20,13 @@ from eoehelp_api.services.audit import AuditContext
 from eoehelp_api.services.email import EmailSender
 
 logger = get_logger(__name__)
+
+# A rotated refresh token presented again this soon is almost always the same
+# person: two tabs refreshing at once, or a retry after a dropped response. Such a
+# request is refused without revoking the family, because revoking would sign the
+# patient out of every tab for doing nothing wrong. A replay after this window is
+# treated as theft.
+REFRESH_REUSE_GRACE = timedelta(seconds=30)
 
 
 class IssuedSession:
@@ -87,8 +94,22 @@ class AuthService:
             )
             return
 
-        raw_token = security.generate_token()
         now = datetime.now(UTC)
+        if await self._recent_link_count(user.id, now) >= ratelimit.MAGIC_LINKS_PER_EMAIL:
+            # Silently, like every other refusal here: the caller must not learn
+            # anything about the account from how the request is answered.
+            await audit.record(
+                self._session,
+                action="auth.magic_link.request",
+                resource_type="user",
+                resource_id=user.id,
+                outcome=AuditOutcome.DENIED,
+                context=context,
+                metadata={"reason": "too_many_recent_links"},
+            )
+            return
+
+        raw_token = security.generate_token()
         self._session.add(
             MagicLinkToken(
                 user_id=user.id,
@@ -117,13 +138,29 @@ class AuthService:
         self, *, raw_token: str, context: AuditContext | None = None
     ) -> IssuedSession:
         token_hash = security.hash_token(raw_token)
-        result = await self._session.execute(
-            select(MagicLinkToken).where(MagicLinkToken.token_hash == token_hash)
-        )
-        token = result.scalar_one_or_none()
         now = datetime.now(UTC)
 
-        if token is None or token.consumed_at is not None or token.expires_at <= now:
+        # Claimed in one conditional UPDATE, so two simultaneous clicks on the same
+        # link cannot both sign in: exactly one of them changes the row.
+        claimed = (
+            await self._session.execute(
+                update(MagicLinkToken)
+                .where(
+                    MagicLinkToken.token_hash == token_hash,
+                    MagicLinkToken.consumed_at.is_(None),
+                    MagicLinkToken.expires_at > now,
+                )
+                .values(consumed_at=now)
+                .returning(MagicLinkToken.user_id)
+            )
+        ).one_or_none()
+
+        if claimed is None:
+            token = (
+                await self._session.execute(
+                    select(MagicLinkToken).where(MagicLinkToken.token_hash == token_hash)
+                )
+            ).scalar_one_or_none()
             await audit.record(
                 self._session,
                 action="auth.magic_link.verify",
@@ -135,9 +172,7 @@ class AuthService:
             )
             raise InvalidTokenError()
 
-        token.consumed_at = now
-
-        user = await self._session.get(User, token.user_id)
+        user = await self._session.get(User, claimed.user_id)
         if user is None or user.status is not UserStatus.ACTIVE:
             raise InvalidTokenError()
 
@@ -173,39 +208,56 @@ class AuthService:
         self, *, raw_token: str, context: AuditContext | None = None
     ) -> IssuedSession:
         token_hash = security.hash_token(raw_token)
-        result = await self._session.execute(
-            select(RefreshToken).where(RefreshToken.token_hash == token_hash)
-        )
-        stored = result.scalar_one_or_none()
         now = datetime.now(UTC)
+        expired = InvalidTokenError("Session expired. Please sign in again.")
 
-        if stored is None:
-            raise InvalidTokenError("Session expired. Please sign in again.")
-
-        if stored.rotated_at is not None or stored.revoked_at is not None:
-            # A rotated token presented again means the cookie was captured.
-            # Revoke the whole family: the legitimate holder re-authenticates,
-            # and the attacker's stolen token dies with it.
-            #
-            # Committed out of band because this request is about to fail. The
-            # request transaction rolls back on the raise below, which would
-            # otherwise discard the revocation and leave the stolen family live.
-            await self._revoke_family_out_of_band(
-                stored.family_id, token_id=stored.id, context=context
+        # Rotation is a conditional UPDATE for the same reason as link claiming:
+        # a select-then-write would let two requests both rotate one token.
+        claimed = (
+            await self._session.execute(
+                update(RefreshToken)
+                .where(
+                    RefreshToken.token_hash == token_hash,
+                    RefreshToken.rotated_at.is_(None),
+                    RefreshToken.revoked_at.is_(None),
+                    RefreshToken.expires_at > now,
+                )
+                .values(rotated_at=now)
+                .returning(RefreshToken.user_id, RefreshToken.family_id)
             )
-            raise InvalidTokenError("Session expired. Please sign in again.")
+        ).one_or_none()
 
-        if stored.expires_at <= now:
-            raise InvalidTokenError("Session expired. Please sign in again.")
+        if claimed is None:
+            stored = (
+                await self._session.execute(
+                    select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+                )
+            ).scalar_one_or_none()
+            if stored is None or (stored.revoked_at is None and stored.rotated_at is None):
+                # Unknown, or simply expired.
+                raise expired
+            recently_rotated = (
+                stored.revoked_at is None
+                and stored.rotated_at is not None
+                and now - stored.rotated_at <= REFRESH_REUSE_GRACE
+            )
+            if not recently_rotated:
+                # A rotated token presented again means the cookie was captured.
+                # Revoke the whole family: the legitimate holder re-authenticates,
+                # and the attacker's stolen token dies with it. Committed out of
+                # band, because this request's transaction rolls back on the raise.
+                await self._revoke_family_out_of_band(
+                    stored.family_id, token_id=stored.id, context=context
+                )
+            raise expired
 
-        user = await self._session.get(User, stored.user_id)
+        user = await self._session.get(User, claimed.user_id)
         if user is None or user.status is not UserStatus.ACTIVE:
-            raise InvalidTokenError("Session expired. Please sign in again.")
+            raise expired
 
-        stored.rotated_at = now
         patient = await self._get_patient_for_user(user.id)
         return await self._issue_session(
-            user=user, patient=patient, context=context, family_id=stored.family_id
+            user=user, patient=patient, context=context, family_id=claimed.family_id
         )
 
     async def revoke_refresh_token(
@@ -304,6 +356,15 @@ class AuthService:
             user=user,
             patient=patient,
         )
+
+    async def _recent_link_count(self, user_id: uuid.UUID, now: datetime) -> int:
+        since = now - timedelta(minutes=ratelimit.MAGIC_LINK_EMAIL_WINDOW_MINUTES)
+        result = await self._session.execute(
+            select(func.count())
+            .select_from(MagicLinkToken)
+            .where(MagicLinkToken.user_id == user_id, MagicLinkToken.created_at > since)
+        )
+        return int(result.scalar_one())
 
     async def _get_user_by_email(self, email: str) -> User | None:
         result = await self._session.execute(select(User).where(User.email == email))

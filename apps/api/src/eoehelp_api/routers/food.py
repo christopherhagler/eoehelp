@@ -7,10 +7,11 @@ authentication, and everything patient-owned sits under /me.
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, Path, Query, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from eoehelp_api.core import ratelimit
 from eoehelp_api.core.deps import (
     Principal,
     get_authenticated_audit_context,
@@ -20,6 +21,7 @@ from eoehelp_api.core.deps import (
     get_session,
 )
 from eoehelp_api.core.errors import NotFoundError, ServiceUnavailableError
+from eoehelp_api.core.ratelimit import limiter
 from eoehelp_api.fooddata.provider import FoodData, FoodDataUnavailableError, get_food_data
 from eoehelp_api.models.enums import FoodDataSource
 from eoehelp_api.models.food import CatalogIngredient
@@ -66,7 +68,9 @@ async def list_catalog(
 
 
 @catalog_router.get("/products/search", response_model=list[ProductSummaryRead])
+@limiter.limit(ratelimit.PRODUCT_LOOKUP)
 async def search_products(
+    request: Request,
     q: str = Query(min_length=2, max_length=100),
     limit: int = Query(default=20, ge=1, le=40),
     _principal: Principal = Depends(get_principal),
@@ -89,7 +93,9 @@ async def search_products(
 
 
 @catalog_router.get("/products/barcode/{barcode}", response_model=ProductRead)
+@limiter.limit(ratelimit.PRODUCT_LOOKUP)
 async def product_by_barcode(
+    request: Request,
     barcode: str = Path(pattern=r"^\d{8,14}$"),
     _principal: Principal = Depends(get_principal),
     food_data: FoodData = Depends(get_food_data),
@@ -104,7 +110,9 @@ async def product_by_barcode(
 
 
 @catalog_router.get("/products/{source}/{source_id}", response_model=ProductRead)
+@limiter.limit(ratelimit.PRODUCT_LOOKUP)
 async def product_detail(
+    request: Request,
     source: FoodDataSource,
     source_id: str = Path(max_length=64, pattern=r"^[0-9A-Za-z_-]+$"),
     _principal: Principal = Depends(get_principal),

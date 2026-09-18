@@ -2,16 +2,17 @@ from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.config import Settings, get_settings
+from eoehelp_api.core import ratelimit
 from eoehelp_api.core.deps import (
     REFRESH_COOKIE_NAME,
     REFRESH_COOKIE_PATH,
     Principal,
     get_audit_context,
-    get_authenticated_audit_context,
     get_principal,
     get_session,
 )
 from eoehelp_api.core.errors import InvalidTokenError
+from eoehelp_api.core.ratelimit import limiter
 from eoehelp_api.models.user import User
 from eoehelp_api.schemas.auth import (
     AccessTokenResponse,
@@ -60,7 +61,9 @@ def _clear_refresh_cookie(response: Response, settings: Settings) -> None:
     response_model=MagicLinkRequestAccepted,
     status_code=status.HTTP_202_ACCEPTED,
 )
+@limiter.limit(ratelimit.MAGIC_LINK_REQUEST)
 async def request_magic_link(
+    request: Request,
     payload: MagicLinkRequest,
     session: AsyncSession = Depends(get_session),
     context: AuditContext = Depends(get_audit_context),
@@ -70,7 +73,9 @@ async def request_magic_link(
 
 
 @router.post("/magic-link/verify", response_model=AccessTokenResponse)
+@limiter.limit(ratelimit.MAGIC_LINK_VERIFY)
 async def verify_magic_link(
+    request: Request,
     payload: MagicLinkVerify,
     response: Response,
     session: AsyncSession = Depends(get_session),
@@ -85,6 +90,7 @@ async def verify_magic_link(
 
 
 @router.post("/refresh", response_model=AccessTokenResponse)
+@limiter.limit(ratelimit.SESSION_REFRESH)
 async def refresh_session(
     request: Request,
     response: Response,
@@ -122,7 +128,6 @@ async def sign_out(
 async def current_session(
     principal: Principal = Depends(get_principal),
     session: AsyncSession = Depends(get_session),
-    _: AuditContext = Depends(get_authenticated_audit_context),
 ) -> SessionUser:
     user = await session.get(User, principal.user_id)
     if user is None:

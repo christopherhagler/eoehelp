@@ -4,6 +4,8 @@ Secrets are injected by the platform (AWS Secrets Manager in deployed environmen
 a local .env file in development) and never committed. See docs/adr/0003.
 """
 
+import base64
+import binascii
 from functools import lru_cache
 from typing import Annotated, Literal
 
@@ -11,6 +13,34 @@ from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 Environment = Literal["local", "staging", "production"]
+
+# Development defaults, named so production can refuse them by equality rather
+# than by guessing at their text. Both are public: they are in this file.
+DEV_JWT_SECRET = "dev-only-insecure-secret-do-not-use-in-production"
+DEV_FIELD_ENCRYPTION_KEY = "ZGV2LW9ubHktbG9jYWwta2V5LW5ldmVyLWRlcGxveSE="
+DEV_USDA_FDC_API_KEY = "DEMO_KEY"
+
+FIELD_ENCRYPTION_KEY_BYTES = 32
+MIN_JWT_SECRET_LENGTH = 32
+
+
+def decode_field_key(raw: str) -> bytes:
+    """The field-encryption key as bytes, or ValueError.
+
+    Strict on purpose. An earlier version hashed any value that did not decode to
+    32 bytes, so a mistyped key silently became a different key and every stored
+    note became unreadable with nothing to say why.
+    """
+    try:
+        key = base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4))
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("field_encryption_key is not valid urlsafe base64") from exc
+    if len(key) != FIELD_ENCRYPTION_KEY_BYTES:
+        raise ValueError(
+            f"field_encryption_key must decode to {FIELD_ENCRYPTION_KEY_BYTES} bytes, "
+            f"not {len(key)}"
+        )
+    return key
 
 
 class Settings(BaseSettings):
@@ -25,15 +55,21 @@ class Settings(BaseSettings):
 
     # Signs access tokens. Rotating this invalidates every outstanding access token,
     # which is the intended emergency lever; refresh tokens are DB-backed and survive.
-    jwt_secret: SecretStr = SecretStr("dev-only-insecure-secret-do-not-use-in-production")
+    jwt_secret: SecretStr = SecretStr(DEV_JWT_SECRET)
     jwt_algorithm: str = "HS256"
     access_token_ttl_seconds: int = 900  # 15 min; held in memory by the SPA
     refresh_token_ttl_seconds: int = 60 * 60 * 24 * 30
     magic_link_ttl_seconds: int = 900
 
-    # Envelope-encrypts free-text clinical columns. Must be a 32-byte urlsafe-base64 key.
-    # In AWS this is a KMS-backed data key; locally it is generated for the dev DB only.
-    field_encryption_key: SecretStr = SecretStr("ZGV2LW9ubHktMzJieXRlLWtleS1mb3ItbG9jYWwh")
+    # Envelope-encrypts free-text clinical columns: exactly 32 bytes, urlsafe
+    # base64. In AWS this is a KMS-backed data key. The default is public, since it
+    # is in this file, and production refuses to start with it.
+    field_encryption_key: SecretStr = SecretStr(DEV_FIELD_ENCRYPTION_KEY)
+
+    # Rate-limit counters. Required in production: with more than one API task,
+    # in-memory counters would let each task grant the full limit.
+    redis_url: str | None = None
+    rate_limits_enabled: bool = True
 
     app_base_url: str = "http://localhost:4200"
     api_base_url: str = "http://localhost:8000"
@@ -53,7 +89,7 @@ class Settings(BaseSettings):
     usda_fdc_url: str = "https://api.nal.usda.gov/fdc/v1"
     # DEMO_KEY allows about 30 requests an hour: enough to develop against, not to
     # run on. Production refuses to start with it.
-    usda_fdc_api_key: SecretStr = SecretStr("DEMO_KEY")
+    usda_fdc_api_key: SecretStr = SecretStr(DEV_USDA_FDC_API_KEY)
     food_data_timeout_seconds: float = 6.0
     # Launch is US-only, so search prefers products sold there.
     food_data_country: str = "en:united-states"
@@ -78,6 +114,14 @@ class Settings(BaseSettings):
             raise ValueError("database_url must use the postgresql+asyncpg driver")
         return v
 
+    @field_validator("field_encryption_key")
+    @classmethod
+    def _valid_field_key(cls, v: SecretStr) -> SecretStr:
+        # At startup, in every environment: a bad key discovered on the first
+        # encrypted read is an outage, discovered here it is a failed deploy.
+        decode_field_key(v.get_secret_value())
+        return v
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"
@@ -85,20 +129,28 @@ class Settings(BaseSettings):
     def enforce_production_safety(self) -> None:
         """Fail fast rather than boot production with development defaults.
 
-        A dev JWT secret in production is a total authentication bypass, so this
-        refuses to start instead of logging a warning nobody reads.
+        A dev JWT secret in production is a total authentication bypass, and the
+        dev field key would make every encrypted note readable by anyone with this
+        repository, so this refuses to start instead of logging a warning.
         """
         if not self.is_production:
             return
         insecure = []
-        if "dev-only" in self.jwt_secret.get_secret_value():
+        jwt_secret = self.jwt_secret.get_secret_value()
+        if jwt_secret == DEV_JWT_SECRET or len(jwt_secret) < MIN_JWT_SECRET_LENGTH:
             insecure.append("jwt_secret")
-        if "dev-only" in self.field_encryption_key.get_secret_value():
+        # Compared by value. The first version searched the base64 text for
+        # "dev-only", which that text never contains.
+        if self.field_encryption_key.get_secret_value() == DEV_FIELD_ENCRYPTION_KEY:
             insecure.append("field_encryption_key")
+        if self.usda_fdc_api_key.get_secret_value() == DEV_USDA_FDC_API_KEY:
+            insecure.append("usda_fdc_api_key")
+        if not self.redis_url:
+            insecure.append("redis_url")
+        if not self.rate_limits_enabled:
+            insecure.append("rate_limits_enabled")
         if self.debug:
             insecure.append("debug")
-        if self.usda_fdc_api_key.get_secret_value() == "DEMO_KEY":
-            insecure.append("usda_fdc_api_key")
         if insecure:
             raise RuntimeError(
                 f"Refusing to start in production with insecure settings: {', '.join(insecure)}"
