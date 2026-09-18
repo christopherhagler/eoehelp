@@ -82,32 +82,45 @@ def total(scores: Mapping[str, int | None]) -> int | None:
 
 # --- histology ---------------------------------------------------------------
 
+# Histologic response: fewer than 15 eos/hpf at every site, the consensus
+# diagnostic and response cut-off.
 REMISSION_THRESHOLD_EOS_PER_HPF = 15
+# Deep remission: 6 or fewer, the stricter endpoint of the dupilumab and
+# budesonide oral suspension trials. Reported alongside, never instead.
+DEEP_REMISSION_MAX_EOS_PER_HPF = 6
 
 
-def classify_count(count: int, comparator: EosComparator) -> HistologyStatus:
-    """Read one peak count against the threshold, respecting how it was stated.
+def classify_count(
+    count: int, comparator: EosComparator, *, cutoff: int = REMISSION_THRESHOLD_EOS_PER_HPF
+) -> HistologyStatus:
+    """Read one peak count against a cut-off, respecting how it was stated.
 
-    ">50" is certainly at or above 15; ">10" could be either. "<15" is certainly
-    below; "<20" could be either. Saying "indeterminate" is the honest answer for
-    those, and the report shows it as such rather than guessing.
+    `cutoff` is the lowest count that is *not* below the threshold: 15 for
+    histologic response, 7 for deep remission (≤6). ">50" is certainly at or
+    above 15; ">10" could be either. "<15" is certainly below; "<20" could be
+    either. "Indeterminate" is the honest answer for those, and the report shows
+    it as such rather than guessing.
     """
-    threshold = REMISSION_THRESHOLD_EOS_PER_HPF
     if comparator is EosComparator.EXACT:
         return (
             HistologyStatus.BELOW_THRESHOLD
-            if count < threshold
+            if count < cutoff
             else HistologyStatus.AT_OR_ABOVE_THRESHOLD
         )
     if comparator is EosComparator.GREATER_THAN:
         # ">14" means at least 15.
         return (
             HistologyStatus.AT_OR_ABOVE_THRESHOLD
-            if count >= threshold - 1
+            if count >= cutoff - 1
             else HistologyStatus.INDETERMINATE
         )
     # "<15" means at most 14.
-    return HistologyStatus.BELOW_THRESHOLD if count <= threshold else HistologyStatus.INDETERMINATE
+    return HistologyStatus.BELOW_THRESHOLD if count <= cutoff else HistologyStatus.INDETERMINATE
+
+
+def classify_deep(count: int, comparator: EosComparator) -> HistologyStatus:
+    """The same reading against the deep-remission cut-off (≤6 eos/hpf)."""
+    return classify_count(count, comparator, cutoff=DEEP_REMISSION_MAX_EOS_PER_HPF + 1)
 
 
 def classify_procedure(statuses: Iterable[HistologyStatus]) -> HistologyStatus | None:

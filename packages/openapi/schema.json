@@ -222,6 +222,9 @@
             ],
             "title": "Basal Zone Hyperplasia"
           },
+          "deep_histology": {
+            "$ref": "#/components/schemas/HistologyStatus"
+          },
           "histology": {
             "$ref": "#/components/schemas/HistologyStatus"
           },
@@ -253,7 +256,8 @@
         "required": [
           "location",
           "peak_eos_per_hpf",
-          "histology"
+          "histology",
+          "deep_histology"
         ],
         "title": "BiopsyRead",
         "type": "object"
@@ -735,6 +739,20 @@
             "title": "Created At",
             "type": "string"
           },
+          "deep_histology": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HistologyStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deep_remission_max_eos_per_hpf": {
+            "title": "Deep Remission Max Eos Per Hpf",
+            "type": "integer"
+          },
           "dilation": {
             "anyOf": [
               {
@@ -831,7 +849,9 @@
           "dilation",
           "peak",
           "histology",
+          "deep_histology",
           "remission_threshold_eos_per_hpf",
+          "deep_remission_max_eos_per_hpf",
           "created_at",
           "updated_at"
         ],

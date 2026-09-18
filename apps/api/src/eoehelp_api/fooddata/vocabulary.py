@@ -28,7 +28,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
-from eoehelp_api.models.enums import AllergenGroup
+from eoehelp_api.models.enums import AllergenGroup, EliminationGroup
 
 
 class AdditiveClass(enum.StrEnum):
@@ -389,3 +389,41 @@ def allergen_groups(*texts: str) -> frozenset[AllergenGroup]:
 
 def ordered(groups: frozenset[AllergenGroup] | set[AllergenGroup]) -> list[AllergenGroup]:
     return [group for group in AllergenGroup if group in groups]
+
+
+# --- elimination-diet groups --------------------------------------------------
+
+_ELIMINATION_RULES: dict[EliminationGroup, tuple[re.Pattern[str], re.Pattern[str] | None]] = {
+    # Wheat and its forms, plus the other gluten cereals and their products.
+    # Oats are left out: they are gluten-free unless cross-contaminated, and the
+    # protocols treat them separately.
+    EliminationGroup.GLUTEN_CEREALS: (
+        re.compile(
+            r"\b(?:wheat|semolina|durum|spelt|farro|kamut|einkorn|emmer|bulgu?a?r|"
+            r"couscous|seitan|triticale|farina|barley|rye|malt\w*|gluten)\b|\bwheat\w*"
+        ),
+        re.compile(r"\bbuckwheat\b|\bgluten[- ]free\b"),
+    ),
+    # Soy and peanut are legumes too, so a legume-free diet removes them as well.
+    EliminationGroup.LEGUMES: (
+        re.compile(
+            r"\b(?:legumes?|beans?|lentils?|dal|chickpeas?|garbanzo|peas|pea\b|"
+            r"lupin\w*|soy\w*|soya\w*|edamame|tofu|tempeh|miso|tamari|peanuts?|"
+            r"groundnuts?|fava|carob|hummus)\b"
+        ),
+        # Called beans, but not legumes. Green beans and snow peas are, and stay in.
+        re.compile(r"\b(?:coffee|cocoa|cacao|vanilla|jelly) beans?\b"),
+    ),
+}
+
+
+def elimination_groups(*texts: str) -> frozenset[EliminationGroup]:
+    """The elimination-diet groups any of the given names or keys indicate."""
+    found: set[EliminationGroup] = set()
+    for text in texts:
+        folded = _fold(text).replace("en:", " ").replace("-", " ")
+        for group, (include, exclude) in _ELIMINATION_RULES.items():
+            cleaned = exclude.sub(" ", folded) if exclude else folded
+            if include.search(cleaned):
+                found.add(group)
+    return frozenset(found)

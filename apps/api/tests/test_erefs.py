@@ -90,3 +90,30 @@ class TestProcedureClassification:
     def test_below_only_when_every_site_certainly_is(self) -> None:
         assert erefs.classify_procedure([BELOW, BELOW]) is BELOW
         assert erefs.classify_procedure([BELOW, UNSURE]) is UNSURE
+
+
+class TestDeepRemission:
+    @pytest.mark.parametrize(
+        ("count", "comparator", "expected"),
+        [
+            (6, EosComparator.EXACT, BELOW),
+            (7, EosComparator.EXACT, ABOVE),
+            (0, EosComparator.EXACT, BELOW),
+            # "<7" means at most 6; "<8" could be 7.
+            (7, EosComparator.LESS_THAN, BELOW),
+            (8, EosComparator.LESS_THAN, UNSURE),
+            # ">6" means at least 7; ">5" could be 6.
+            (6, EosComparator.GREATER_THAN, ABOVE),
+            (5, EosComparator.GREATER_THAN, UNSURE),
+        ],
+    )
+    def test_boundaries(
+        self, count: int, comparator: EosComparator, expected: HistologyStatus
+    ) -> None:
+        assert erefs.classify_deep(count, comparator) is expected
+
+    def test_a_count_can_be_a_response_without_being_deep_remission(self) -> None:
+        """10 eos/hpf is below 15 but above 6: histologic response, not deep
+        remission. Reporting only one threshold would hide that distinction."""
+        assert erefs.classify_count(10, EosComparator.EXACT) is BELOW
+        assert erefs.classify_deep(10, EosComparator.EXACT) is ABOVE

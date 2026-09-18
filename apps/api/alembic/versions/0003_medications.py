@@ -23,6 +23,7 @@ depends_on: str | Sequence[str] | None = None
 
 RLS_TABLES = ("medications", "medication_doses")
 
+# The PPIs used for EoE, the swallowed topical steroids, and dupilumab.
 # Seeded here rather than by a script, so the foreign key from `medications` can
 # never dangle and so a fresh database is immediately usable. Codes are stable
 # slugs: a re-run inserts nothing new, and the API surface stays legible.
@@ -31,6 +32,8 @@ CATALOG = [
     ("esomeprazole", "Esomeprazole", "ppi", "oral", "mg", "Nexium"),
     ("lansoprazole", "Lansoprazole", "ppi", "oral", "mg", "Prevacid"),
     ("pantoprazole", "Pantoprazole", "ppi", "oral", "mg", "Protonix, Pantoloc"),
+    ("rabeprazole", "Rabeprazole", "ppi", "oral", "mg", "Aciphex, Pariet"),
+    ("dexlansoprazole", "Dexlansoprazole", "ppi", "oral", "mg", "Dexilant"),
     (
         "budesonide_oral_suspension",
         "Budesonide oral suspension",
@@ -46,6 +49,14 @@ CATALOG = [
         "swallowed",
         "mg",
         "Mixed with sucralose by a compounding pharmacy",
+    ),
+    (
+        "budesonide_orodispersible",
+        "Budesonide orodispersible tablet",
+        "swallowed_topical_corticosteroid",
+        "oral",
+        "mg",
+        "Jorveza (licensed in Europe and Canada)",
     ),
     (
         "fluticasone_swallowed",

@@ -8,6 +8,7 @@ import pytest
 from eoehelp_api.fooddata import labels, vocabulary
 from eoehelp_api.fooddata.records import flatten, normalise_barcode
 from eoehelp_api.models.enums import AllergenGroup as G
+from eoehelp_api.models.enums import EliminationGroup as E
 
 
 def names(text: str) -> list[tuple[int, str]]:
@@ -168,3 +169,30 @@ class TestBarcodes:
     )
     def test_upc_and_ean_forms_meet(self, raw: str | None, normal: str | None) -> None:
         assert normalise_barcode(raw) == normal
+
+
+class TestEliminationGroups:
+    @pytest.mark.parametrize(
+        ("text", "groups"),
+        [
+            ("barley malt", {E.GLUTEN_CEREALS}),
+            ("rye flour", {E.GLUTEN_CEREALS}),
+            ("enriched wheat flour", {E.GLUTEN_CEREALS}),
+            ("malt vinegar", {E.GLUTEN_CEREALS}),
+            ("oats", set()),
+            ("buckwheat", set()),
+            ("gluten-free oats", set()),
+            ("lentils", {E.LEGUMES}),
+            ("chickpeas", {E.LEGUMES}),
+            ("black beans", {E.LEGUMES}),
+            ("soy lecithin", {E.LEGUMES}),
+            ("peanut butter", {E.LEGUMES}),
+            ("pea protein", {E.LEGUMES}),
+            ("coffee beans", set()),
+            ("cocoa beans", set()),
+            ("vanilla bean", set()),
+            ("rice", set()),
+        ],
+    )
+    def test_classification(self, text: str, groups: set[E]) -> None:
+        assert vocabulary.elimination_groups(text) == groups

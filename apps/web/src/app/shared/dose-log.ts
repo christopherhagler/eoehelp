@@ -48,12 +48,12 @@ import { frequencyLabel } from './frequency-labels';
             </div>
 
             <div class="flex shrink-0 items-center gap-1">
-              @if (takenCount(item) > 0) {
+              @if (item.doses_today.length > 0) {
                 <button
                   mat-icon-button
                   type="button"
-                  [matTooltip]="'Undo the last dose'"
-                  [attr.aria-label]="'Undo the last dose of ' + item.generic_name"
+                  [matTooltip]="'Undo the last entry'"
+                  [attr.aria-label]="'Undo the last entry for ' + item.generic_name"
                   (click)="undo(item)"
                 >
                   <mat-icon>undo</mat-icon>
@@ -146,10 +146,9 @@ export class DoseLog {
   }
 
   protected async undo(item: MedicationTodayItem): Promise<void> {
-    const last = [...item.doses_today]
-      .filter((d) => d.status !== 'skipped')
-      .sort((a, b) => a.taken_at.localeCompare(b.taken_at))
-      .pop();
+    // Any entry, a skip included: a mistaken "Skipped" tap needs undoing as much
+    // as a mistaken "Took it", or it sits in the adherence record for good.
+    const last = [...item.doses_today].sort((a, b) => a.taken_at.localeCompare(b.taken_at)).pop();
     if (!last) return;
 
     this.busy.set(item.medication_id);

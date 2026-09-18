@@ -45,7 +45,19 @@ class TestCatalog:
         response = await client.get(CATALOG, headers=auth(access))
         assert response.status_code == 200
         codes = {row["code"] for row in response.json()}
-        assert {"omeprazole", "budesonide_oral_suspension", "dupilumab"} <= codes
+        assert {
+            "omeprazole",
+            "esomeprazole",
+            "lansoprazole",
+            "pantoprazole",
+            "rabeprazole",
+            "dexlansoprazole",
+            "budesonide_oral_suspension",
+            "budesonide_orodispersible",
+            "budesonide_slurry",
+            "fluticasone_swallowed",
+            "dupilumab",
+        } == codes
 
         classes = {row["drug_class"] for row in response.json()}
         assert classes == {"ppi", "swallowed_topical_corticosteroid", "biologic"}

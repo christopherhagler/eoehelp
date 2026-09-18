@@ -823,6 +823,7 @@ export interface components {
         BiopsyRead: {
             /** Basal Zone Hyperplasia */
             basal_zone_hyperplasia?: boolean | null;
+            deep_histology: components["schemas"]["HistologyStatus"];
             histology: components["schemas"]["HistologyStatus"];
             /** Lamina Propria Fibrosis */
             lamina_propria_fibrosis?: boolean | null;
@@ -1037,6 +1038,9 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            deep_histology: components["schemas"]["HistologyStatus"] | null;
+            /** Deep Remission Max Eos Per Hpf */
+            deep_remission_max_eos_per_hpf: number;
             dilation: components["schemas"]["DilationRead"] | null;
             erefs: components["schemas"]["ErefsRead"] | null;
             /** Facility */

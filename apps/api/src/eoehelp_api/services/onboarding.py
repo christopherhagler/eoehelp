@@ -5,16 +5,21 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.core import security
 from eoehelp_api.core.documents import CURRENT_VERSIONS, REQUIRED_AT_ONBOARDING
-from eoehelp_api.core.errors import ConflictError, NotFoundError
+from eoehelp_api.core.errors import BadRequestError, ConflictError, NotFoundError
 from eoehelp_api.db.session import apply_rls_scope
 from eoehelp_api.models.consent import Consent
 from eoehelp_api.models.patient import Patient
 from eoehelp_api.models.user import User
-from eoehelp_api.schemas.patient import OnboardingRequest, PatientProfileUpdate
+from eoehelp_api.schemas.patient import (
+    OnboardingRequest,
+    PatientProfileUpdate,
+    check_diagnosis_month,
+)
 from eoehelp_api.services import audit
 from eoehelp_api.services.audit import AuditContext
 
@@ -66,7 +71,13 @@ class OnboardingService:
             timezone=payload.timezone,
         )
         self._session.add(patient)
-        await self._session.flush()
+        try:
+            await self._session.flush()
+        except IntegrityError as exc:
+            # A double-tapped submit races the check above; the unique constraint
+            # on user_id catches the loser, which should read as a conflict, not
+            # as a server error.
+            raise ConflictError("This account already has a patient record.") from exc
 
         consents = [
             Consent(
@@ -135,6 +146,11 @@ class OnboardingService:
     ) -> Patient:
         patient = await self.get_profile(patient_id)
         changes = payload.model_dump(exclude_unset=True)
+        if "diagnosis_month" in changes:
+            try:
+                check_diagnosis_month(changes["diagnosis_month"], birth_year=patient.birth_year)
+            except ValueError as exc:
+                raise BadRequestError(str(exc)) from exc
         for field, value in changes.items():
             setattr(patient, field, value)
         await self._session.flush()

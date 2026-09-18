@@ -64,7 +64,13 @@ class TestRecording:
         ]
         assert scope["peak"] == {"value": 22, "comparator": "exact", "location": "distal"}
         assert scope["histology"] == "at_or_above_threshold"
+        assert scope["deep_histology"] == "at_or_above_threshold"
+        assert [b["deep_histology"] for b in scope["biopsies"]] == [
+            "below_threshold",
+            "at_or_above_threshold",
+        ]
         assert scope["remission_threshold_eos_per_hpf"] == 15
+        assert scope["deep_remission_max_eos_per_hpf"] == 6
         assert scope["facility"] == "Riverside Digestive Health"
 
     async def test_a_report_with_only_a_date_is_allowed(self, client: AsyncClient, onboard) -> None:

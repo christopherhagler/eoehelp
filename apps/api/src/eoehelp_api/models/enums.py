@@ -148,6 +148,21 @@ class AllergenGroup(enum.StrEnum):
     SESAME = "sesame"
 
 
+class EliminationGroup(enum.StrEnum):
+    """Groups that elimination-diet protocols remove but labelling law does not name.
+
+    The 2-4-6 step-up protocol's first step removes milk and every
+    gluten-containing cereal (wheat, barley, rye), and the four-food diet in
+    its Spanish form removes all legumes rather than soy alone. Neither is one
+    of the nine allergen groups, so each is detected separately.
+
+    PENDING CLINICAL CONFIRMATION with the rest of the classifier rules.
+    """
+
+    GLUTEN_CEREALS = "gluten_cereals"
+    LEGUMES = "legumes"
+
+
 class Meal(enum.StrEnum):
     BREAKFAST = "breakfast"
     LUNCH = "lunch"

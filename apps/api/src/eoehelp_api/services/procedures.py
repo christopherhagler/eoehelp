@@ -224,6 +224,7 @@ class EndoscopyService:
                 basal_zone_hyperplasia=b.basal_zone_hyperplasia,
                 lamina_propria_fibrosis=b.lamina_propria_fibrosis,
                 histology=erefs.classify_count(b.peak_eos_per_hpf, b.peak_eos_comparator),
+                deep_histology=erefs.classify_deep(b.peak_eos_per_hpf, b.peak_eos_comparator),
             )
             for b in endoscopy.biopsies
         ]
@@ -278,7 +279,9 @@ class EndoscopyService:
                 else None
             ),
             histology=erefs.classify_procedure(b.histology for b in biopsies),
+            deep_histology=erefs.classify_procedure(b.deep_histology for b in biopsies),
             remission_threshold_eos_per_hpf=erefs.REMISSION_THRESHOLD_EOS_PER_HPF,
+            deep_remission_max_eos_per_hpf=erefs.DEEP_REMISSION_MAX_EOS_PER_HPF,
             created_at=endoscopy.created_at,
             updated_at=endoscopy.updated_at,
         )

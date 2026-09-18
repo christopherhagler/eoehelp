@@ -1,5 +1,6 @@
 """Onboarding: the patient record, the consents that permit it, and deletion."""
 
+import asyncio
 from datetime import UTC, datetime
 
 import jwt
@@ -126,6 +127,39 @@ class TestOnboarding:
             f"{ME}/onboarding", json=_payload(diagnosis_month="2021-03-17"), headers=auth(access)
         )
         assert response.json()["patient"]["diagnosis_month"] == "2021-03-01"
+
+    async def test_a_diagnosis_must_be_possible(self, client: AsyncClient, sign_in) -> None:
+        access = await sign_in()
+        next_year = f"{datetime.now(UTC).year + 1}-01-01"
+        for month in (next_year, "1985-06-01"):
+            response = await client.post(
+                f"{ME}/onboarding",
+                json=_payload(birth_year=1990, diagnosis_month=month),
+                headers=auth(access),
+            )
+            assert response.status_code == 422, month
+
+    async def test_a_double_submitted_form_is_a_conflict_not_a_server_error(
+        self, client: AsyncClient, sign_in
+    ) -> None:
+        """A double tap races the existence check; the loser must get 409."""
+        access = await sign_in()
+        results = await asyncio.gather(
+            *(
+                client.post(f"{ME}/onboarding", json=_payload(), headers=auth(access))
+                for _ in range(3)
+            )
+        )
+        assert sorted(r.status_code for r in results) == [201, 409, 409]
+
+    async def test_the_profile_refuses_an_impossible_diagnosis(
+        self, client: AsyncClient, onboard
+    ) -> None:
+        access, _ = await onboard(birth_year=1990)
+        response = await client.patch(
+            f"{ME}/profile", json={"diagnosis_month": "1980-01-01"}, headers=auth(access)
+        )
+        assert response.status_code == 400
 
     async def test_writes_an_audit_trail_of_field_names_not_values(
         self, client: AsyncClient, sign_in, session: AsyncSession

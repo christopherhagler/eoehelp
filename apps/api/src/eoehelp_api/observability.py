@@ -31,7 +31,13 @@ PHI_FIELD_NAMES = frozenset(
         "pathologist_note",
         "prescriber_note",
         "performing_facility",
+        "facility",
         "food_freetext",
+        # What someone searched for, or scanned, is what they are eating.
+        "q",
+        "query",
+        "search",
+        "barcode",
         "indication",
         "ip_address",
         "user_agent",

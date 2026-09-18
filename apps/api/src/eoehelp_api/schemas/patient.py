@@ -2,7 +2,7 @@
 
 import uuid
 import zoneinfo
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -16,6 +16,21 @@ def _validate_timezone(value: str) -> str:
     except (zoneinfo.ZoneInfoNotFoundError, ValueError) as exc:
         raise ValueError("Unrecognised timezone.") from exc
     return value
+
+
+def check_diagnosis_month(diagnosis_month: date | None, *, birth_year: int | None) -> None:
+    """A diagnosis cannot be in the future, or before the patient was born.
+
+    Month precision, so "this month" is always allowed: a patient in a timezone
+    ahead of the server may already be in next month's first day.
+    """
+    if diagnosis_month is None:
+        return
+    first_of_next_month = (date.today().replace(day=1) + timedelta(days=32)).replace(day=1)
+    if diagnosis_month >= first_of_next_month:
+        raise ValueError("The diagnosis month cannot be in the future.")
+    if birth_year is not None and diagnosis_month.year < birth_year:
+        raise ValueError("The diagnosis month cannot be before the year you were born.")
 
 
 class ConsentAcceptance(BaseModel):
@@ -90,6 +105,7 @@ class OnboardingRequest(BaseModel):
             raise ValueError(
                 f"eoehelp is currently available to people aged {MINIMUM_AGE_YEARS} and over."
             )
+        check_diagnosis_month(self.diagnosis_month, birth_year=self.birth_year)
         return self
 
 

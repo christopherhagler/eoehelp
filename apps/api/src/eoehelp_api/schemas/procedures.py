@@ -71,7 +71,10 @@ class BiopsyInput(BaseModel):
 
 
 class BiopsyRead(BiopsyInput):
+    # Against <15 eos/hpf.
     histology: HistologyStatus
+    # Against ≤6 eos/hpf (deep remission).
+    deep_histology: HistologyStatus
 
 
 class DilationInput(BaseModel):
@@ -136,7 +139,10 @@ class EndoscopyRead(BaseModel):
     peak: PeakCount | None
     # Null when no biopsies were reported, which is not the same as indeterminate.
     histology: HistologyStatus | None
+    # The same reading against the deep-remission cut-off.
+    deep_histology: HistologyStatus | None
     remission_threshold_eos_per_hpf: int
+    deep_remission_max_eos_per_hpf: int
     created_at: datetime
     updated_at: datetime
 
