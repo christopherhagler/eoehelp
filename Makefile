@@ -2,7 +2,8 @@
 COMPOSE := podman compose
 
 .PHONY: help up down logs ps rebuild migrate revision test test-api image-test image-api \
-        verify-promote lint format typecheck openapi api-types seed mail psql clean
+        verify-promote lint format typecheck openapi api-types seed mail psql clean \
+        web-check web-format
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -63,6 +64,16 @@ format: image-test ## Apply ruff's formatting and safe fixes to the API
 
 typecheck: image-test ## Type-check the API
 	podman run --rm eoehelp-api-test mypy src
+
+WEB_NODE = podman run --rm -v "$(PWD)/apps/web:/app:z" \
+	-v eoehelp_web_node_modules:/app/node_modules -w /app node:24-bookworm-slim
+
+web-check: ## Check the web app's formatting, tests, and production build, as CI does
+	$(WEB_NODE) sh -c "npm ci --silent && npm run -s format:check \
+		&& npx ng test --watch=false && npx ng build --configuration production"
+
+web-format: ## Apply Prettier to the web app
+	$(WEB_NODE) sh -c "npm ci --silent && npm run -s format"
 
 image-api: ## Build the API runtime image (the artifact that ships)
 	podman build --format docker --target runtime -t eoehelp-api:local apps/api

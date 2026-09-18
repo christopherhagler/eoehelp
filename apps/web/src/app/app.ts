@@ -5,7 +5,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { Logo } from './shared/logo';
-import { AuthService } from './core/auth.service';
+import { AuthService } from './core/auth/auth.service';
 
 @Component({
   selector: 'app-root',

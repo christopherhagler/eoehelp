@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { API_BASE_URL, AccessTokenResponse, SessionUser } from './api';
+import { API_BASE_URL, AccessTokenResponse, SessionUser } from '../api/api';
 
 const REFRESH_RETRY_DELAY_MS = 500;
 

@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
-import { MedicationTodayItem } from '../core/api-types';
-import { MedicationService } from '../core/medication.service';
+import { MedicationTodayItem } from '../../core/api/api-types';
+import { MedicationService } from './medication.service';
 import { DoseLog } from './dose-log';
 
 function item(doses: MedicationTodayItem['doses_today']): MedicationTodayItem {

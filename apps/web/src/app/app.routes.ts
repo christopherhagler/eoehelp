@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-import { onboardedGuard, onboardingPendingGuard } from './core/auth.guard';
+import { onboardedGuard, onboardingPendingGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   {
@@ -42,8 +42,7 @@ export const routes: Routes = [
   {
     path: 'medications',
     canActivate: [onboardedGuard],
-    loadComponent: () =>
-      import('./features/medications/medications').then((m) => m.Medications),
+    loadComponent: () => import('./features/medications/medications').then((m) => m.Medications),
     title: 'Medications — eoehelp',
   },
   {

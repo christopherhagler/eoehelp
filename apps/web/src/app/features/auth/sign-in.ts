@@ -7,7 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
-import { AuthService } from '../../core/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { Logo } from '../../shared/logo';
 
 @Component({
@@ -38,9 +38,8 @@ import { Logo } from '../../shared/logo';
               </span>
               <h1 class="m-0 text-2xl font-semibold tracking-tight">Check your email</h1>
               <p class="mt-3 text-sm leading-relaxed text-on-surface-variant">
-                If <strong class="text-on-surface">{{ submittedEmail() }}</strong> can
-                receive mail, a sign-in link is on its way. It works once and expires
-                in 15 minutes.
+                If <strong class="text-on-surface">{{ submittedEmail() }}</strong> can receive mail,
+                a sign-in link is on its way. It works once and expires in 15 minutes.
               </p>
               <button mat-stroked-button type="button" class="mt-6" (click)="reset()">
                 Use a different address
@@ -49,8 +48,8 @@ import { Logo } from '../../shared/logo';
           } @else {
             <h1 class="m-0 text-2xl font-semibold tracking-tight">Sign in</h1>
             <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">
-              We email you a link instead of using a password. There is no password to
-              forget, and none to steal.
+              We email you a link instead of using a password. There is no password to forget, and
+              none to steal.
             </p>
 
             @if (error()) {
@@ -81,12 +80,7 @@ import { Logo } from '../../shared/logo';
                 <mat-hint>New here? This creates your account.</mat-hint>
               </mat-form-field>
 
-              <button
-                mat-flat-button
-                type="submit"
-                class="!mt-6 !min-h-tap"
-                [disabled]="busy()"
-              >
+              <button mat-flat-button type="submit" class="!mt-6 !min-h-tap" [disabled]="busy()">
                 @if (busy()) {
                   <mat-spinner diameter="20" />
                   Sending…
@@ -100,8 +94,8 @@ import { Logo } from '../../shared/logo';
       </mat-card>
 
       <p class="mt-6 text-center text-xs leading-relaxed text-on-surface-variant">
-        By continuing you agree to our terms and privacy policy. eoehelp is a personal
-        health record, not a medical record system, and does not provide medical advice.
+        By continuing you agree to our terms and privacy policy. eoehelp is a personal health
+        record, not a medical record system, and does not provide medical advice.
       </p>
     </section>
   `,

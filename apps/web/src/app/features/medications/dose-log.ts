@@ -5,8 +5,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 
-import { MedicationTodayItem } from '../core/api-types';
-import { MedicationService } from '../core/medication.service';
+import { MedicationTodayItem } from '../../core/api/api-types';
+import { MedicationService } from './medication.service';
 import { frequencyLabel } from './frequency-labels';
 
 /**

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { API_BASE_URL } from './api';
+import { API_BASE_URL } from '../../core/api/api';
 import {
   AdherenceSummary,
   DoseCreate,
@@ -12,7 +12,7 @@ import {
   MedicationRead,
   MedicationStop,
   MedicationToday,
-} from './api-types';
+} from '../../core/api/api-types';
 
 @Injectable({ providedIn: 'root' })
 export class MedicationService {

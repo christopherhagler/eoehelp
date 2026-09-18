@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { API_BASE_URL } from './api';
+import { API_BASE_URL } from './api/api';
 
 @Injectable({ providedIn: 'root' })
 export class ReferenceService {

@@ -1,4 +1,4 @@
-import { AllergenGroup, FoodDataSource, Meal } from '../core/api-types';
+import { AllergenGroup, FoodDataSource, Meal } from '../../core/api/api-types';
 
 /** One place for these, so the log, the editor, and the eventual insight and
  * report screens cannot name the same group two ways. */

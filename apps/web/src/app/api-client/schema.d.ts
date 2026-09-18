@@ -1139,7 +1139,7 @@ export interface components {
          * @description Which EREFS grading a set of sub-scores was recorded under.
          *
          *     The sub-score ranges differ between gradings, so a score is meaningless
-         *     without its version. See services/erefs.py for the ranges.
+         *     without its version. See procedures/erefs.py for the ranges.
          * @enum {string}
          */
         ErefsVersion: "classic" | "graded";

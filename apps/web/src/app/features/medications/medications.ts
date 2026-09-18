@@ -9,17 +9,17 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 
-import { describeApiError } from '../../core/api-errors';
+import { describeApiError } from '../../core/api/api-errors';
 import {
   AdherenceRead,
   DoseFrequency,
   MedicationCatalogItem,
   MedicationRead,
   MedicationStopReason,
-} from '../../core/api-types';
+} from '../../core/api/api-types';
 import { todayIso } from '../../core/dates';
-import { MedicationService } from '../../core/medication.service';
-import { FREQUENCY_LABELS, STOP_REASON_LABELS, frequencyLabel } from '../../shared/frequency-labels';
+import { MedicationService } from './medication.service';
+import { FREQUENCY_LABELS, STOP_REASON_LABELS, frequencyLabel } from './frequency-labels';
 
 @Component({
   selector: 'app-medications',

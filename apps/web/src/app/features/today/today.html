@@ -18,8 +18,7 @@
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="flex items-start gap-4">
               <span
-                class="flex size-11 shrink-0 items-center justify-center rounded-xl
-                       bg-brand-container text-on-brand-container"
+                class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-container text-on-brand-container"
               >
                 <mat-icon>task_alt</mat-icon>
               </span>
@@ -36,23 +35,18 @@
                 </p>
               </div>
             </div>
-            <a mat-stroked-button class="!min-h-tap" [routerLink]="['/log', today]">
-              Edit
-            </a>
+            <a mat-stroked-button class="!min-h-tap" [routerLink]="['/log', today]"> Edit </a>
           </div>
         } @else {
           <div class="flex flex-wrap items-center justify-between gap-5">
             <div class="flex items-start gap-4">
               <span
-                class="flex size-11 shrink-0 items-center justify-center rounded-xl
-                       bg-brand-container text-on-brand-container"
+                class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-container text-on-brand-container"
               >
                 <mat-icon>edit_note</mat-icon>
               </span>
               <div>
-                <h2 class="m-0 text-lg font-semibold tracking-tight">
-                  How was swallowing today?
-                </h2>
+                <h2 class="m-0 text-lg font-semibold tracking-tight">How was swallowing today?</h2>
                 <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">
                   Two taps on an ordinary day.
                 </p>
@@ -71,10 +65,7 @@
       <!-- The 14-day DSQ score, or an honest refusal to produce one. -->
       <mat-card appearance="outlined">
         <mat-card-content class="!p-6">
-          <h3
-            class="m-0 text-xs font-semibold uppercase tracking-[0.1em]
-                   text-on-surface-variant"
-          >
+          <h3 class="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
             Symptom burden · last 14 days
           </h3>
 
@@ -84,31 +75,26 @@
                 <span class="text-4xl font-semibold tabular-nums tracking-tight">
                   {{ score.score }}
                 </span>
-                <span class="text-sm text-on-surface-variant">
-                  out of {{ score.max_score }}
-                </span>
+                <span class="text-sm text-on-surface-variant"> out of {{ score.max_score }} </span>
               </p>
               <mat-progress-bar
                 class="mt-4 !rounded-full"
                 mode="determinate"
                 [value]="(score.score / score.max_score) * 100"
-                [attr.aria-label]="
-                  'Symptom burden ' + score.score + ' out of ' + score.max_score
-                "
+                [attr.aria-label]="'Symptom burden ' + score.score + ' out of ' + score.max_score"
               />
               <p class="mt-3 text-sm leading-relaxed text-on-surface-variant">
                 Lower is better. Based on {{ score.days_scorable }} scored
                 {{ score.days_scorable === 1 ? 'day' : 'days' }}, using the
-                {{ score.instrument_code }} {{ score.instrument_version }} — the same
-                measure used in EoE treatment trials.
+                {{ score.instrument_code }} {{ score.instrument_version }} — the same measure used
+                in EoE treatment trials.
               </p>
             } @else {
               <p class="m-0 mt-4 text-2xl font-semibold tracking-tight">Not enough days yet</p>
               <p class="mt-3 text-sm leading-relaxed text-on-surface-variant">
                 {{ daysUntilScorable() }} more logged
-                {{ daysUntilScorable() === 1 ? 'day' : 'days' }} and a score appears
-                here. We would rather show nothing than divide a few days across a
-                fortnight and call it remission.
+                {{ daysUntilScorable() === 1 ? 'day' : 'days' }} and a score appears here. We would
+                rather show nothing than divide a few days across a fortnight and call it remission.
               </p>
             }
           }
@@ -119,18 +105,14 @@
            colour alone, per WCAG 2.2. -->
       <mat-card appearance="outlined">
         <mat-card-content class="!p-6">
-          <h3
-            class="m-0 text-xs font-semibold uppercase tracking-[0.1em]
-                   text-on-surface-variant"
-          >
+          <h3 class="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
             Your fortnight · {{ loggedInWindow() }} of 14 logged
           </h3>
 
           <div class="day-strip mt-4">
             @for (day of days(); track day.date) {
               <div
-                class="flex aspect-square flex-col items-center justify-center rounded-lg
-                       border text-sm font-semibold tabular-nums"
+                class="flex aspect-square flex-col items-center justify-center rounded-lg border text-sm font-semibold tabular-nums"
                 [class]="
                   day.logged
                     ? day.scorable
@@ -155,8 +137,8 @@
           </div>
 
           <p class="mt-3 text-xs leading-relaxed text-on-surface-variant">
-            A number is that day's score out of 6. A dot is a day without solid
-            food. A dash is a day not logged.
+            A number is that day's score out of 6. A dot is a day without solid food. A dash is a
+            day not logged.
           </p>
         </mat-card-content>
       </mat-card>
@@ -167,8 +149,8 @@
         <mat-card-content class="!p-6">
           <h3 class="m-0 text-base font-semibold tracking-tight">Catch up</h3>
           <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">
-            Days can be added up to a week late. Older ones stay blank rather than
-            being recalled, because a guess is worse than a gap.
+            Days can be added up to a week late. Older ones stay blank rather than being recalled,
+            because a guess is worse than a gap.
           </p>
           <div class="mt-4 flex flex-wrap gap-2">
             @for (day of missedDays(); track day.date) {

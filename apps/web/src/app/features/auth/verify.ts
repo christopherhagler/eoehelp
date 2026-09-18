@@ -5,17 +5,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
-import { AuthService } from '../../core/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
   selector: 'app-verify',
-  imports: [
-    RouterLink,
-    MatButtonModule,
-    MatCardModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
-  ],
+  imports: [RouterLink, MatButtonModule, MatCardModule, MatIconModule, MatProgressSpinnerModule],
   template: `
     <section class="mx-auto flex max-w-md px-6 py-16 sm:py-24">
       <mat-card appearance="outlined" class="w-full">
@@ -28,23 +22,17 @@ import { AuthService } from '../../core/auth.service';
               >
                 <mat-icon>link_off</mat-icon>
               </span>
-              <h1 class="m-0 text-2xl font-semibold tracking-tight">
-                That link didn't work
-              </h1>
+              <h1 class="m-0 text-2xl font-semibold tracking-tight">That link didn't work</h1>
               <p class="mt-3 text-sm leading-relaxed text-on-surface-variant">
-                Sign-in links expire after 15 minutes and can only be used once. If you
-                opened this one already, or asked for a newer one, request a fresh link.
+                Sign-in links expire after 15 minutes and can only be used once. If you opened this
+                one already, or asked for a newer one, request a fresh link.
               </p>
-              <a mat-flat-button routerLink="/sign-in" class="!mt-6 !min-h-tap">
-                Get a new link
-              </a>
+              <a mat-flat-button routerLink="/sign-in" class="!mt-6 !min-h-tap"> Get a new link </a>
             </div>
           } @else {
             <div class="flex flex-col items-center py-4 text-center">
               <mat-spinner diameter="40" />
-              <h1 class="m-0 mt-6 text-xl font-semibold tracking-tight">
-                Signing you in…
-              </h1>
+              <h1 class="m-0 mt-6 text-xl font-semibold tracking-tight">Signing you in…</h1>
               <p class="mt-2 text-sm text-on-surface-variant">One moment.</p>
             </div>
           }

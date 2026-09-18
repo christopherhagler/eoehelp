@@ -11,12 +11,12 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
-import { describeApiError } from '../../core/api-errors';
-import { DysphagiaRelief, SymptomEntryInput } from '../../core/api-types';
+import { describeApiError } from '../../core/api/api-errors';
+import { DysphagiaRelief, SymptomEntryInput } from '../../core/api/api-types';
 import { addDays, formatDayLabel, todayIso } from '../../core/dates';
-import { DoseLog } from '../../shared/dose-log';
-import { FoodLog } from '../../shared/food-log';
-import { SymptomService } from '../../core/symptom.service';
+import { DoseLog } from '../medications/dose-log';
+import { FoodLog } from '../food/food-log';
+import { SymptomService } from '../symptoms/symptom.service';
 
 interface ReliefChoice {
   readonly value: DysphagiaRelief;

@@ -2,14 +2,14 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { API_BASE_URL } from './api';
+import { API_BASE_URL } from '../../core/api/api';
 import {
   SymptomBurdenRead,
   SymptomBurdenTrend,
   SymptomEntryInput,
   SymptomEntryList,
   SymptomEntryRead,
-} from './api-types';
+} from '../../core/api/api-types';
 
 @Injectable({ providedIn: 'root' })
 export class SymptomService {

@@ -5,7 +5,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
-import { describeApiError } from '../core/api-errors';
+import { describeApiError } from '../../core/api/api-errors';
 import {
   CatalogIngredientRead,
   CustomIngredientRead,
@@ -14,8 +14,8 @@ import {
   IngredientRead,
   Meal,
   RecentFood,
-} from '../core/api-types';
-import { FoodService } from '../core/food.service';
+} from '../../core/api/api-types';
+import { FoodService } from './food.service';
 import { FoodDraftSeed, FoodEditor } from './food-editor';
 import { ALLERGEN_GROUPS, MEALS, MEAL_LABELS, allergenSummary } from './food-labels';
 

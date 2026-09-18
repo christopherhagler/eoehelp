@@ -9,7 +9,7 @@
  *
  * Regenerate with `make api-types`. Never hand-edit the generated file.
  */
-import type { components } from '../api-client/schema';
+import type { components } from '../../api-client/schema';
 
 type Schemas = components['schemas'];
 

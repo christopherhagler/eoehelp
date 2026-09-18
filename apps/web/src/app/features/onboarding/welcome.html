@@ -5,16 +5,15 @@
       Let's set up your record
     </h1>
     <p class="mt-3 max-w-xl text-base leading-relaxed text-on-surface-variant">
-      Four short answers, then you can log your first day. Everything here can be
-      changed later, and none of it is shared with anyone unless you decide to.
+      Four short answers, then you can log your first day. Everything here can be changed later, and
+      none of it is shared with anyone unless you decide to.
     </p>
   </div>
 
   @if (error()) {
     <div
       role="alert"
-      class="mt-6 flex items-start gap-2 rounded-lg border border-danger/40
-             bg-danger/10 px-4 py-3 text-sm text-danger"
+      class="mt-6 flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger"
     >
       <mat-icon class="!size-5 shrink-0 !text-xl">error</mat-icon>
       <span>{{ error() }}</span>
@@ -60,7 +59,6 @@
             </mat-select>
             <mat-hint>Optional. Used only in research summaries.</mat-hint>
           </mat-form-field>
-
         </div>
 
         <!-- Two selects rather than <input type="month">: Firefox and desktop
@@ -116,22 +114,22 @@
       <mat-card-content class="!p-6">
         <h2 class="m-0 text-lg font-semibold tracking-tight">Your agreement</h2>
         <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">
-          Three separate agreements rather than one box, because they cover
-          different things and you should be able to see what each one is.
+          Three separate agreements rather than one box, because they cover different things and you
+          should be able to see what each one is.
         </p>
 
         <div class="mt-5 flex flex-col gap-4">
           <mat-checkbox name="terms" [(ngModel)]="acceptedTerms">
             <span class="text-sm leading-relaxed">
-              I agree to the <strong>terms of service</strong>. eoehelp is a
-              personal health record and does not provide medical advice.
+              I agree to the <strong>terms of service</strong>. eoehelp is a personal health record
+              and does not provide medical advice.
             </span>
           </mat-checkbox>
 
           <mat-checkbox name="privacy" [(ngModel)]="acceptedPrivacy">
             <span class="text-sm leading-relaxed">
-              I have read the <strong>privacy policy</strong>, covering what is
-              stored and how to delete it.
+              I have read the <strong>privacy policy</strong>, covering what is stored and how to
+              delete it.
             </span>
           </mat-checkbox>
 
@@ -146,8 +144,8 @@
         <p class="mt-5 flex items-start gap-2 text-sm text-on-surface-variant">
           <mat-icon class="!size-5 shrink-0 !text-xl text-brand">science</mat-icon>
           <span>
-            Contributing to research is a separate decision you can make later. It
-            is never required, and never bundled into these.
+            Contributing to research is a separate decision you can make later. It is never
+            required, and never bundled into these.
           </span>
         </p>
       </mat-card-content>

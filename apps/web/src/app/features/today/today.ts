@@ -7,11 +7,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 
-import { SymptomBurdenRead, SymptomEntryRead } from '../../core/api-types';
-import { AuthService } from '../../core/auth.service';
+import { SymptomBurdenRead, SymptomEntryRead } from '../../core/api/api-types';
+import { AuthService } from '../../core/auth/auth.service';
 import { addDays, formatDayLabel, todayIso } from '../../core/dates';
 import { PatientService } from '../../core/patient.service';
-import { SymptomService } from '../../core/symptom.service';
+import { SymptomService } from '../symptoms/symptom.service';
 
 /** One cell of the fortnight strip. */
 interface DayCell {

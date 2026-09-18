@@ -2,15 +2,15 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { API_BASE_URL } from './api';
+import { API_BASE_URL } from './api/api';
 import {
   ConsentRecord,
   OnboardingRequest,
   OnboardingResponse,
   PatientProfile,
   PatientProfileUpdate,
-} from './api-types';
-import { AuthService } from './auth.service';
+} from './api/api-types';
+import { AuthService } from './auth/auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class PatientService {

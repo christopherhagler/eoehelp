@@ -9,9 +9,8 @@ import {
   IngredientRead,
   ProductRead,
   ProductSnapshotRead,
-  ProductSummaryRead,
-} from '../core/api-types';
-import { FoodService } from '../core/food.service';
+} from '../../core/api/api-types';
+import { FoodService } from './food.service';
 import { FoodDraftSeed, FoodEditor } from './food-editor';
 import { mealForTime } from './food-labels';
 
@@ -120,22 +119,6 @@ const RELISH: CustomIngredientRead = { id: 'relish-id', name: 'Relish', allergen
 class StubFoodService {
   readonly calls: string[] = [];
   logged: FoodItemInput | null = null;
-  searches: { query: string; resolve: (hits: ProductSummaryRead[]) => void }[] = [];
-
-  searchProducts(query: string): Promise<ProductSummaryRead[]> {
-    return new Promise((resolve) => this.searches.push({ query, resolve }));
-  }
-
-  async product(): Promise<ProductRead> {
-    this.calls.push('product');
-    return HELLMANNS;
-  }
-
-  async productByBarcode(code: string): Promise<ProductRead> {
-    this.calls.push(`barcode:${code}`);
-    return HELLMANNS;
-  }
-
   async updateCustomIngredient(id: string, update: { allergen_groups?: string[] }) {
     this.calls.push(`retag:${id}:${update.allergen_groups?.join('+')}`);
     return { ...RELISH, allergen_groups: update.allergen_groups };
@@ -159,10 +142,7 @@ class StubFoodService {
 type Internals = {
   query: { set(value: string): void };
   product(): { name: string; declared: string[]; undeclared: string[]; lines: unknown[] } | null;
-  productResults(): ProductSummaryRead[];
-  onProductQuery(value: string): void;
-  chooseProduct(hit: ProductSummaryRead): Promise<void>;
-  lookUpBarcode(raw: string): Promise<void>;
+  useProduct(found: ProductRead): void;
   typicalIngredients(): { name: string }[];
   options(): { name: string }[];
   draft(): { name: string; code: string | null; customId: string | null }[];
@@ -316,10 +296,9 @@ describe('FoodEditor', () => {
     });
   });
   describe('products', () => {
-    it('a looked-up product shows its label and names the food', async () => {
+    it('a chosen product shows its label and names the food', () => {
       const { editor } = create();
-      await editor.lookUpBarcode('0 48001 21348 7');
-      expect(stub.calls).toEqual(['barcode:048001213487']);
+      editor.useProduct(HELLMANNS);
       const chosen = editor.product();
       expect(chosen?.name).toBe('Real Mayonnaise');
       expect(chosen?.declared).toEqual(['egg']);
@@ -331,7 +310,7 @@ describe('FoodEditor', () => {
 
     it('sends a reference to the product, never its ingredients', async () => {
       const { editor } = create();
-      await editor.chooseProduct(HELLMANNS);
+      editor.useProduct(HELLMANNS);
       editor.addTyped(typed('rice'));
       await editor.save();
       expect(stub.logged).toEqual({
@@ -362,30 +341,11 @@ describe('FoodEditor', () => {
       expect(stub.logged?.ingredients).toEqual([{ code: 'rice' }]);
     });
 
-    it('a slow search cannot overwrite a newer one', async () => {
-      vi.useFakeTimers();
-      try {
-        const { editor } = create();
-        editor.onProductQuery('hel');
-        await vi.advanceTimersByTimeAsync(400);
-        editor.onProductQuery('hellmann');
-        await vi.advanceTimersByTimeAsync(400);
-        const [first, second] = stub.searches;
-        second.resolve([{ ...HELLMANNS }]);
-        await vi.advanceTimersByTimeAsync(0);
-        first.resolve([]);
-        await vi.advanceTimersByTimeAsync(0);
-        expect(editor.productResults().map((hit) => hit.name)).toEqual(['Real Mayonnaise']);
-      } finally {
-        vi.useRealTimers();
-      }
-    });
-
-    it('suggests the label for a dish, until a product is chosen', async () => {
+    it('suggests the label for a dish, until a product is chosen', () => {
       const { editor } = create();
       editor.addTyped(typed('mayo'));
       expect(editor.typicalIngredients().map((i) => i.name)).toEqual(['Mayonnaise']);
-      await editor.chooseProduct(HELLMANNS);
+      editor.useProduct(HELLMANNS);
       expect(editor.typicalIngredients()).toEqual([]);
     });
   });

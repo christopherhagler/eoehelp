@@ -10,8 +10,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { Router } from '@angular/router';
 
-import { describeApiError } from '../../core/api-errors';
-import { SexAtBirth } from '../../core/api-types';
+import { describeApiError } from '../../core/api/api-errors';
+import { SexAtBirth } from '../../core/api/api-types';
 import { detectTimezone } from '../../core/dates';
 import { PatientService } from '../../core/patient.service';
 import { ReferenceService } from '../../core/reference.service';

@@ -1,4 +1,4 @@
-import { DoseFrequency, MedicationStopReason } from '../core/api-types';
+import { DoseFrequency, MedicationStopReason } from '../../core/api/api-types';
 
 /** Plain-English labels, kept in one place so the log, the list, and the eventual
  * report cannot describe the same schedule differently. */
