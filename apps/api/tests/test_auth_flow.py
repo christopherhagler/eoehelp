@@ -8,9 +8,9 @@ from httpx import AsyncClient
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from eoehelp_api.models.audit import AuditLog
-from eoehelp_api.models.auth import RefreshToken
-from eoehelp_api.models.user import User
+from eoehelp_api.audit.models import AuditLog
+from eoehelp_api.identity.tokens import RefreshToken
+from eoehelp_api.identity.user import User
 
 AUTH = "/api/v1/auth"
 TOKEN_RE = re.compile(r"token=([A-Za-z0-9_-]+)")
@@ -23,7 +23,7 @@ async def _request_link(client: AsyncClient, monkeypatch, email: str) -> str:
     async def fake_send(self, *, to: str, link: str, ttl_minutes: int) -> None:
         captured.append(link)
 
-    monkeypatch.setattr("eoehelp_api.services.email.EmailSender.send_magic_link", fake_send)
+    monkeypatch.setattr("eoehelp_api.identity.email.EmailSender.send_magic_link", fake_send)
     response = await client.post(f"{AUTH}/magic-link", json={"email": email})
     assert response.status_code == 202
     match = TOKEN_RE.search(captured[0])
@@ -100,7 +100,7 @@ class TestMagicLink:
         async def fake_send(self, *, to: str, link: str, ttl_minutes: int) -> None:
             sent.append(link)
 
-        monkeypatch.setattr("eoehelp_api.services.email.EmailSender.send_magic_link", fake_send)
+        monkeypatch.setattr("eoehelp_api.identity.email.EmailSender.send_magic_link", fake_send)
         responses = [
             await client.post(f"{AUTH}/magic-link", json={"email": "victim@example.com"})
             for _ in range(5)

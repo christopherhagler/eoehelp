@@ -30,7 +30,7 @@ RLS_TABLES = ("symptom_entries",)
 def upgrade() -> None:
     # DSQ question 3: what the patient had to do, at the worst episode of the day,
     # to make food go down or get relief. Single choice, ordered as the
-    # instrument scores it (0-4); see services/scoring.py.
+    # instrument scores it (0-4); see symptoms/scoring.py.
     dysphagia_relief = postgresql.ENUM(
         "cleared_on_its_own",
         "drank_liquid",

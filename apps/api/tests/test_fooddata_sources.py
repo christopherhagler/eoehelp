@@ -8,9 +8,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from eoehelp_api.fooddata import openfoodfacts, usda
-from eoehelp_api.models.enums import AllergenGroup as G
-from eoehelp_api.models.enums import FoodDataSource
+from eoehelp_api.food.enums import AllergenGroup as G
+from eoehelp_api.food.enums import FoodDataSource
+from eoehelp_api.food.products import openfoodfacts, usda
 
 FIXTURES = Path(__file__).parent / "fixtures" / "fooddata"
 

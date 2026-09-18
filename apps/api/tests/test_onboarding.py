@@ -8,15 +8,15 @@ from httpx import AsyncClient
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from eoehelp_api.core.documents import (
+from eoehelp_api.audit.models import AuditLog
+from eoehelp_api.identity.consent import Consent
+from eoehelp_api.identity.documents import (
     CONSUMER_HEALTH_DATA_VERSION,
     PRIVACY_POLICY_VERSION,
     TERMS_OF_SERVICE_VERSION,
 )
-from eoehelp_api.models.audit import AuditLog
-from eoehelp_api.models.consent import Consent
-from eoehelp_api.models.patient import Patient
-from eoehelp_api.models.user import User
+from eoehelp_api.identity.patient import Patient
+from eoehelp_api.identity.user import User
 from helpers import auth, onboarding_payload
 
 ME = "/api/v1/me"

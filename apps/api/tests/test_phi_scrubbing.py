@@ -7,8 +7,8 @@ address appearing here is a disclosure.
 
 import pytest
 
+from eoehelp_api.audit.service import _safe_metadata
 from eoehelp_api.observability import PHI_FIELD_NAMES, REDACTED, scrub_event
-from eoehelp_api.services.audit import _safe_metadata
 
 
 @pytest.mark.parametrize("field", sorted(PHI_FIELD_NAMES))

@@ -8,12 +8,12 @@ import jwt
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from eoehelp_api.audit.service import AuditContext
 from eoehelp_api.core import security
 from eoehelp_api.core.errors import ForbiddenError, UnauthenticatedError
 from eoehelp_api.db.session import apply_rls_scope, get_session_factory
-from eoehelp_api.models.enums import UserRole
-from eoehelp_api.models.patient import Patient
-from eoehelp_api.services.audit import AuditContext
+from eoehelp_api.identity.enums import UserRole
+from eoehelp_api.identity.patient import Patient
 
 API_V1_PREFIX = "/api/v1"
 

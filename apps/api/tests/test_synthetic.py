@@ -13,11 +13,13 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.config import Settings
-from eoehelp_api.models.enums import AllergenGroup, DoseStatus, EntryMethod
-from eoehelp_api.schemas.auth import MagicLinkRequest
-from eoehelp_api.schemas.food import FoodItemInput, IngredientRef
-from eoehelp_api.schemas.symptoms import SymptomEntryInput
-from eoehelp_api.services import scoring
+from eoehelp_api.core.entry_dates import EntryMethod
+from eoehelp_api.food.enums import AllergenGroup
+from eoehelp_api.food.schemas import FoodItemInput, IngredientRef
+from eoehelp_api.identity.auth_schemas import MagicLinkRequest
+from eoehelp_api.medications.enums import DoseStatus
+from eoehelp_api.symptoms import scoring
+from eoehelp_api.symptoms.schemas import SymptomEntryInput
 from eoehelp_api.synthetic import HistoryGenerator, SyntheticDataRefusedError, assert_writable
 from eoehelp_api.synthetic.generator import (
     INGREDIENT_GROUPS,

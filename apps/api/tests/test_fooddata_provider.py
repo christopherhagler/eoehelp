@@ -13,10 +13,10 @@ from typing import Any
 import httpx
 import pytest
 
-from eoehelp_api.fooddata.openfoodfacts import OpenFoodFactsClient
-from eoehelp_api.fooddata.provider import FoodDataUnavailableError, HttpFoodData
-from eoehelp_api.fooddata.usda import UsdaClient
-from eoehelp_api.models.enums import FoodDataSource
+from eoehelp_api.food.enums import FoodDataSource
+from eoehelp_api.food.products.openfoodfacts import OpenFoodFactsClient
+from eoehelp_api.food.products.provider import FoodDataUnavailableError, HttpFoodData
+from eoehelp_api.food.products.usda import UsdaClient
 
 FIXTURES = Path(__file__).parent / "fixtures" / "fooddata"
 OFF = "https://off.test"

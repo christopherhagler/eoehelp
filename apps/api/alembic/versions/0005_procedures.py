@@ -39,7 +39,7 @@ ENUMS = {
     "dilation_complication": ("none", "chest_pain", "bleeding", "perforation", "other"),
 }
 
-# (feature, classic maximum, graded maximum). Mirrors services/erefs.py, which is
+# (feature, classic maximum, graded maximum). Mirrors procedures/erefs.py, which is
 # checked against this table by the test suite.
 EREFS_MAXIMA = (
     ("edema", 1, 2),

@@ -68,7 +68,7 @@ Results are cached in process for 10 minutes. The query text is never logged.
 
 ### Parsing and vocabulary
 
-- **The label parser** (`fooddata/labels.py`) handles:
+- **The label parser** (`food/products/labels.py`) handles:
   - nested ingredient lists
   - "contains 2% or less of"
   - purpose notes
@@ -77,7 +77,7 @@ Results are cached in process for 10 minutes. The query text is never logged.
 
   It is also applied to Open Food Facts' own parse, which carries label phrasing
   and scanning errors into its nodes.
-- **The vocabulary** (`fooddata/vocabulary.py`) maps US label spellings onto Open
+- **The vocabulary** (`food/products/vocabulary.py`) maps US label spellings onto Open
   Food Facts keys and holds about 80 common additives with their E-numbers and
   classes. Unknown names get a slug key and are marked unrecognized, which the
   screen shows rather than hides.

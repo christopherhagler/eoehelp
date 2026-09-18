@@ -10,16 +10,12 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 
-from eoehelp_api.models.enums import (
-    AllergenGroup,
-    DoseStatus,
-    DysphagiaRelief,
-    EntryMethod,
-    Meal,
-    MedicationStopReason,
-    SexAtBirth,
-)
-from eoehelp_api.services.schedules import DoseFrequency
+from eoehelp_api.core.entry_dates import EntryMethod
+from eoehelp_api.food.enums import AllergenGroup, Meal
+from eoehelp_api.identity.enums import SexAtBirth
+from eoehelp_api.medications.enums import DoseStatus, MedicationStopReason
+from eoehelp_api.medications.schedules import DoseFrequency
+from eoehelp_api.symptoms.enums import DysphagiaRelief
 
 
 @dataclass(frozen=True)

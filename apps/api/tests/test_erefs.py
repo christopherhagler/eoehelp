@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from eoehelp_api.models.enums import EosComparator, ErefsVersion, HistologyStatus
-from eoehelp_api.services import erefs
+from eoehelp_api.procedures import erefs
+from eoehelp_api.procedures.enums import EosComparator, ErefsVersion, HistologyStatus
 
 ABOVE = HistologyStatus.AT_OR_ABOVE_THRESHOLD
 BELOW = HistologyStatus.BELOW_THRESHOLD

@@ -11,10 +11,10 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from eoehelp_api.models.enums import DoseStatus
-from eoehelp_api.models.medication import Medication, MedicationDose
-from eoehelp_api.services import adherence, schedules
-from eoehelp_api.services.schedules import DoseFrequency
+from eoehelp_api.medications import adherence, schedules
+from eoehelp_api.medications.enums import DoseStatus
+from eoehelp_api.medications.models import Medication, MedicationDose
+from eoehelp_api.medications.schedules import DoseFrequency
 
 START = date(2026, 9, 1)
 WINDOW_END = date(2026, 9, 14)  # a 14-day window, 1st to 14th inclusive

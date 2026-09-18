@@ -10,9 +10,10 @@ from datetime import date, timedelta
 
 import pytest
 
-from eoehelp_api.models.clinical import SymptomEntry
-from eoehelp_api.models.enums import DysphagiaRelief, EntryMethod
-from eoehelp_api.services import scoring
+from eoehelp_api.core.entry_dates import EntryMethod
+from eoehelp_api.symptoms import scoring
+from eoehelp_api.symptoms.enums import DysphagiaRelief
+from eoehelp_api.symptoms.models import SymptomEntry
 
 END = date(2026, 9, 16)
 

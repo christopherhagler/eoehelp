@@ -56,7 +56,7 @@ of" check constraint on the join table.
 history, so there is nothing for the patient to manage, and the list follows what
 they actually eat.
 
-**The backfill window is shared with symptoms** (`services/entry_dates.py`). A
+**The backfill window is shared with symptoms** (`core/entry_dates.py`). A
 patient catching up after a flare fills in both halves of a day; accepting one
 and refusing the other would be incoherent.
 

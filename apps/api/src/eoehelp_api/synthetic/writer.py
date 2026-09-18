@@ -14,19 +14,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.config import Settings, get_settings
-from eoehelp_api.core.documents import CURRENT_VERSIONS, REQUIRED_AT_ONBOARDING
 from eoehelp_api.core.security import FieldCipher
 from eoehelp_api.db.session import apply_rls_scope, session_scope
-from eoehelp_api.models.clinical import SymptomEntry
-from eoehelp_api.models.consent import Consent
-from eoehelp_api.models.enums import IngredientProvenance, UserRole, UserStatus
-from eoehelp_api.models.food import CatalogIngredient, FoodLogItem, FoodLogItemIngredient
-from eoehelp_api.models.medication import Medication, MedicationDose
-from eoehelp_api.models.patient import Patient
-from eoehelp_api.models.user import User
-from eoehelp_api.schemas.food import name_key
-from eoehelp_api.services import scoring
-from eoehelp_api.services.schedules import rrule_for
+from eoehelp_api.food.enums import IngredientProvenance
+from eoehelp_api.food.models import CatalogIngredient, FoodLogItem, FoodLogItemIngredient
+from eoehelp_api.food.schemas import name_key
+from eoehelp_api.identity.consent import Consent
+from eoehelp_api.identity.documents import CURRENT_VERSIONS, REQUIRED_AT_ONBOARDING
+from eoehelp_api.identity.enums import UserRole, UserStatus
+from eoehelp_api.identity.patient import Patient
+from eoehelp_api.identity.user import User
+from eoehelp_api.medications.models import Medication, MedicationDose
+from eoehelp_api.medications.schedules import rrule_for
+from eoehelp_api.symptoms import scoring
+from eoehelp_api.symptoms.models import SymptomEntry
 from eoehelp_api.synthetic.plans import HistoryPlan
 
 

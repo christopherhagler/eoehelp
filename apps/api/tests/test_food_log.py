@@ -7,7 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from eoehelp_api.models.audit import AuditLog
+from eoehelp_api.audit.models import AuditLog
 from helpers import auth
 
 FOODS = "/api/v1/me/foods"

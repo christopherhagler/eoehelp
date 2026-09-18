@@ -171,7 +171,7 @@ class OfflineFoodData:
     """
 
     async def search(self, query: str, limit: int) -> Any:
-        from eoehelp_api.fooddata.provider import FoodDataUnavailableError
+        from eoehelp_api.food.products.provider import FoodDataUnavailableError
 
         raise FoodDataUnavailableError()
 
@@ -184,7 +184,7 @@ class OfflineFoodData:
 
 @pytest_asyncio.fixture
 async def app(clean_tables: None) -> Any:
-    from eoehelp_api.fooddata.provider import get_food_data
+    from eoehelp_api.food.products.provider import get_food_data
     from eoehelp_api.main import create_app
 
     application = create_app()
@@ -217,7 +217,7 @@ def sign_in(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> Callable[..
     async def fake_send(_self: object, *, to: str, link: str, ttl_minutes: int) -> None:
         captured.append(link)
 
-    monkeypatch.setattr("eoehelp_api.services.email.EmailSender.send_magic_link", fake_send)
+    monkeypatch.setattr("eoehelp_api.identity.email.EmailSender.send_magic_link", fake_send)
 
     async def _sign_in(email: str = "patient@example.com") -> str:
         requested = await client.post("/api/v1/auth/magic-link", json={"email": email})

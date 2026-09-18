@@ -5,10 +5,10 @@ Pure functions, tested against the kinds of text real US labels carry.
 
 import pytest
 
-from eoehelp_api.fooddata import labels, vocabulary
-from eoehelp_api.fooddata.records import flatten, normalise_barcode
-from eoehelp_api.models.enums import AllergenGroup as G
-from eoehelp_api.models.enums import EliminationGroup as E
+from eoehelp_api.food.enums import AllergenGroup as G
+from eoehelp_api.food.enums import EliminationGroup as E
+from eoehelp_api.food.products import labels, vocabulary
+from eoehelp_api.food.products.records import flatten, normalise_barcode
 
 
 def names(text: str) -> list[tuple[int, str]]:

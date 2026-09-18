@@ -67,7 +67,7 @@ class TestRateLimits:
         async def fake_send(self: object, *, to: str, link: str, ttl_minutes: int) -> None:
             return None
 
-        monkeypatch.setattr("eoehelp_api.services.email.EmailSender.send_magic_link", fake_send)
+        monkeypatch.setattr("eoehelp_api.identity.email.EmailSender.send_magic_link", fake_send)
 
         limit = int(ratelimit.MAGIC_LINK_REQUEST.split("/")[0])
         statuses = [

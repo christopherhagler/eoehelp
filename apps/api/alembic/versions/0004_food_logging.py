@@ -201,7 +201,7 @@ CATALOG: list[tuple[str, str, tuple[str, ...], tuple[str, ...]]] = [
 
 
 # Catalog codes whose standard key is not simply "en:" plus the code. The
-# catalog-agreement test holds these in line with fooddata/vocabulary.py.
+# catalog-agreement test holds these in line with food/products/vocabulary.py.
 KEY_OVERRIDES = {
     "soybean": "en:soya",
     "soy_lecithin": "en:soya-lecithin",

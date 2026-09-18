@@ -10,11 +10,11 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from eoehelp_api.fooddata import openfoodfacts, usda
-from eoehelp_api.fooddata.provider import FoodDataUnavailableError, get_food_data
-from eoehelp_api.fooddata.records import ProductRecord, ProductSummary
-from eoehelp_api.models.audit import AuditLog
-from eoehelp_api.models.enums import FoodDataSource
+from eoehelp_api.audit.models import AuditLog
+from eoehelp_api.food.enums import FoodDataSource
+from eoehelp_api.food.products import openfoodfacts, usda
+from eoehelp_api.food.products.provider import FoodDataUnavailableError, get_food_data
+from eoehelp_api.food.products.records import ProductRecord, ProductSummary
 from helpers import auth
 from test_food_log import FOODS, food
 from test_patient_isolation import _app_role_url
@@ -319,7 +319,7 @@ class TestSnapshotsAreEvidence:
 async def test_catalog_keys_agree_with_the_vocabulary(client: AsyncClient, sign_in) -> None:
     """A catalog "Egg" and a label's "EGGS" must be the same ingredient to an
     analysis, and a non-dish's groups must be what its name says."""
-    from eoehelp_api.fooddata import vocabulary
+    from eoehelp_api.food.products import vocabulary
 
     access = await sign_in()
     rows = (await client.get("/api/v1/foods/ingredients", headers=auth(access))).json()

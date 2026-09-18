@@ -14,19 +14,31 @@ from slowapi.errors import RateLimitExceeded
 
 from eoehelp_api import __version__
 from eoehelp_api.config import get_settings
+from eoehelp_api.core import health
 from eoehelp_api.core.deps import API_V1_PREFIX
 from eoehelp_api.core.ratelimit import limiter, rate_limit_exceeded
 from eoehelp_api.db.session import dispose_engine
+from eoehelp_api.food import router as food_router
+from eoehelp_api.identity import auth_router, me_router
+from eoehelp_api.medications import router as medications_router
 from eoehelp_api.observability import configure_logging, get_logger
-from eoehelp_api.routers import (
-    auth,
-    food,
-    health,
-    me,
-    medications,
-    procedures,
-    reference,
-    symptoms,
+from eoehelp_api.procedures import router as procedures_router
+from eoehelp_api.reference import router as reference_router
+from eoehelp_api.symptoms import router as symptoms_router
+
+# Every versioned router, one per line so a new area is one visible addition.
+# Catalog routers serve reference data under /api/v1/<area>; the others are the
+# patient's own data under /api/v1/me.
+V1_ROUTERS = (
+    auth_router.router,
+    me_router.router,
+    reference_router.router,
+    medications_router.catalog_router,
+    medications_router.router,
+    symptoms_router.router,
+    food_router.catalog_router,
+    food_router.router,
+    procedures_router.router,
 )
 
 logger = get_logger(__name__)
@@ -158,15 +170,8 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=500, content={"detail": "An unexpected error occurred."})
 
     app.include_router(health.router)
-    app.include_router(auth.router, prefix=API_V1_PREFIX)
-    app.include_router(me.router, prefix=API_V1_PREFIX)
-    app.include_router(reference.router, prefix=API_V1_PREFIX)
-    app.include_router(medications.catalog_router, prefix=API_V1_PREFIX)
-    app.include_router(medications.router, prefix=API_V1_PREFIX)
-    app.include_router(symptoms.router, prefix=API_V1_PREFIX)
-    app.include_router(food.catalog_router, prefix=API_V1_PREFIX)
-    app.include_router(food.router, prefix=API_V1_PREFIX)
-    app.include_router(procedures.router, prefix=API_V1_PREFIX)
+    for router in V1_ROUTERS:
+        app.include_router(router, prefix=API_V1_PREFIX)
 
     return app
 

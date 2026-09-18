@@ -10,7 +10,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from eoehelp_api.models.audit import AuditLog
+from eoehelp_api.audit.models import AuditLog
 from helpers import auth
 
 SCOPES = "/api/v1/me/endoscopies"

@@ -32,16 +32,12 @@ from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from eoehelp_api.models.enums import (
-    AllergenGroup,
-    DoseStatus,
-    DysphagiaRelief,
-    EntryMethod,
-    Meal,
-    MedicationStopReason,
-    SexAtBirth,
-)
-from eoehelp_api.services.schedules import DoseFrequency
+from eoehelp_api.core.entry_dates import EntryMethod
+from eoehelp_api.food.enums import AllergenGroup, Meal
+from eoehelp_api.identity.enums import SexAtBirth
+from eoehelp_api.medications.enums import DoseStatus, MedicationStopReason
+from eoehelp_api.medications.schedules import DoseFrequency
+from eoehelp_api.symptoms.enums import DysphagiaRelief
 from eoehelp_api.synthetic.plans import (
     DayPlan,
     DosePlan,

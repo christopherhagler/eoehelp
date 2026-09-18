@@ -40,7 +40,7 @@ exercised is the artefact that actually ships.
 | `routers/` | HTTP layer only — request/response mapping, no business logic |
 | `services/` | Business logic: auth flows, scoring, report assembly, audit |
 | `repositories/` | The only code that queries patient-owned tables, always scoped |
-| `models/` | SQLAlchemy models; anything not imported in `models/__init__.py` is invisible to Alembic |
+| `models/` | SQLAlchemy models; anything not imported in `models.py` is invisible to Alembic |
 | `schemas/` | Pydantic DTOs — ORM objects are never returned directly |
 
 ## Invariants
