@@ -12,7 +12,7 @@ import zoneinfo
 
 from fastapi import APIRouter, Depends
 
-from eoehelp_api.core.deps import Principal, get_principal
+from eoehelp_api.deps import Principal, get_principal
 from eoehelp_api.procedures import erefs
 from eoehelp_api.procedures.schemas import ErefsScaleRead
 

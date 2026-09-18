@@ -1071,7 +1071,7 @@
         "type": "object"
       },
       "ErefsVersion": {
-        "description": "Which EREFS grading a set of sub-scores was recorded under.\n\nThe sub-score ranges differ between gradings, so a score is meaningless\nwithout its version. See services/erefs.py for the ranges.",
+        "description": "Which EREFS grading a set of sub-scores was recorded under.\n\nThe sub-score ranges differ between gradings, so a score is meaningless\nwithout its version. See procedures/erefs.py for the ranges.",
         "enum": [
           "classic",
           "graded"

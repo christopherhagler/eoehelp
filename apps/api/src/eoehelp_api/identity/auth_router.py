@@ -4,7 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from eoehelp_api.audit.service import AuditContext
 from eoehelp_api.config import Settings, get_settings
 from eoehelp_api.core import ratelimit
-from eoehelp_api.core.deps import (
+from eoehelp_api.core.errors import InvalidTokenError
+from eoehelp_api.core.ratelimit import limiter
+from eoehelp_api.deps import (
     REFRESH_COOKIE_NAME,
     REFRESH_COOKIE_PATH,
     Principal,
@@ -12,8 +14,6 @@ from eoehelp_api.core.deps import (
     get_principal,
     get_session,
 )
-from eoehelp_api.core.errors import InvalidTokenError
-from eoehelp_api.core.ratelimit import limiter
 from eoehelp_api.identity.auth_schemas import (
     AccessTokenResponse,
     MagicLinkRequest,

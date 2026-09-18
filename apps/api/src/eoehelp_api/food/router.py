@@ -8,12 +8,13 @@ import uuid
 from datetime import date
 
 from fastapi import APIRouter, Depends, Path, Query, Request, Response, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.audit.service import AuditContext
 from eoehelp_api.core import ratelimit
-from eoehelp_api.core.deps import (
+from eoehelp_api.core.errors import NotFoundError, ServiceUnavailableError
+from eoehelp_api.core.ratelimit import limiter
+from eoehelp_api.deps import (
     Principal,
     get_authenticated_audit_context,
     get_current_patient,
@@ -21,10 +22,8 @@ from eoehelp_api.core.deps import (
     get_principal,
     get_session,
 )
-from eoehelp_api.core.errors import NotFoundError, ServiceUnavailableError
-from eoehelp_api.core.ratelimit import limiter
+from eoehelp_api.food import repository
 from eoehelp_api.food.enums import FoodDataSource
-from eoehelp_api.food.models import CatalogIngredient
 from eoehelp_api.food.presenters import product_read
 from eoehelp_api.food.products.provider import FoodData, FoodDataUnavailableError, get_food_data
 from eoehelp_api.food.schemas import (
@@ -57,8 +56,8 @@ async def list_catalog(
     Around a hundred rows, sent whole so the client can search as the patient
     types without a request per keystroke.
     """
-    result = await session.execute(select(CatalogIngredient).order_by(CatalogIngredient.name))
-    return [CatalogIngredientRead.model_validate(row) for row in result.scalars()]
+    rows = await repository.catalog_ingredients(session)
+    return [CatalogIngredientRead.model_validate(row) for row in rows]
 
 
 # --- products -----------------------------------------------------------------

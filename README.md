@@ -63,8 +63,8 @@ not. The share-link design is what holds that line.
 ## Layout
 
 ```
-apps/api        FastAPI service — routers, services, repositories, models
-apps/web        Angular 22 SPA — standalone components, signals, zoneless
+apps/api        FastAPI service, one package per domain (ADR 0010)
+apps/web        Angular 22 SPA: standalone components, signals, zoneless
 packages/openapi  Committed API contract; CI fails if it drifts from the code
 infra           Container and database bootstrap
 docs/adr        Decision records, including the ones that carry legal weight

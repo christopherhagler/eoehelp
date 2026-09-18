@@ -35,13 +35,23 @@ exercised is the artefact that actually ships.
 
 ## Layout
 
+One package per domain. See
+[ADR 0010](../../docs/adr/0010-code-organization.md) for the reasoning and the
+dependency rules that `tests/test_architecture.py` enforces.
+
 | Path | Responsibility |
 |---|---|
-| `routers/` | HTTP layer only — request/response mapping, no business logic |
-| `services/` | Business logic: auth flows, scoring, report assembly, audit |
-| `repositories/` | The only code that queries patient-owned tables, always scoped |
-| `models/` | SQLAlchemy models; anything not imported in `models.py` is invisible to Alembic |
-| `schemas/` | Pydantic DTOs — ORM objects are never returned directly |
+| `config.py`, `observability.py`, `db/`, `core/` | Foundation: settings, PHI-scrubbed logging, sessions and RLS scope, security, errors |
+| `audit/` | The append-only audit trail, written in the caller's transaction |
+| `identity/` | Users, patients, consent, sign-in; never imports clinical code |
+| `symptoms/`, `medications/`, `food/`, `procedures/` | Clinical domains, each with its models, schemas, repository, service, and router |
+| `reference/` | Reference data the client needs to send valid requests |
+| `deps.py`, `health.py`, `main.py` | Request wiring and app assembly |
+| `models.py` | Model registry; a model not imported here is invisible to Alembic |
+
+Within a domain, routers only map HTTP, services hold the rules, repositories
+are the only code that queries patient-owned tables, and schemas are the only
+types returned. ORM objects never are.
 
 ## Invariants
 

@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.audit.service import AuditContext
-from eoehelp_api.core.deps import (
+from eoehelp_api.deps import (
     get_authenticated_audit_context,
     get_current_patient,
     get_patient_session,

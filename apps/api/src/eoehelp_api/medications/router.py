@@ -8,11 +8,10 @@ import uuid
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query, Response, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.audit.service import AuditContext
-from eoehelp_api.core.deps import (
+from eoehelp_api.deps import (
     Principal,
     get_authenticated_audit_context,
     get_current_patient,
@@ -21,8 +20,7 @@ from eoehelp_api.core.deps import (
     get_session,
 )
 from eoehelp_api.identity.patient import Patient
-from eoehelp_api.medications import schedules
-from eoehelp_api.medications.models import MedicationCatalogEntry
+from eoehelp_api.medications import repository, schedules
 from eoehelp_api.medications.schemas import (
     AdherenceRead,
     AdherenceSummary,
@@ -52,12 +50,8 @@ async def list_catalog(
     Reference data, so it is not under /me and writes no audit row — reading the
     list discloses nothing about the reader.
     """
-    result = await session.execute(
-        select(MedicationCatalogEntry).order_by(
-            MedicationCatalogEntry.drug_class, MedicationCatalogEntry.generic_name
-        )
-    )
-    return [MedicationCatalogItem.model_validate(row) for row in result.scalars()]
+    rows = await repository.catalog_entries(session)
+    return [MedicationCatalogItem.model_validate(row) for row in rows]
 
 
 def _adherence_response(row: AdherenceRow) -> AdherenceRead:

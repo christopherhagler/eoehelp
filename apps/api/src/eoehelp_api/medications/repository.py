@@ -1,4 +1,4 @@
-"""Patient-scoped access to medications and dose events."""
+"""Access to the patient's medications and dose events, and the medication catalog."""
 
 import uuid
 from datetime import datetime
@@ -7,7 +7,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.core.errors import NotFoundError
-from eoehelp_api.medications.models import Medication, MedicationDose
+from eoehelp_api.medications.models import Medication, MedicationCatalogEntry, MedicationDose
+
+
+async def catalog_entries(session: AsyncSession) -> list[MedicationCatalogEntry]:
+    """The medication catalog, grouped by drug class. Reference data: no patient scope."""
+    result = await session.execute(
+        select(MedicationCatalogEntry).order_by(
+            MedicationCatalogEntry.drug_class, MedicationCatalogEntry.generic_name
+        )
+    )
+    return list(result.scalars())
 
 
 class MedicationRepository:

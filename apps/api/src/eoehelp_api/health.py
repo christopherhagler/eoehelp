@@ -3,7 +3,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api import __version__
-from eoehelp_api.core.deps import get_session
+from eoehelp_api.deps import get_session
 
 router = APIRouter(tags=["health"])
 

@@ -1,4 +1,4 @@
-"""Patient-scoped access to logged food and the patient's own ingredients."""
+"""Access to logged food, the patient's own ingredients, and the ingredient catalog."""
 
 import uuid
 from collections.abc import Collection
@@ -13,6 +13,12 @@ from eoehelp_api.food.enums import AllergenGroup
 from eoehelp_api.food.models import CatalogIngredient, CustomIngredient, FoodLogItem, FoodProduct
 from eoehelp_api.food.products.records import ProductRecord
 from eoehelp_api.food.products.vocabulary import ordered
+
+
+async def catalog_ingredients(session: AsyncSession) -> list[CatalogIngredient]:
+    """The whole ingredient catalog, by name. Reference data: no patient scope."""
+    result = await session.execute(select(CatalogIngredient).order_by(CatalogIngredient.name))
+    return list(result.scalars())
 
 
 class FoodRepository:

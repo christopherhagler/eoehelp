@@ -12,12 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
-from eoehelp_api import __version__
+from eoehelp_api import __version__, health
 from eoehelp_api.config import get_settings
-from eoehelp_api.core import health
-from eoehelp_api.core.deps import API_V1_PREFIX
 from eoehelp_api.core.ratelimit import limiter, rate_limit_exceeded
 from eoehelp_api.db.session import dispose_engine
+from eoehelp_api.deps import API_V1_PREFIX
 from eoehelp_api.food import router as food_router
 from eoehelp_api.identity import auth_router, me_router
 from eoehelp_api.medications import router as medications_router

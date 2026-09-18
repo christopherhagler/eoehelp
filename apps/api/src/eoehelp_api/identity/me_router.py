@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.audit.service import AuditContext
 from eoehelp_api.config import Settings, get_settings
-from eoehelp_api.core.deps import (
+from eoehelp_api.core.errors import UnauthenticatedError
+from eoehelp_api.deps import (
     REFRESH_COOKIE_NAME,
     REFRESH_COOKIE_PATH,
     PatientPrincipal,
@@ -22,7 +23,6 @@ from eoehelp_api.core.deps import (
     get_patient_session,
     get_session,
 )
-from eoehelp_api.core.errors import UnauthenticatedError
 from eoehelp_api.identity.onboarding_service import OnboardingService
 from eoehelp_api.identity.patient import Patient
 from eoehelp_api.identity.patient_schemas import (
