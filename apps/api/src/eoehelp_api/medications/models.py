@@ -14,7 +14,6 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
-    Enum,
     ForeignKey,
     Index,
     LargeBinary,
@@ -26,12 +25,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from eoehelp_api.db.base import Base, Timestamps, UUIDPrimaryKey
+from eoehelp_api.db.base import Base, Timestamps, UUIDPrimaryKey, pg_enum
 from eoehelp_api.medications.enums import DoseStatus, DrugClass, MedicationStopReason
-
-
-def _pg_enum(enum_type: type, name: str) -> Enum:
-    return Enum(enum_type, name=name, values_callable=lambda e: [m.value for m in e])
 
 
 class MedicationCatalogEntry(Base):
@@ -48,7 +43,7 @@ class MedicationCatalogEntry(Base):
 
     code: Mapped[str] = mapped_column(String(64), primary_key=True)
     generic_name: Mapped[str] = mapped_column(String(120), nullable=False)
-    drug_class: Mapped[DrugClass] = mapped_column(_pg_enum(DrugClass, "drug_class"), nullable=False)
+    drug_class: Mapped[DrugClass] = mapped_column(pg_enum(DrugClass, "drug_class"), nullable=False)
     default_route: Mapped[str | None] = mapped_column(String(32))
     default_unit: Mapped[str | None] = mapped_column(String(32))
 
@@ -108,7 +103,7 @@ class Medication(UUIDPrimaryKey, Timestamps, Base):
     started_on: Mapped[date] = mapped_column(Date, nullable=False)
     ended_on: Mapped[date | None] = mapped_column(Date)
     stop_reason: Mapped[MedicationStopReason | None] = mapped_column(
-        _pg_enum(MedicationStopReason, "medication_stop_reason")
+        pg_enum(MedicationStopReason, "medication_stop_reason")
     )
 
     prescriber_note_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary)
@@ -146,7 +141,7 @@ class MedicationDose(UUIDPrimaryKey, Base):
     )
 
     taken_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    status: Mapped[DoseStatus] = mapped_column(_pg_enum(DoseStatus, "dose_status"), nullable=False)
+    status: Mapped[DoseStatus] = mapped_column(pg_enum(DoseStatus, "dose_status"), nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

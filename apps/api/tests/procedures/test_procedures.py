@@ -1,6 +1,5 @@
 """Endoscopy records through the API."""
 
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -11,13 +10,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.audit.models import AuditLog
-from helpers import auth
+from helpers import auth, days_ago
 
 SCOPES = "/api/v1/me/endoscopies"
-
-
-def days_ago(n: int) -> str:
-    return (datetime.now(UTC).date() - timedelta(days=n)).isoformat()
 
 
 def report(**overrides: Any) -> dict[str, Any]:

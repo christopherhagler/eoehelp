@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api import audit
 from eoehelp_api.audit.service import AuditContext
+from eoehelp_api.core import entry_dates
 from eoehelp_api.core.errors import BadRequestError, ConflictError, NotFoundError
 from eoehelp_api.core.security import FieldCipher
 from eoehelp_api.identity.patient import Patient
@@ -60,7 +61,7 @@ class MedicationService:
 
     @property
     def today(self) -> date:
-        return datetime.now(self._zone).date()
+        return entry_dates.patient_today(self._patient.timezone)
 
     def _day_bounds(self, day: date) -> tuple[datetime, datetime]:
         """The patient's calendar day as an absolute instant range.

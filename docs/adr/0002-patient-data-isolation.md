@@ -31,7 +31,7 @@ the isolation mechanism itself becoming the disclosure.
 Policies use `NULLIF(current_setting(..., true), '')::uuid`, so an unscoped
 session yields NULL, matches nothing, and returns zero rows.
 
-**3. Tests that prove it.** `tests/test_patient_isolation.py` connects as
+**3. Tests that prove it.** `tests/db/test_patient_isolation.py` connects as
 `app_runtime` — as the owner these tests would pass while proving nothing — and
 asserts that an unscoped query returns nothing, that naming another patient's id
 explicitly still returns nothing, and that scope does not survive into a

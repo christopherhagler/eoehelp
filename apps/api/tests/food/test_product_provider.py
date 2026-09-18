@@ -18,7 +18,7 @@ from eoehelp_api.food.products.openfoodfacts import OpenFoodFactsClient
 from eoehelp_api.food.products.provider import FoodDataUnavailableError, HttpFoodData
 from eoehelp_api.food.products.usda import UsdaClient
 
-FIXTURES = Path(__file__).parent / "fixtures" / "fooddata"
+FIXTURES = Path(__file__).parent / "fixtures"
 OFF = "https://off.test"
 OFF_SEARCH = "https://search.off.test"
 USDA = "https://usda.test/fdc/v1"

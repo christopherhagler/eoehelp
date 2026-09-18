@@ -3,7 +3,7 @@
 Anything logged here may reach CloudWatch and an external error tracker, so the
 redaction below is a security control rather than tidiness: a symptom note or an
 email address in a log line is a disclosure. Field names are denied by name, and
-`scrub_event` is exercised directly by tests/test_phi_scrubbing.py.
+`scrub_event` is exercised directly by tests/core/test_phi_scrubbing.py.
 """
 
 import logging

@@ -2,11 +2,11 @@ import uuid
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, Date, Enum, ForeignKey, SmallInteger, String
+from sqlalchemy import CheckConstraint, Date, ForeignKey, SmallInteger, String
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from eoehelp_api.db.base import Base, Timestamps, UUIDPrimaryKey
+from eoehelp_api.db.base import Base, Timestamps, UUIDPrimaryKey, pg_enum
 from eoehelp_api.identity.enums import SexAtBirth
 
 if TYPE_CHECKING:
@@ -43,9 +43,7 @@ class Patient(UUIDPrimaryKey, Timestamps, Base):
     # sufficient. A pediatric module needs age in months and must revisit this.
     birth_year: Mapped[int | None] = mapped_column(SmallInteger)
 
-    sex_at_birth: Mapped[SexAtBirth | None] = mapped_column(
-        Enum(SexAtBirth, name="sex_at_birth", values_callable=lambda e: [m.value for m in e])
-    )
+    sex_at_birth: Mapped[SexAtBirth | None] = mapped_column(pg_enum(SexAtBirth, "sex_at_birth"))
 
     # Month precision: stored as the first of the month by convention.
     diagnosis_month: Mapped[date | None] = mapped_column(Date)

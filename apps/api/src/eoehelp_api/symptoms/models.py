@@ -11,7 +11,6 @@ from datetime import date
 from sqlalchemy import (
     CheckConstraint,
     Date,
-    Enum,
     ForeignKey,
     Index,
     LargeBinary,
@@ -24,12 +23,8 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from eoehelp_api.core.entry_dates import EntryMethod
-from eoehelp_api.db.base import Base, Timestamps, UUIDPrimaryKey
+from eoehelp_api.db.base import Base, Timestamps, UUIDPrimaryKey, pg_enum
 from eoehelp_api.symptoms.enums import DysphagiaRelief
-
-
-def _pg_enum(enum_type: type, name: str) -> Enum:
-    return Enum(enum_type, name=name, values_callable=lambda e: [m.value for m in e])
 
 
 class ClinicalInstrument(Base):
@@ -118,7 +113,7 @@ class SymptomEntry(UUIDPrimaryKey, Timestamps, Base):
     # DSQ question 3, asked only when question 2 was yes: what it took to get
     # relief at the worst episode. Scored 0-4 in symptoms/scoring.py.
     dysphagia_relief: Mapped[DysphagiaRelief | None] = mapped_column(
-        _pg_enum(DysphagiaRelief, "dysphagia_relief")
+        pg_enum(DysphagiaRelief, "dysphagia_relief")
     )
 
     # Pain on swallowing. Recorded and reported, but deliberately not part of the
@@ -144,7 +139,7 @@ class SymptomEntry(UUIDPrimaryKey, Timestamps, Base):
     notes_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary)
 
     entry_method: Mapped[EntryMethod] = mapped_column(
-        _pg_enum(EntryMethod, "entry_method"), nullable=False
+        pg_enum(EntryMethod, "entry_method"), nullable=False
     )
 
     instrument_code: Mapped[str] = mapped_column(

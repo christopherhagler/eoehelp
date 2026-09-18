@@ -1,9 +1,10 @@
 """Declarative base and shared column conventions."""
 
+import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, MetaData, func
+from sqlalchemy import DateTime, Enum, MetaData, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -16,6 +17,16 @@ NAMING_CONVENTION = {
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
     "pk": "pk_%(table_name)s",
 }
+
+
+def pg_enum(enum_type: type[enum.Enum], name: str) -> Enum:
+    """A native Postgres enum that stores each member's value, not its name.
+
+    SQLAlchemy stores names by default, so `DysphagiaRelief.DRANK_LIQUID` would
+    land as 'DRANK_LIQUID' while the migrations, the API, and every export use
+    'drank_liquid'.
+    """
+    return Enum(enum_type, name=name, values_callable=lambda e: [m.value for m in e])
 
 
 class Base(DeclarativeBase):

@@ -14,8 +14,7 @@ flag exists to let researchers weigh.
 """
 
 import uuid
-from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import date, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,7 +46,7 @@ class SymptomService:
 
     @property
     def today(self) -> date:
-        return datetime.now(ZoneInfo(self._patient.timezone)).date()
+        return entry_dates.patient_today(self._patient.timezone)
 
     def _validate_entry_date(self, entry_date: date) -> EntryMethod:
         return entry_dates.classify(entry_date, today=self.today)

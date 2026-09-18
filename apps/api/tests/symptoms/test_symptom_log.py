@@ -1,6 +1,6 @@
 """The daily symptom log, end to end through the API."""
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -9,13 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.audit.models import AuditLog
-from helpers import auth
+from helpers import auth, utc_today
 
 SYMPTOMS = "/api/v1/me/symptoms"
-
-
-def today() -> date:
-    return datetime.now(UTC).date()
 
 
 CLEAR_DAY = {"ate_solid_food": True, "dysphagia_occurred": False}
@@ -33,10 +29,12 @@ class TestWritingADay:
         """The common case has to be trivial or patients stop logging, and every
         downstream feature loses its input."""
         access, _ = await onboard()
-        response = await client.put(f"{SYMPTOMS}/{today()}", json=CLEAR_DAY, headers=auth(access))
+        response = await client.put(
+            f"{SYMPTOMS}/{utc_today()}", json=CLEAR_DAY, headers=auth(access)
+        )
         assert response.status_code == 200
         body = response.json()
-        assert body["entry_date"] == today().isoformat()
+        assert body["entry_date"] == utc_today().isoformat()
         assert body["daily_score"] == 0
         assert body["entry_method"] == "same_day"
         assert body["instrument_code"] == "DSQ"
@@ -47,8 +45,8 @@ class TestWritingADay:
         """PUT by date, so an offline client replaying a queued submission cannot
         produce a second entry for one day."""
         access, _ = await onboard()
-        await client.put(f"{SYMPTOMS}/{today()}", json=CLEAR_DAY, headers=auth(access))
-        second = await client.put(f"{SYMPTOMS}/{today()}", json=BAD_DAY, headers=auth(access))
+        await client.put(f"{SYMPTOMS}/{utc_today()}", json=CLEAR_DAY, headers=auth(access))
+        second = await client.put(f"{SYMPTOMS}/{utc_today()}", json=BAD_DAY, headers=auth(access))
 
         assert second.status_code == 200
         # 2 for question 2 and 3 for vomiting; pain is scored separately.
@@ -65,7 +63,7 @@ class TestWritingADay:
         access, _ = await onboard()
         secret = "Dr Alvarez said to call if it happens again"
         await client.put(
-            f"{SYMPTOMS}/{today()}",
+            f"{SYMPTOMS}/{utc_today()}",
             json={**CLEAR_DAY, "notes": secret},
             headers=auth(access),
         )
@@ -78,7 +76,7 @@ class TestWritingADay:
 
         # Still readable through the API, which is the point of encrypting rather
         # than dropping it.
-        read_back = await client.get(f"{SYMPTOMS}/{today()}", headers=auth(access))
+        read_back = await client.get(f"{SYMPTOMS}/{utc_today()}", headers=auth(access))
         assert read_back.json()["notes"] == secret
 
     async def test_a_day_without_solid_food_cannot_carry_a_dysphagia_answer(
@@ -86,7 +84,7 @@ class TestWritingADay:
     ) -> None:
         access, _ = await onboard()
         response = await client.put(
-            f"{SYMPTOMS}/{today()}",
+            f"{SYMPTOMS}/{utc_today()}",
             json={"ate_solid_food": False, "dysphagia_occurred": False},
             headers=auth(access),
         )
@@ -97,7 +95,7 @@ class TestWritingADay:
     ) -> None:
         access, _ = await onboard()
         response = await client.put(
-            f"{SYMPTOMS}/{today()}",
+            f"{SYMPTOMS}/{utc_today()}",
             json={"ate_solid_food": True, "dysphagia_occurred": True},
             headers=auth(access),
         )
@@ -110,7 +108,7 @@ class TestWritingADay:
         treating it as clear would lower the score."""
         access, _ = await onboard()
         response = await client.put(
-            f"{SYMPTOMS}/{today()}", json={"ate_solid_food": True}, headers=auth(access)
+            f"{SYMPTOMS}/{utc_today()}", json={"ate_solid_food": True}, headers=auth(access)
         )
         assert response.status_code == 422
 
@@ -119,7 +117,7 @@ class TestWritingADay:
     ) -> None:
         access, _ = await onboard()
         response = await client.put(
-            f"{SYMPTOMS}/{today()}",
+            f"{SYMPTOMS}/{utc_today()}",
             json={**CLEAR_DAY, "dysphagia_relief": "drank_liquid"},
             headers=auth(access),
         )
@@ -130,7 +128,7 @@ class TestWritingADay:
     ) -> None:
         access, _ = await onboard()
         response = await client.put(
-            f"{SYMPTOMS}/{today()}",
+            f"{SYMPTOMS}/{utc_today()}",
             json={
                 "ate_solid_food": True,
                 "dysphagia_occurred": True,
@@ -146,7 +144,7 @@ class TestWritingADay:
     ) -> None:
         access, _ = await onboard()
         response = await client.put(
-            f"{SYMPTOMS}/{today()}",
+            f"{SYMPTOMS}/{utc_today()}",
             json={
                 "ate_solid_food": True,
                 "dysphagia_occurred": True,
@@ -164,7 +162,7 @@ class TestWritingADay:
     ) -> None:
         """The validator explains; the check constraint is the guarantee."""
         access, _ = await onboard()
-        await client.put(f"{SYMPTOMS}/{today()}", json=CLEAR_DAY, headers=auth(access))
+        await client.put(f"{SYMPTOMS}/{utc_today()}", json=CLEAR_DAY, headers=auth(access))
         with pytest.raises(IntegrityError, match="relief_answers_dysphagia"):
             await session.execute(text("UPDATE symptom_entries SET dysphagia_relief = 'vomited'"))
         await session.rollback()
@@ -174,7 +172,7 @@ class TestDateRules:
     async def test_a_future_day_is_refused(self, client: AsyncClient, onboard) -> None:
         access, _ = await onboard()
         response = await client.put(
-            f"{SYMPTOMS}/{today() + timedelta(days=1)}", json=CLEAR_DAY, headers=auth(access)
+            f"{SYMPTOMS}/{utc_today() + timedelta(days=1)}", json=CLEAR_DAY, headers=auth(access)
         )
         assert response.status_code == 400
 
@@ -186,7 +184,7 @@ class TestDateRules:
         client."""
         access, _ = await onboard()
         response = await client.put(
-            f"{SYMPTOMS}/{today() - timedelta(days=3)}", json=CLEAR_DAY, headers=auth(access)
+            f"{SYMPTOMS}/{utc_today() - timedelta(days=3)}", json=CLEAR_DAY, headers=auth(access)
         )
         assert response.status_code == 200
         assert response.json()["entry_method"] == "backfill"
@@ -194,7 +192,7 @@ class TestDateRules:
     async def test_older_than_a_week_is_refused(self, client: AsyncClient, onboard) -> None:
         access, _ = await onboard()
         response = await client.put(
-            f"{SYMPTOMS}/{today() - timedelta(days=8)}", json=CLEAR_DAY, headers=auth(access)
+            f"{SYMPTOMS}/{utc_today() - timedelta(days=8)}", json=CLEAR_DAY, headers=auth(access)
         )
         assert response.status_code == 400
 
@@ -218,7 +216,7 @@ class TestReadingBack:
         access, _ = await onboard()
         for offset in (2, 0, 1):
             await client.put(
-                f"{SYMPTOMS}/{today() - timedelta(days=offset)}",
+                f"{SYMPTOMS}/{utc_today() - timedelta(days=offset)}",
                 json=CLEAR_DAY,
                 headers=auth(access),
             )
@@ -231,15 +229,17 @@ class TestReadingBack:
 
     async def test_a_day_that_was_never_logged_is_a_404(self, client: AsyncClient, onboard) -> None:
         access, _ = await onboard()
-        response = await client.get(f"{SYMPTOMS}/{today()}", headers=auth(access))
+        response = await client.get(f"{SYMPTOMS}/{utc_today()}", headers=auth(access))
         assert response.status_code == 404
 
     async def test_deleting_a_day_removes_it(self, client: AsyncClient, onboard) -> None:
         access, _ = await onboard()
-        await client.put(f"{SYMPTOMS}/{today()}", json=CLEAR_DAY, headers=auth(access))
-        deleted = await client.delete(f"{SYMPTOMS}/{today()}", headers=auth(access))
+        await client.put(f"{SYMPTOMS}/{utc_today()}", json=CLEAR_DAY, headers=auth(access))
+        deleted = await client.delete(f"{SYMPTOMS}/{utc_today()}", headers=auth(access))
         assert deleted.status_code == 204
-        assert (await client.get(f"{SYMPTOMS}/{today()}", headers=auth(access))).status_code == 404
+        assert (
+            await client.get(f"{SYMPTOMS}/{utc_today()}", headers=auth(access))
+        ).status_code == 404
 
 
 class TestIsolation:
@@ -250,9 +250,9 @@ class TestIsolation:
         access_a, _ = await onboard("alice@example.com")
         access_b, _ = await onboard("bob@example.com")
 
-        await client.put(f"{SYMPTOMS}/{today()}", json=BAD_DAY, headers=auth(access_a))
+        await client.put(f"{SYMPTOMS}/{utc_today()}", json=BAD_DAY, headers=auth(access_a))
 
-        as_bob = await client.get(f"{SYMPTOMS}/{today()}", headers=auth(access_b))
+        as_bob = await client.get(f"{SYMPTOMS}/{utc_today()}", headers=auth(access_b))
         assert as_bob.status_code == 404
 
         bobs_list = await client.get(SYMPTOMS, headers=auth(access_b))
@@ -264,8 +264,10 @@ class TestIsolation:
         access_a, _ = await onboard("alice@example.com")
         access_b, _ = await onboard("bob@example.com")
 
-        await client.put(f"{SYMPTOMS}/{today()}", json=CLEAR_DAY, headers=auth(access_a))
-        response = await client.put(f"{SYMPTOMS}/{today()}", json=BAD_DAY, headers=auth(access_b))
+        await client.put(f"{SYMPTOMS}/{utc_today()}", json=CLEAR_DAY, headers=auth(access_a))
+        response = await client.put(
+            f"{SYMPTOMS}/{utc_today()}", json=BAD_DAY, headers=auth(access_b)
+        )
 
         assert response.status_code == 200
         count = (await session.execute(text("SELECT count(*) FROM symptom_entries"))).scalar_one()
@@ -281,7 +283,7 @@ class TestSymptomBurden:
         access, _ = await onboard()
         for offset in range(3):
             await client.put(
-                f"{SYMPTOMS}/{today() - timedelta(days=offset)}",
+                f"{SYMPTOMS}/{utc_today() - timedelta(days=offset)}",
                 json=BAD_DAY,
                 headers=auth(access),
             )
@@ -299,7 +301,7 @@ class TestSymptomBurden:
         # is exactly the earliest point a new patient can be scored.
         for offset in range(7):
             await client.put(
-                f"{SYMPTOMS}/{today() - timedelta(days=offset)}",
+                f"{SYMPTOMS}/{utc_today() - timedelta(days=offset)}",
                 json=BAD_DAY,
                 headers=auth(access),
             )
@@ -312,7 +314,7 @@ class TestSymptomBurden:
 
     async def test_the_trend_returns_one_point_per_day(self, client: AsyncClient, onboard) -> None:
         access, _ = await onboard()
-        await client.put(f"{SYMPTOMS}/{today()}", json=CLEAR_DAY, headers=auth(access))
+        await client.put(f"{SYMPTOMS}/{utc_today()}", json=CLEAR_DAY, headers=auth(access))
         response = await client.get(f"{SYMPTOMS}/burden/trend?points=10", headers=auth(access))
         assert response.status_code == 200
         assert len(response.json()["points"]) == 10
@@ -325,11 +327,11 @@ class TestAuditTrail:
         """Reads matter as much as writes: "did someone browse my records" is a
         question a breach response has to be able to answer."""
         access, _ = await onboard()
-        await client.put(f"{SYMPTOMS}/{today()}", json=CLEAR_DAY, headers=auth(access))
-        await client.put(f"{SYMPTOMS}/{today()}", json=BAD_DAY, headers=auth(access))
-        await client.get(f"{SYMPTOMS}/{today()}", headers=auth(access))
+        await client.put(f"{SYMPTOMS}/{utc_today()}", json=CLEAR_DAY, headers=auth(access))
+        await client.put(f"{SYMPTOMS}/{utc_today()}", json=BAD_DAY, headers=auth(access))
+        await client.get(f"{SYMPTOMS}/{utc_today()}", headers=auth(access))
         await client.get(SYMPTOMS, headers=auth(access))
-        await client.delete(f"{SYMPTOMS}/{today()}", headers=auth(access))
+        await client.delete(f"{SYMPTOMS}/{utc_today()}", headers=auth(access))
 
         actions = [
             r.action
@@ -349,7 +351,7 @@ class TestAuditTrail:
     ) -> None:
         access, _ = await onboard()
         await client.put(
-            f"{SYMPTOMS}/{today()}",
+            f"{SYMPTOMS}/{utc_today()}",
             json={**CLEAR_DAY, "notes": "swallowed wrong at the Thai place on Pine"},
             headers=auth(access),
         )

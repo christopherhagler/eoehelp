@@ -1,6 +1,6 @@
 """Mapping recorded Open Food Facts and USDA responses.
 
-The fixtures in fixtures/fooddata are real responses captured on 2026-09-16,
+The fixtures in fixtures/ are real responses captured on 2026-09-16,
 trimmed. Open Food Facts data is © Open Food Facts contributors, ODbL.
 """
 
@@ -12,7 +12,7 @@ from eoehelp_api.food.enums import AllergenGroup as G
 from eoehelp_api.food.enums import FoodDataSource
 from eoehelp_api.food.products import openfoodfacts, usda
 
-FIXTURES = Path(__file__).parent / "fixtures" / "fooddata"
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def load(name: str) -> Any:

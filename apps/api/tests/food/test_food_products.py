@@ -15,12 +15,11 @@ from eoehelp_api.food.enums import FoodDataSource
 from eoehelp_api.food.products import openfoodfacts, usda
 from eoehelp_api.food.products.provider import FoodDataUnavailableError, get_food_data
 from eoehelp_api.food.products.records import ProductRecord, ProductSummary
-from helpers import auth
-from test_food_log import FOODS, food
-from test_patient_isolation import _app_role_url
+from helpers import app_role_url, auth, food_item
 
+FOODS = "/api/v1/me/foods"
 PRODUCTS = "/api/v1/foods/products"
-FIXTURES = Path(__file__).parent / "fixtures" / "fooddata"
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def load(name: str) -> Any:
@@ -142,7 +141,7 @@ class TestLoggingAProduct:
         access, _ = await onboard()
         response = await client.post(
             FOODS,
-            json=food(
+            json=food_item(
                 name="Hellmann's on toast",
                 product=hellmanns_ref(),
                 ingredients=[{"code": "bread"}],
@@ -172,7 +171,7 @@ class TestLoggingAProduct:
         access, _ = await onboard()
         response = await client.post(
             FOODS,
-            json=food(product={**hellmanns_ref(), "ingredients": [{"key": "en:water"}]}),
+            json=food_item(product={**hellmanns_ref(), "ingredients": [{"key": "en:water"}]}),
             headers=auth(access),
         )
         assert response.status_code == 422
@@ -183,7 +182,7 @@ class TestLoggingAProduct:
         alice, _ = await onboard("alice@example.com")
         bob, _ = await onboard("bob@example.com")
         for access in (alice, bob, alice):
-            await client.post(FOODS, json=food(product=hellmanns_ref()), headers=auth(access))
+            await client.post(FOODS, json=food_item(product=hellmanns_ref()), headers=auth(access))
         count = (await session.execute(text("SELECT count(*) FROM food_products"))).scalar_one()
         assert count == 1
 
@@ -193,7 +192,7 @@ class TestLoggingAProduct:
         access, _ = await onboard()
         await client.post(
             FOODS,
-            json=food(name="Mayo", product=hellmanns_ref(), ingredients=[{"name": "Pickles"}]),
+            json=food_item(name="Mayo", product=hellmanns_ref(), ingredients=[{"name": "Pickles"}]),
             headers=auth(access),
         )
         lookups = recorded.lookups
@@ -204,7 +203,7 @@ class TestLoggingAProduct:
         recorded.down = True  # a re-log must not depend on the sources being up
         again = await client.post(
             FOODS,
-            json=food(
+            json=food_item(
                 name=recent["name"],
                 product={"snapshot_id": recent["product"]["snapshot_id"]},
                 ingredients=[
@@ -224,9 +223,11 @@ class TestLoggingAProduct:
     ) -> None:
         recorded.down = True
         access, _ = await onboard()
-        blocked = await client.post(FOODS, json=food(product=hellmanns_ref()), headers=auth(access))
+        blocked = await client.post(
+            FOODS, json=food_item(product=hellmanns_ref()), headers=auth(access)
+        )
         assert blocked.status_code == 503
-        by_name = await client.post(FOODS, json=food(), headers=auth(access))
+        by_name = await client.post(FOODS, json=food_item(), headers=auth(access))
         assert by_name.status_code == 201
 
     async def test_unknown_products_and_snapshots_are_refused(
@@ -237,14 +238,18 @@ class TestLoggingAProduct:
             {"source": "usda_fdc", "source_id": "999"},
             {"snapshot_id": "00000000-0000-0000-0000-000000000000"},
         ):
-            response = await client.post(FOODS, json=food(product=product), headers=auth(access))
+            response = await client.post(
+                FOODS, json=food_item(product=product), headers=auth(access)
+            )
             assert response.status_code == 400, product
         for product in (
             {"source": "usda_fdc"},
             {**hellmanns_ref(), "snapshot_id": "00000000-0000-0000-0000-000000000000"},
             {},
         ):
-            response = await client.post(FOODS, json=food(product=product), headers=auth(access))
+            response = await client.post(
+                FOODS, json=food_item(product=product), headers=auth(access)
+            )
             assert response.status_code == 422, product
 
     async def test_editing_can_remove_the_product(
@@ -252,9 +257,9 @@ class TestLoggingAProduct:
     ) -> None:
         access, _ = await onboard()
         item = (
-            await client.post(FOODS, json=food(product=hellmanns_ref()), headers=auth(access))
+            await client.post(FOODS, json=food_item(product=hellmanns_ref()), headers=auth(access))
         ).json()
-        edited = await client.put(f"{FOODS}/{item['id']}", json=food(), headers=auth(access))
+        edited = await client.put(f"{FOODS}/{item['id']}", json=food_item(), headers=auth(access))
         assert edited.status_code == 200, edited.text
         assert edited.json()["product"] is None
         assert all(i["provenance"] == "patient" for i in edited.json()["ingredients"])
@@ -263,7 +268,7 @@ class TestLoggingAProduct:
         self, client: AsyncClient, onboard, recorded: RecordedFoodData, session: AsyncSession
     ) -> None:
         access, _ = await onboard()
-        await client.post(FOODS, json=food(product=hellmanns_ref()), headers=auth(access))
+        await client.post(FOODS, json=food_item(product=hellmanns_ref()), headers=auth(access))
         row = (
             await session.execute(select(AuditLog).where(AuditLog.action == "food_log_item.create"))
         ).scalar_one()
@@ -282,7 +287,7 @@ class TestTypedNames:
         item = (
             await client.post(
                 FOODS,
-                json=food(ingredients=[{"name": "Sodium Benzoate"}, {"name": "cashew cream"}]),
+                json=food_item(ingredients=[{"name": "Sodium Benzoate"}, {"name": "cashew cream"}]),
                 headers=auth(access),
             )
         ).json()
@@ -298,9 +303,9 @@ class TestSnapshotsAreEvidence:
         self, client: AsyncClient, onboard, recorded: RecordedFoodData, test_database_url: str
     ) -> None:
         access, _ = await onboard()
-        await client.post(FOODS, json=food(product=hellmanns_ref()), headers=auth(access))
+        await client.post(FOODS, json=food_item(product=hellmanns_ref()), headers=auth(access))
 
-        engine = create_async_engine(_app_role_url(test_database_url))
+        engine = create_async_engine(app_role_url(test_database_url))
         try:
             async with engine.connect() as conn:
                 count = await conn.execute(text("SELECT count(*) FROM food_products"))

@@ -36,7 +36,7 @@ class TestScales:
         """The database check constraints are written out in migration 0005. If
         they and the service disagreed, one layer would accept what the other
         refuses."""
-        path = Path(__file__).resolve().parents[1] / "alembic/versions/0005_procedures.py"
+        path = Path(__file__).resolve().parents[2] / "alembic/versions/0005_procedures.py"
         spec = importlib.util.spec_from_file_location("migration_0005", path)
         assert spec is not None
         assert spec.loader is not None

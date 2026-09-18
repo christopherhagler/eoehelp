@@ -1,12 +1,12 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from eoehelp_api.db.base import Base, UUIDPrimaryKey
+from eoehelp_api.db.base import Base, UUIDPrimaryKey, pg_enum
 from eoehelp_api.identity.enums import ConsentType, ResearchScope
 
 
@@ -25,7 +25,7 @@ class Consent(UUIDPrimaryKey, Base):
         postgresql.UUID(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False
     )
     consent_type: Mapped[ConsentType] = mapped_column(
-        Enum(ConsentType, name="consent_type", values_callable=lambda e: [m.value for m in e]),
+        pg_enum(ConsentType, "consent_type"),
         nullable=False,
     )
 
@@ -61,7 +61,7 @@ class ResearchConsentScope(Base):
         primary_key=True,
     )
     scope: Mapped[ResearchScope] = mapped_column(
-        Enum(ResearchScope, name="research_scope", values_callable=lambda e: [m.value for m in e]),
+        pg_enum(ResearchScope, "research_scope"),
         primary_key=True,
     )
 

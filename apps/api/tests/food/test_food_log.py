@@ -1,6 +1,5 @@
 """Food and ingredient logging through the API."""
 
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from httpx import AsyncClient
@@ -8,28 +7,14 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.audit.models import AuditLog
-from helpers import auth
+from helpers import auth, days_ago, food_item
 
 FOODS = "/api/v1/me/foods"
 CATALOG = "/api/v1/foods/ingredients"
 
 
-def days_ago(n: int) -> str:
-    return (datetime.now(UTC).date() - timedelta(days=n)).isoformat()
-
-
-def food(**overrides: Any) -> dict[str, Any]:
-    return {
-        "eaten_on": days_ago(0),
-        "meal": "lunch",
-        "name": "Cheese toastie",
-        "ingredients": [{"code": "bread"}, {"code": "cheese"}, {"code": "butter"}],
-        **overrides,
-    }
-
-
 async def log(client: AsyncClient, access: str, **overrides: Any) -> dict[str, Any]:
-    response = await client.post(FOODS, json=food(**overrides), headers=auth(access))
+    response = await client.post(FOODS, json=food_item(**overrides), headers=auth(access))
     assert response.status_code == 201, response.text
     return dict(response.json())
 
@@ -145,7 +130,7 @@ class TestLogging:
     async def test_an_unknown_catalog_code_is_refused(self, client: AsyncClient, onboard) -> None:
         access, _ = await onboard()
         response = await client.post(
-            FOODS, json=food(ingredients=[{"code": "unobtainium"}]), headers=auth(access)
+            FOODS, json=food_item(ingredients=[{"code": "unobtainium"}]), headers=auth(access)
         )
         assert response.status_code == 400
 
@@ -154,19 +139,23 @@ class TestLogging:
     ) -> None:
         access, _ = await onboard()
         for ref in ({}, {"code": "milk", "name": "milk"}, {"code": "milk", "allergen_groups": []}):
-            response = await client.post(FOODS, json=food(ingredients=[ref]), headers=auth(access))
+            response = await client.post(
+                FOODS, json=food_item(ingredients=[ref]), headers=auth(access)
+            )
             assert response.status_code == 422, ref
 
     async def test_a_blank_name_is_refused(self, client: AsyncClient, onboard) -> None:
         access, _ = await onboard()
-        response = await client.post(FOODS, json=food(name="   "), headers=auth(access))
+        response = await client.post(FOODS, json=food_item(name="   "), headers=auth(access))
         assert response.status_code == 422
 
 
 class TestDateRules:
     async def test_a_future_day_is_refused(self, client: AsyncClient, onboard) -> None:
         access, _ = await onboard()
-        response = await client.post(FOODS, json=food(eaten_on=days_ago(-2)), headers=auth(access))
+        response = await client.post(
+            FOODS, json=food_item(eaten_on=days_ago(-2)), headers=auth(access)
+        )
         assert response.status_code == 400
 
     async def test_recent_backfill_is_allowed_and_flagged(
@@ -183,10 +172,10 @@ class TestDateRules:
         being accepted while the other is refused would be incoherent."""
         access, _ = await onboard()
         assert (
-            await client.post(FOODS, json=food(eaten_on=days_ago(7)), headers=auth(access))
+            await client.post(FOODS, json=food_item(eaten_on=days_ago(7)), headers=auth(access))
         ).status_code == 201
         assert (
-            await client.post(FOODS, json=food(eaten_on=days_ago(8)), headers=auth(access))
+            await client.post(FOODS, json=food_item(eaten_on=days_ago(8)), headers=auth(access))
         ).status_code == 400
 
 
@@ -200,7 +189,7 @@ class TestEditing:
 
         response = await client.put(
             f"{FOODS}/{today['id']}",
-            json=food(
+            json=food_item(
                 name="Cheese toastie (vegan)",
                 ingredients=[{"code": "bread"}, {"name": "cashew cheese"}, {"code": "bread"}],
             ),
@@ -227,7 +216,7 @@ class TestEditing:
         hold "bread" twice on one item."""
         access, _ = await onboard()
         item = await log(client, access)
-        response = await client.put(f"{FOODS}/{item['id']}", json=food(), headers=auth(access))
+        response = await client.put(f"{FOODS}/{item['id']}", json=food_item(), headers=auth(access))
         assert response.status_code == 200, response.text
         assert [i["code"] for i in response.json()["ingredients"]] == ["bread", "cheese", "butter"]
 
@@ -237,7 +226,7 @@ class TestEditing:
         access, _ = await onboard()
         item = await log(client, access)
         response = await client.put(
-            f"{FOODS}/{item['id']}", json=food(eaten_on=days_ago(2)), headers=auth(access)
+            f"{FOODS}/{item['id']}", json=food_item(eaten_on=days_ago(2)), headers=auth(access)
         )
         assert response.json()["entry_method"] == "same_day"
 
@@ -252,7 +241,7 @@ class TestEditing:
         )
         await session.commit()
 
-        edit = await client.put(f"{FOODS}/{item['id']}", json=food(), headers=auth(access))
+        edit = await client.put(f"{FOODS}/{item['id']}", json=food_item(), headers=auth(access))
         assert edit.status_code == 400
 
         delete = await client.delete(f"{FOODS}/{item['id']}", headers=auth(access))
@@ -410,7 +399,7 @@ class TestIsolation:
         item = await log(client, alice)
 
         assert (
-            await client.put(f"{FOODS}/{item['id']}", json=food(), headers=auth(bob))
+            await client.put(f"{FOODS}/{item['id']}", json=food_item(), headers=auth(bob))
         ).status_code == 404
         assert (await client.delete(f"{FOODS}/{item['id']}", headers=auth(bob))).status_code == 404
         assert (await client.get(FOODS, headers=auth(bob))).json()["items"] == []
@@ -426,7 +415,7 @@ class TestIsolation:
 
         borrowed = await client.post(
             FOODS,
-            json=food(ingredients=[{"custom_ingredient_id": alice_ingredient}]),
+            json=food_item(ingredients=[{"custom_ingredient_id": alice_ingredient}]),
             headers=auth(bob),
         )
         assert borrowed.status_code == 400
@@ -478,7 +467,7 @@ class TestAuditTrail:
             name="Birthday cake at Dr Okafor's",
             ingredients=[{"code": "egg"}, {"name": "Aunt Mae's frosting"}],
         )
-        await client.put(f"{FOODS}/{item['id']}", json=food(), headers=auth(access))
+        await client.put(f"{FOODS}/{item['id']}", json=food_item(), headers=auth(access))
         await client.get(FOODS, headers=auth(access))
         await client.get(f"{FOODS}/recent", headers=auth(access))
         await client.get(f"{FOODS}/ingredients", headers=auth(access))

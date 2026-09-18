@@ -59,7 +59,7 @@ lint: image-test ## Lint the API exactly as CI does
 
 format: image-test ## Apply ruff's formatting and safe fixes to the API
 	podman run --rm -v "$(PWD)/apps/api:/src:z" eoehelp-api-test \
-		sh -c "ruff check --fix /src && ruff format /src"
+		sh -c "ruff check --fix --exit-zero --quiet /src && ruff format /src && ruff check /src"
 
 typecheck: image-test ## Type-check the API
 	podman run --rm eoehelp-api-test mypy src

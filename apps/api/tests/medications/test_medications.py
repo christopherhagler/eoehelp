@@ -7,18 +7,10 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.audit.models import AuditLog
-from helpers import auth
+from helpers import auth, days_ago
 
 MEDS = "/api/v1/me/medications"
 CATALOG = "/api/v1/medications/catalog"
-
-
-def today() -> str:
-    return datetime.now(UTC).date().isoformat()
-
-
-def days_ago(n: int) -> str:
-    return (datetime.now(UTC).date() - timedelta(days=n)).isoformat()
 
 
 PPI = {
@@ -101,7 +93,7 @@ class TestAddingAMedication:
         access, _ = await onboard()
         response = await client.post(
             MEDS,
-            json={**PPI, "started_on": today(), "frequency": "FREQ=SECONDLY;COUNT=99999999"},
+            json={**PPI, "started_on": days_ago(0), "frequency": "FREQ=SECONDLY;COUNT=99999999"},
             headers=auth(access),
         )
         assert response.status_code == 422
@@ -110,7 +102,7 @@ class TestAddingAMedication:
         access, _ = await onboard()
         response = await client.post(
             MEDS,
-            json={**PPI, "started_on": today(), "medication_code": "not_a_real_drug"},
+            json={**PPI, "started_on": days_ago(0), "medication_code": "not_a_real_drug"},
             headers=auth(access),
         )
         assert response.status_code == 404
@@ -127,7 +119,7 @@ class TestAddingAMedication:
         access, _ = await onboard()
         response = await client.post(
             MEDS,
-            json={**PPI, "started_on": today(), "dose_amount": "-20.00"},
+            json={**PPI, "started_on": days_ago(0), "dose_amount": "-20.00"},
             headers=auth(access),
         )
         assert response.status_code == 422
@@ -155,7 +147,7 @@ class TestStoppingAndDeleting:
 
         response = await client.post(
             f"{MEDS}/{medication['id']}/stop",
-            json={"ended_on": today(), "stop_reason": "ineffective"},
+            json={"ended_on": days_ago(0), "stop_reason": "ineffective"},
             headers=auth(access),
         )
         assert response.status_code == 200
@@ -169,7 +161,7 @@ class TestStoppingAndDeleting:
         medication = await add_ppi(client, access)
         response = await client.post(
             f"{MEDS}/{medication['id']}/stop",
-            json={"ended_on": today()},
+            json={"ended_on": days_ago(0)},
             headers=auth(access),
         )
         assert response.status_code == 422
@@ -177,7 +169,7 @@ class TestStoppingAndDeleting:
     async def test_stopping_twice_is_a_conflict(self, client: AsyncClient, onboard) -> None:
         access, _ = await onboard()
         medication = await add_ppi(client, access)
-        body = {"ended_on": today(), "stop_reason": "remission"}
+        body = {"ended_on": days_ago(0), "stop_reason": "remission"}
         await client.post(f"{MEDS}/{medication['id']}/stop", json=body, headers=auth(access))
         second = await client.post(
             f"{MEDS}/{medication['id']}/stop", json=body, headers=auth(access)
@@ -287,7 +279,7 @@ class TestDoseLogging:
         )
         response = await client.post(
             f"{MEDS}/{medication['id']}/doses",
-            json={"taken_at": f"{today()}T12:00:00Z"},
+            json={"taken_at": f"{days_ago(0)}T12:00:00Z"},
             headers=auth(access),
         )
         assert response.status_code == 400
@@ -327,7 +319,7 @@ class TestTodayView:
         medication = await add_ppi(client, access)
         await client.post(
             f"{MEDS}/{medication['id']}/stop",
-            json={"ended_on": today(), "stop_reason": "remission"},
+            json={"ended_on": days_ago(0), "stop_reason": "remission"},
             headers=auth(access),
         )
         response = await client.get(f"{MEDS}/today", headers=auth(access))
@@ -354,7 +346,9 @@ class TestAdherenceEndpoint:
             await client.post(f"{MEDS}/{medication['id']}/doses", headers=auth(access))
 
         response = await client.get(
-            f"{MEDS}/adherence", params={"from": days_ago(6), "to": today()}, headers=auth(access)
+            f"{MEDS}/adherence",
+            params={"from": days_ago(6), "to": days_ago(0)},
+            headers=auth(access),
         )
         assert response.status_code == 200
         row = response.json()["medications"][0]
@@ -408,7 +402,7 @@ class TestIsolation:
 
         stop_attempt = await client.post(
             f"{MEDS}/{medication['id']}/stop",
-            json={"ended_on": today(), "stop_reason": "other"},
+            json={"ended_on": days_ago(0), "stop_reason": "other"},
             headers=auth(access_b),
         )
         assert stop_attempt.status_code == 404
@@ -437,7 +431,7 @@ class TestAuditTrail:
         await client.delete(f"{MEDS}/doses/{dose.json()['id']}", headers=auth(access))
         await client.post(
             f"{MEDS}/{medication['id']}/stop",
-            json={"ended_on": today(), "stop_reason": "cost"},
+            json={"ended_on": days_ago(0), "stop_reason": "cost"},
             headers=auth(access),
         )
 

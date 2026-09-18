@@ -167,7 +167,7 @@ class OfflineFoodData:
     """The default in tests: product lookups behave as if both sources are down.
 
     Tests never reach Open Food Facts or USDA. One that needs product data
-    installs recorded responses instead (see test_food_products.py).
+    installs recorded responses instead (see food/test_food_products.py).
     """
 
     async def search(self, query: str, limit: int) -> Any:

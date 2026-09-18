@@ -17,7 +17,6 @@ from decimal import Decimal
 from sqlalchemy import (
     CheckConstraint,
     Date,
-    Enum,
     ForeignKey,
     Index,
     LargeBinary,
@@ -28,7 +27,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from eoehelp_api.db.base import Base, Timestamps, UUIDPrimaryKey
+from eoehelp_api.db.base import Base, Timestamps, UUIDPrimaryKey, pg_enum
 from eoehelp_api.procedures.enums import (
     BiopsyLocation,
     DilationComplication,
@@ -37,10 +36,6 @@ from eoehelp_api.procedures.enums import (
     EosComparator,
     ErefsVersion,
 )
-
-
-def _pg_enum(enum_type: type, name: str) -> Enum:
-    return Enum(enum_type, name=name, values_callable=lambda e: [m.value for m in e])
 
 
 def _within(feature: str, classic_max: int, graded_max: int) -> CheckConstraint:
@@ -79,7 +74,7 @@ class Endoscopy(UUIDPrimaryKey, Timestamps, Base):
     )
     performed_on: Mapped[date] = mapped_column(Date, nullable=False)
     indication: Mapped[EndoscopyIndication] = mapped_column(
-        _pg_enum(EndoscopyIndication, "endoscopy_indication"), nullable=False
+        pg_enum(EndoscopyIndication, "endoscopy_indication"), nullable=False
     )
 
     # Free text, so encrypted, with a distinct associated-data label for each so
@@ -90,7 +85,7 @@ class Endoscopy(UUIDPrimaryKey, Timestamps, Base):
     # All nullable: many reports do not state EREFS, and a missing feature is
     # not a zero.
     erefs_version: Mapped[ErefsVersion | None] = mapped_column(
-        _pg_enum(ErefsVersion, "erefs_version")
+        pg_enum(ErefsVersion, "erefs_version")
     )
     erefs_edema: Mapped[int | None] = mapped_column(SmallInteger)
     erefs_rings: Mapped[int | None] = mapped_column(SmallInteger)
@@ -145,11 +140,11 @@ class Biopsy(UUIDPrimaryKey, Base):
         nullable=False,
     )
     location: Mapped[BiopsyLocation] = mapped_column(
-        _pg_enum(BiopsyLocation, "biopsy_location"), nullable=False
+        pg_enum(BiopsyLocation, "biopsy_location"), nullable=False
     )
     peak_eos_per_hpf: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     peak_eos_comparator: Mapped[EosComparator] = mapped_column(
-        _pg_enum(EosComparator, "eos_comparator"), nullable=False
+        pg_enum(EosComparator, "eos_comparator"), nullable=False
     )
     # Tri-state: most reports do not comment, and "not stated" is not "absent".
     basal_zone_hyperplasia: Mapped[bool | None] = mapped_column()
@@ -197,12 +192,12 @@ class Dilation(UUIDPrimaryKey, Base):
         nullable=False,
     )
     dilator_type: Mapped[DilatorType] = mapped_column(
-        _pg_enum(DilatorType, "dilator_type"), nullable=False
+        pg_enum(DilatorType, "dilator_type"), nullable=False
     )
     pre_diameter_mm: Mapped[Decimal | None] = mapped_column(Numeric(4, 1))
     final_diameter_mm: Mapped[Decimal | None] = mapped_column(Numeric(4, 1))
     complication: Mapped[DilationComplication | None] = mapped_column(
-        _pg_enum(DilationComplication, "dilation_complication")
+        pg_enum(DilationComplication, "dilation_complication")
     )
 
     endoscopy: Mapped[Endoscopy] = relationship(back_populates="dilation")

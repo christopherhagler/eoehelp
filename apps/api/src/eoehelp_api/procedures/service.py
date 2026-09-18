@@ -7,13 +7,13 @@ future, and not before the patient was born.
 """
 
 import uuid
-from datetime import date, datetime
-from zoneinfo import ZoneInfo
+from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api import audit
 from eoehelp_api.audit.service import AuditContext
+from eoehelp_api.core import entry_dates
 from eoehelp_api.core.errors import BadRequestError
 from eoehelp_api.core.security import FieldCipher
 from eoehelp_api.identity.patient import Patient
@@ -60,7 +60,7 @@ class EndoscopyService:
 
     @property
     def today(self) -> date:
-        return datetime.now(ZoneInfo(self._patient.timezone)).date()
+        return entry_dates.patient_today(self._patient.timezone)
 
     def _validate_date(self, performed_on: date) -> None:
         if performed_on > self.today:

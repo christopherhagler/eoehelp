@@ -104,5 +104,5 @@ and the composite list.
   the number for now. A WebAssembly fallback (for example, ZXing) is planned
   before launch.
 - Tests never reach the network. The default test provider behaves as an outage.
-  Recorded responses in `tests/fixtures/fooddata` drive the mapping and API
+  Recorded responses in `tests/food/fixtures` drive the mapping and API
   tests, and `httpx.MockTransport` drives the client and provider tests.

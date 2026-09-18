@@ -5,9 +5,7 @@ application uses — because RLS is bypassed by table owners and superusers. Run
 as the owner, every one of these would pass while proving nothing.
 """
 
-import os
 import uuid
-from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 import pytest_asyncio
@@ -15,21 +13,12 @@ from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import create_async_engine
 
-
-def _app_role_url(database_url: str) -> str:
-    """Rewrite the test database URL to connect as the unprivileged app role."""
-    override = os.environ.get("APP_RUNTIME_DATABASE_URL")
-    if override:
-        return override
-    parts = urlsplit(database_url)
-    password = os.environ.get("APP_RUNTIME_PASSWORD", "app_runtime_local_only")
-    netloc = f"app_runtime:{password}@{parts.hostname}:{parts.port or 5432}"
-    return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
+from helpers import app_role_url
 
 
 @pytest_asyncio.fixture
 async def app_role_engine(clean_tables: None, test_database_url: str):
-    engine = create_async_engine(_app_role_url(test_database_url), poolclass=None)
+    engine = create_async_engine(app_role_url(test_database_url), poolclass=None)
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))

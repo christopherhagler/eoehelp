@@ -1,13 +1,13 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Enum, Index, String, func
+from sqlalchemy import BigInteger, DateTime, Index, String, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from eoehelp_api.audit.enums import AuditOutcome
-from eoehelp_api.db.base import Base
+from eoehelp_api.db.base import Base, pg_enum
 
 
 class AuditLog(Base):
@@ -49,7 +49,7 @@ class AuditLog(Base):
     user_agent: Mapped[str | None] = mapped_column(String(512))
 
     outcome: Mapped[AuditOutcome] = mapped_column(
-        Enum(AuditOutcome, name="audit_outcome", values_callable=lambda e: [m.value for m in e]),
+        pg_enum(AuditOutcome, "audit_outcome"),
         nullable=False,
     )
 

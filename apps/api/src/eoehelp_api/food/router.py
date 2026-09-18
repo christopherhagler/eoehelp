@@ -25,6 +25,7 @@ from eoehelp_api.core.errors import NotFoundError, ServiceUnavailableError
 from eoehelp_api.core.ratelimit import limiter
 from eoehelp_api.food.enums import FoodDataSource
 from eoehelp_api.food.models import CatalogIngredient
+from eoehelp_api.food.presenters import product_read
 from eoehelp_api.food.products.provider import FoodData, FoodDataUnavailableError, get_food_data
 from eoehelp_api.food.schemas import (
     CatalogIngredientRead,
@@ -37,7 +38,7 @@ from eoehelp_api.food.schemas import (
     ProductSummaryRead,
     RecentFood,
 )
-from eoehelp_api.food.service import MAX_RECENT_FOODS, FoodService, product_read
+from eoehelp_api.food.service import MAX_RECENT_FOODS, FoodService
 from eoehelp_api.identity.patient import Patient
 
 UNAVAILABLE = "Product lookup is unavailable right now. You can add the food by name."
