@@ -356,19 +356,6 @@
         "title": "ConsentRecord",
         "type": "object"
       },
-      "CopingAction": {
-        "description": "What the patient did when food stuck.\n\nRecorded because it is the clearest signal of severity a patient can report\nreliably, and because the behavioural adaptations are what a\ngastroenterologist asks about and patients forget by the appointment.",
-        "enum": [
-          "drank_liquid",
-          "extra_chewing",
-          "spit_out",
-          "left_table",
-          "induced_vomit",
-          "er_visit"
-        ],
-        "title": "CopingAction",
-        "type": "string"
-      },
       "CustomIngredientRead": {
         "properties": {
           "allergen_groups": {
@@ -639,15 +626,16 @@
         "title": "DrugClass",
         "type": "string"
       },
-      "DysphagiaSeverity": {
-        "description": "Graded by what the patient had to do about it, not by a 1-10 feeling.\n\nA self-reported intensity number is not comparable between patients or\nagainst a trial cohort. \"Did it stick, and did you need help getting it down\"\nis observable, and it is the distinction the DSQ itself draws.",
+      "DysphagiaRelief": {
+        "description": "DSQ question 3: what the patient had to do to get relief.\n\nAsked about the most difficult episode of the day, as a single choice, and\nscored 0-4 in this order. The wording and the scoring follow the published\ninstrument (Dellon et al., Aliment Pharmacol Ther 2013); a bespoke severity\nscale would produce a number no one can compare with a trial.",
         "enum": [
-          "none",
-          "mild_slow",
-          "stuck_self_resolved",
-          "stuck_intervention"
+          "cleared_on_its_own",
+          "drank_liquid",
+          "coughed_or_gagged",
+          "vomited",
+          "sought_medical_attention"
         ],
-        "title": "DysphagiaSeverity",
+        "title": "DysphagiaRelief",
         "type": "string"
       },
       "EndoscopyIndication": {
@@ -2601,13 +2589,6 @@
             "title": "Avoided Foods Today",
             "type": "boolean"
           },
-          "coping_actions": {
-            "items": {
-              "$ref": "#/components/schemas/CopingAction"
-            },
-            "title": "Coping Actions",
-            "type": "array"
-          },
           "dysphagia_occurred": {
             "anyOf": [
               {
@@ -2619,10 +2600,10 @@
             ],
             "title": "Dysphagia Occurred"
           },
-          "dysphagia_severity": {
+          "dysphagia_relief": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/DysphagiaSeverity"
+                "$ref": "#/components/schemas/DysphagiaRelief"
               },
               {
                 "type": "null"
@@ -2724,13 +2705,6 @@
             "title": "Avoided Foods Today",
             "type": "boolean"
           },
-          "coping_actions": {
-            "items": {
-              "$ref": "#/components/schemas/CopingAction"
-            },
-            "title": "Coping Actions",
-            "type": "array"
-          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -2758,10 +2732,10 @@
             ],
             "title": "Dysphagia Occurred"
           },
-          "dysphagia_severity": {
+          "dysphagia_relief": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/DysphagiaSeverity"
+                "$ref": "#/components/schemas/DysphagiaRelief"
               },
               {
                 "type": "null"
@@ -2835,11 +2809,10 @@
           "entry_date",
           "ate_solid_food",
           "dysphagia_occurred",
-          "dysphagia_severity",
+          "dysphagia_relief",
           "odynophagia",
           "odynophagia_severity",
           "food_impaction_er_visit",
-          "coping_actions",
           "avoided_foods_today",
           "modified_foods_today",
           "ate_unusually_slowly",

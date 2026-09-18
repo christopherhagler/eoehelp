@@ -3,7 +3,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -13,20 +12,14 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
 import { describeApiError } from '../../core/api-errors';
-import { CopingAction, DysphagiaSeverity, SymptomEntryInput } from '../../core/api-types';
+import { DysphagiaRelief, SymptomEntryInput } from '../../core/api-types';
 import { addDays, formatDayLabel, todayIso } from '../../core/dates';
 import { DoseLog } from '../../shared/dose-log';
 import { FoodLog } from '../../shared/food-log';
 import { SymptomService } from '../../core/symptom.service';
 
-interface SeverityChoice {
-  readonly value: DysphagiaSeverity;
-  readonly label: string;
-  readonly detail: string;
-}
-
-interface CopingChoice {
-  readonly value: CopingAction;
+interface ReliefChoice {
+  readonly value: DysphagiaRelief;
   readonly label: string;
 }
 
@@ -41,7 +34,6 @@ interface CopingChoice {
     MatButtonToggleModule,
     MatCardModule,
     MatCheckboxModule,
-    MatChipsModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -69,6 +61,13 @@ interface CopingChoice {
       width: 100%;
       text-align: left;
     }
+    /* Material keeps toggle labels on one line, which cuts off a full answer on
+       a phone. Answers here are sentences, so they wrap. */
+    mat-button-toggle-group.stacked ::ng-deep .mat-button-toggle-label-content {
+      white-space: normal;
+      line-height: 1.35;
+      padding-block: 0.75rem;
+    }
   `,
 })
 export class Log {
@@ -77,31 +76,16 @@ export class Log {
   private readonly router = inject(Router);
   private readonly snackBar = inject(MatSnackBar);
 
-  protected readonly severities: readonly SeverityChoice[] = [
-    {
-      value: 'mild_slow',
-      label: 'It went down slowly',
-      detail: 'Noticeable, but it cleared without help',
-    },
-    {
-      value: 'stuck_self_resolved',
-      label: 'It stuck, then cleared on its own',
-      detail: 'You waited and it passed',
-    },
-    {
-      value: 'stuck_intervention',
-      label: 'It stuck and I had to do something',
-      detail: 'Liquid, bringing it back up, or a trip to hospital',
-    },
-  ];
-
-  protected readonly copingChoices: readonly CopingChoice[] = [
-    { value: 'drank_liquid', label: 'Drank liquid' },
-    { value: 'extra_chewing', label: 'Chewed much more' },
-    { value: 'spit_out', label: 'Spat it out' },
-    { value: 'left_table', label: 'Stopped eating' },
-    { value: 'induced_vomit', label: 'Brought it back up' },
-    { value: 'er_visit', label: 'Went to the ER' },
+  /**
+   * DSQ question 3's answers, in the instrument's order and close to its
+   * wording. The order is the score (0-4), so it must not be rearranged.
+   */
+  protected readonly reliefChoices: readonly ReliefChoice[] = [
+    { value: 'cleared_on_its_own', label: 'Nothing, it cleared on its own' },
+    { value: 'drank_liquid', label: 'I drank liquid' },
+    { value: 'coughed_or_gagged', label: 'I coughed or gagged' },
+    { value: 'vomited', label: 'I vomited' },
+    { value: 'sought_medical_attention', label: 'I needed medical attention' },
   ];
 
   protected readonly painLevels = [
@@ -121,8 +105,8 @@ export class Log {
   // symptom-free day for someone who never answered.
   protected readonly ateSolidFood = signal<boolean | null>(null);
   protected readonly dysphagia = signal<boolean | null>(null);
-  protected readonly severity = signal<DysphagiaSeverity | null>(null);
-  protected readonly coping = signal<readonly CopingAction[]>([]);
+  protected readonly relief = signal<DysphagiaRelief | null>(null);
+  protected readonly erVisit = signal(false);
   protected readonly pain = signal<boolean | null>(null);
   protected readonly painSeverity = signal<number | null>(null);
 
@@ -148,7 +132,7 @@ export class Log {
     if (!ate) return true;
     const stuck = this.dysphagia();
     if (stuck === null) return false;
-    if (stuck && this.severity() === null) return false;
+    if (stuck && this.relief() === null) return false;
     if (this.pain() === true && this.painSeverity() === null) return false;
     return true;
   });
@@ -169,8 +153,8 @@ export class Log {
       this.alreadyLogged.set(true);
       this.ateSolidFood.set(existing.ate_solid_food);
       this.dysphagia.set(existing.dysphagia_occurred);
-      this.severity.set(existing.dysphagia_severity);
-      this.coping.set(existing.coping_actions);
+      this.relief.set(existing.dysphagia_relief);
+      this.erVisit.set(existing.food_impaction_er_visit);
       this.pain.set(existing.odynophagia);
       this.painSeverity.set(existing.odynophagia_severity);
       this.avoidedFoods.set(existing.avoided_foods_today);
@@ -194,16 +178,16 @@ export class Log {
       // the API rejects the combination outright. Clearing here keeps the screen
       // from holding answers it is about to be told are invalid.
       this.dysphagia.set(null);
-      this.severity.set(null);
-      this.coping.set([]);
+      this.relief.set(null);
+      this.erVisit.set(false);
     }
   }
 
   protected setDysphagia(value: boolean): void {
     this.dysphagia.set(value);
     if (!value) {
-      this.severity.set(null);
-      this.coping.set([]);
+      this.relief.set(null);
+      this.erVisit.set(false);
     }
   }
 
@@ -214,15 +198,11 @@ export class Log {
     }
   }
 
-  protected toggleCoping(action: CopingAction): void {
-    const current = this.coping();
-    this.coping.set(
-      current.includes(action) ? current.filter((a) => a !== action) : [...current, action],
-    );
-  }
-
-  protected isCopingSelected(action: CopingAction): boolean {
-    return this.coping().includes(action);
+  protected setRelief(value: DysphagiaRelief): void {
+    this.relief.set(value);
+    // An emergency visit is a kind of medical attention; the API rejects the
+    // flag with any other answer.
+    if (value !== 'sought_medical_attention') this.erVisit.set(false);
   }
 
   protected async save(): Promise<void> {
@@ -245,16 +225,13 @@ export class Log {
   private buildEntry(): SymptomEntryInput {
     const ate = this.ateSolidFood() === true;
     const stuck = ate ? this.dysphagia() : null;
-    const coping = ate && stuck ? this.coping() : [];
+    const relief = stuck ? this.relief() : null;
 
     return {
       ate_solid_food: ate,
       dysphagia_occurred: stuck,
-      dysphagia_severity: stuck ? this.severity() : null,
-      coping_actions: [...coping],
-      // The API requires these two to agree, because the report flags an
-      // emergency visit separately from the coping actions.
-      food_impaction_er_visit: coping.includes('er_visit'),
+      dysphagia_relief: relief,
+      food_impaction_er_visit: relief === 'sought_medical_attention' && this.erVisit(),
       odynophagia: this.pain(),
       odynophagia_severity: this.pain() === true ? this.painSeverity() : null,
       avoided_foods_today: this.avoidedFoods(),

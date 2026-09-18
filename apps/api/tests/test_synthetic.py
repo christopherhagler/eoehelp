@@ -61,10 +61,9 @@ class TestGeneratedDaysAreValid:
                 SymptomEntryInput(
                     ate_solid_food=day.ate_solid_food,
                     dysphagia_occurred=day.dysphagia_occurred,
-                    dysphagia_severity=day.dysphagia_severity,
+                    dysphagia_relief=day.dysphagia_relief,
                     odynophagia=day.odynophagia,
                     odynophagia_severity=day.odynophagia_severity,
-                    coping_actions=day.coping_actions,
                     food_impaction_er_visit=day.food_impaction_er_visit,
                     avoided_foods_today=day.avoided_foods_today,
                     modified_foods_today=day.modified_foods_today,
@@ -419,12 +418,12 @@ async def test_the_generators_allergen_groups_match_the_catalog(session: AsyncSe
 
 
 def _score(day: DayPlan) -> int:
-    """Daily DSQ score for a plan, mirroring services.scoring for unscored days."""
-    if not day.ate_solid_food:
+    """DSQ points for a planned day, with unscorable days counted as 0.
+
+    Used only to compare treatment epochs, where a missing day and a clear day
+    pull in the same direction.
+    """
+    if not day.ate_solid_food or not day.dysphagia_occurred:
         return 0
-    points = (
-        scoring.DYSPHAGIA_POINTS[day.dysphagia_severity]
-        if day.dysphagia_severity is not None
-        else 0
-    )
-    return min(points + (day.odynophagia_severity or 0), scoring.DSQ_MAX_DAILY_SCORE)
+    relief = scoring.RELIEF_POINTS[day.dysphagia_relief] if day.dysphagia_relief else 0
+    return scoring.DYSPHAGIA_POINTS + relief

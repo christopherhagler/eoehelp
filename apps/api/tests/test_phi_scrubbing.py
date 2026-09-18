@@ -66,7 +66,7 @@ def test_scrubbing_terminates_on_deeply_nested_input() -> None:
 def test_audit_metadata_never_carries_phi_values() -> None:
     cleaned = _safe_metadata(
         {
-            "changed_fields": ["dysphagia_severity", "notes"],
+            "changed_fields": ["dysphagia_relief", "notes"],
             "notes": "stuck on steak",
             "email": "patient@example.com",
             "entry_count": 14,
@@ -76,6 +76,6 @@ def test_audit_metadata_never_carries_phi_values() -> None:
     assert cleaned["notes"] == REDACTED
     assert cleaned["email"] == REDACTED
     # Field *names* are the point of the audit trail and must survive.
-    assert cleaned["changed_fields"] == ["dysphagia_severity", "notes"]
+    assert cleaned["changed_fields"] == ["dysphagia_relief", "notes"]
     assert cleaned["entry_count"] == 14
     assert "stuck on steak" not in str(cleaned)

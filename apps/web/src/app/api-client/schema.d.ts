@@ -879,16 +879,6 @@ export interface components {
              */
             granted_at: string;
         };
-        /**
-         * CopingAction
-         * @description What the patient did when food stuck.
-         *
-         *     Recorded because it is the clearest signal of severity a patient can report
-         *     reliably, and because the behavioural adaptations are what a
-         *     gastroenterologist asks about and patients forget by the appointment.
-         * @enum {string}
-         */
-        CopingAction: "drank_liquid" | "extra_chewing" | "spit_out" | "left_table" | "induced_vomit" | "er_visit";
         /** CustomIngredientRead */
         CustomIngredientRead: {
             /** Allergen Groups */
@@ -1002,15 +992,16 @@ export interface components {
          */
         DrugClass: "ppi" | "swallowed_topical_corticosteroid" | "biologic" | "other";
         /**
-         * DysphagiaSeverity
-         * @description Graded by what the patient had to do about it, not by a 1-10 feeling.
+         * DysphagiaRelief
+         * @description DSQ question 3: what the patient had to do to get relief.
          *
-         *     A self-reported intensity number is not comparable between patients or
-         *     against a trial cohort. "Did it stick, and did you need help getting it down"
-         *     is observable, and it is the distinction the DSQ itself draws.
+         *     Asked about the most difficult episode of the day, as a single choice, and
+         *     scored 0-4 in this order. The wording and the scoring follow the published
+         *     instrument (Dellon et al., Aliment Pharmacol Ther 2013); a bespoke severity
+         *     scale would produce a number no one can compare with a trial.
          * @enum {string}
          */
-        DysphagiaSeverity: "none" | "mild_slow" | "stuck_self_resolved" | "stuck_intervention";
+        DysphagiaRelief: "cleared_on_its_own" | "drank_liquid" | "coughed_or_gagged" | "vomited" | "sought_medical_attention";
         /**
          * EndoscopyIndication
          * @description Why the scope was done, which changes how its findings are read.
@@ -1749,11 +1740,9 @@ export interface components {
              * @default false
              */
             avoided_foods_today: boolean;
-            /** Coping Actions */
-            coping_actions?: components["schemas"]["CopingAction"][];
             /** Dysphagia Occurred */
             dysphagia_occurred?: boolean | null;
-            dysphagia_severity?: components["schemas"]["DysphagiaSeverity"] | null;
+            dysphagia_relief?: components["schemas"]["DysphagiaRelief"] | null;
             /**
              * Food Impaction Er Visit
              * @default false
@@ -1794,8 +1783,6 @@ export interface components {
             ate_unusually_slowly: boolean;
             /** Avoided Foods Today */
             avoided_foods_today: boolean;
-            /** Coping Actions */
-            coping_actions: components["schemas"]["CopingAction"][];
             /**
              * Created At
              * Format: date-time
@@ -1805,7 +1792,7 @@ export interface components {
             daily_score?: number | null;
             /** Dysphagia Occurred */
             dysphagia_occurred: boolean | null;
-            dysphagia_severity: components["schemas"]["DysphagiaSeverity"] | null;
+            dysphagia_relief: components["schemas"]["DysphagiaRelief"] | null;
             /**
              * Entry Date
              * Format: date

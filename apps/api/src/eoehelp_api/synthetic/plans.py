@@ -12,9 +12,8 @@ from decimal import Decimal
 
 from eoehelp_api.models.enums import (
     AllergenGroup,
-    CopingAction,
     DoseStatus,
-    DysphagiaSeverity,
+    DysphagiaRelief,
     EntryMethod,
     Meal,
     MedicationStopReason,
@@ -39,10 +38,9 @@ class DayPlan:
     entry_date: date
     ate_solid_food: bool
     dysphagia_occurred: bool | None
-    dysphagia_severity: DysphagiaSeverity | None
+    dysphagia_relief: DysphagiaRelief | None
     odynophagia: bool | None
     odynophagia_severity: int | None
-    coping_actions: list[CopingAction]
     food_impaction_er_visit: bool
     avoided_foods_today: bool
     modified_foods_today: bool

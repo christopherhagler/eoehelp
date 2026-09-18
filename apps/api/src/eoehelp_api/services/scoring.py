@@ -17,14 +17,23 @@ Two properties matter more than the arithmetic:
    score is the honest output, and it is also what keeps the product descriptive
    rather than suggestive.
 
-PENDING CLINICAL CONFIRMATION — recorded here rather than in a tracker because
-this is where it would do damage. The DSQ's published 0-84 range implies six
-points per day over fourteen days, and the mapping below (0-3 for dysphagia by
-what the patient had to do, 0-3 for pain) reproduces that range. The exact item
-weights and the minimum-days rule must be confirmed against the DSQ v4.0
-scoring manual, and the licence confirmed in writing, before any score is shown
-to a clinician. Until then this is a defensible reading, not an authoritative
-implementation.
+**The DSQ formula**, as published (Dellon ES et al., "Development and field
+testing of a novel patient-reported outcome measure of dysphagia in patients
+with eosinophilic esophagitis", Aliment Pharmacol Ther 2013):
+
+- Question 2 (did food go down slowly or get stuck): yes = 2 points.
+- Question 3 (what it took to get relief at the worst episode): 0 cleared on
+  its own, 1 drank liquid, 2 coughed or gagged, 3 vomited, 4 sought medical
+  attention.
+- Daily maximum 6. The score is the sum of daily points times 14, divided by
+  the number of valid diary days: 0-84.
+- Pain on swallowing is not part of this total. It is reported alongside it.
+
+PENDING CONFIRMATION, kept here because this is where a wrong answer does
+damage: the minimum number of valid days for a window to be scored (7 below;
+some trials have required more), the exact question wording against the v4.0
+instrument, and the licence, which must be confirmed in writing before any score
+is shown to a clinician.
 """
 
 import statistics
@@ -34,7 +43,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from eoehelp_api.models.clinical import SymptomEntry
-from eoehelp_api.models.enums import DysphagiaSeverity, EntryMethod
+from eoehelp_api.models.enums import DysphagiaRelief, EntryMethod
 
 DSQ_CODE = "DSQ"
 DSQ_VERSION = "v4.0"
@@ -43,20 +52,22 @@ DSQ_VERSION = "v4.0"
 # span over which an EoE treatment change shows up.
 DSQ_WINDOW_DAYS = 14
 
-# Below this, the window is reported as unscorable. Half the window is the
-# conventional floor for a diary instrument.
+# Below this, the window is reported as unscorable (see the note above).
 DSQ_MIN_ANSWERED_DAYS = 7
 
 DSQ_MAX_SCORE = 84
 DSQ_MAX_DAILY_SCORE = 6
 
-# Graded by what the patient had to do about it. Observable, and comparable
-# between patients in a way a 1-10 feeling is not.
-DYSPHAGIA_POINTS: dict[DysphagiaSeverity, int] = {
-    DysphagiaSeverity.NONE: 0,
-    DysphagiaSeverity.MILD_SLOW: 1,
-    DysphagiaSeverity.STUCK_SELF_RESOLVED: 2,
-    DysphagiaSeverity.STUCK_INTERVENTION: 3,
+# Question 2: food went down slowly or got stuck.
+DYSPHAGIA_POINTS = 2
+
+# Question 3: what it took to get relief, in the instrument's own order.
+RELIEF_POINTS: dict[DysphagiaRelief, int] = {
+    DysphagiaRelief.CLEARED_ON_ITS_OWN: 0,
+    DysphagiaRelief.DRANK_LIQUID: 1,
+    DysphagiaRelief.COUGHED_OR_GAGGED: 2,
+    DysphagiaRelief.VOMITED: 3,
+    DysphagiaRelief.SOUGHT_MEDICAL_ATTENTION: 4,
 }
 
 
@@ -80,20 +91,19 @@ class SymptomBurden:
 
 
 def daily_score(entry: SymptomEntry) -> int | None:
-    """Score one day 0-6, or None when the day cannot be scored.
+    """DSQ points for one day, 0-6, or None when the day cannot be scored.
 
     A day without solid food is not a symptom-free day — it is a day the
     instrument cannot ask its question about. Counting it as zero would flatter
     the score of someone living on shakes, which is precisely the patient doing
-    worst.
+    worst. A solid-food day with question 2 unanswered is not valid either.
     """
-    if not entry.ate_solid_food:
+    if not entry.ate_solid_food or entry.dysphagia_occurred is None:
         return None
-
-    severity = entry.dysphagia_severity
-    dysphagia = DYSPHAGIA_POINTS[severity] if severity is not None else 0
-    pain = entry.odynophagia_severity or 0
-    return min(dysphagia + pain, DSQ_MAX_DAILY_SCORE)
+    if not entry.dysphagia_occurred:
+        return 0
+    relief = RELIEF_POINTS[entry.dysphagia_relief] if entry.dysphagia_relief else 0
+    return DYSPHAGIA_POINTS + relief
 
 
 def score_window(
@@ -121,6 +131,12 @@ def score_window(
         "dysphagia_days": sum(1 for e in in_window if e.dysphagia_occurred),
         "no_solid_food_days": sum(1 for e in in_window if not e.ate_solid_food),
         "odynophagia_days": sum(1 for e in in_window if e.odynophagia),
+        # Question 3 answers, so a clinician can see what drives the number: ten
+        # days of drinking water through it is not one emergency visit.
+        "relief": {
+            relief.value: sum(1 for e in in_window if e.dysphagia_relief is relief)
+            for relief in DysphagiaRelief
+        },
         "er_visit_days": sum(1 for e in in_window if e.food_impaction_er_visit),
         "avoidance_days": sum(1 for e in in_window if e.avoided_foods_today),
         "modification_days": sum(1 for e in in_window if e.modified_foods_today),

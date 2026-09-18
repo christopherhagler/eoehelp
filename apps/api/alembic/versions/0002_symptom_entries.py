@@ -28,27 +28,21 @@ RLS_TABLES = ("symptom_entries",)
 
 
 def upgrade() -> None:
-    dysphagia_severity = postgresql.ENUM(
-        "none",
-        "mild_slow",
-        "stuck_self_resolved",
-        "stuck_intervention",
-        name="dysphagia_severity",
-        create_type=False,
-    )
-    coping_action = postgresql.ENUM(
+    # DSQ question 3: what the patient had to do, at the worst episode of the day,
+    # to make food go down or get relief. Single choice, ordered as the
+    # instrument scores it (0-4); see services/scoring.py.
+    dysphagia_relief = postgresql.ENUM(
+        "cleared_on_its_own",
         "drank_liquid",
-        "extra_chewing",
-        "spit_out",
-        "left_table",
-        "induced_vomit",
-        "er_visit",
-        name="coping_action",
+        "coughed_or_gagged",
+        "vomited",
+        "sought_medical_attention",
+        name="dysphagia_relief",
         create_type=False,
     )
     entry_method = postgresql.ENUM("same_day", "backfill", name="entry_method", create_type=False)
 
-    for enum in (dysphagia_severity, coping_action, entry_method):
+    for enum in (dysphagia_relief, entry_method):
         enum.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
@@ -73,9 +67,9 @@ def upgrade() -> None:
             'v4.0',
             'Dysphagia Symptom Questionnaire',
             'dsq_v4_14day',
-            'Dysphagia Symptom Questionnaire (DSQ) v4.0. Published under Creative '
-            || 'Commons Attribution 4.0. Licence terms to be confirmed in writing '
-            || 'before launch; see docs/adr and the launch gate.'
+            'Dysphagia Symptom Questionnaire (DSQ) v4.0, Dellon ES et al., Aliment '
+            || 'Pharmacol Ther 2013. Licence terms not yet confirmed: they must be '
+            || 'obtained in writing before launch; see the launch gate.'
         )
         """
     )
@@ -94,19 +88,13 @@ def upgrade() -> None:
         sa.Column("entry_date", sa.Date(), nullable=False),
         sa.Column("ate_solid_food", sa.Boolean(), nullable=False),
         sa.Column("dysphagia_occurred", sa.Boolean(), nullable=True),
-        sa.Column("dysphagia_severity", dysphagia_severity, nullable=True),
+        sa.Column("dysphagia_relief", dysphagia_relief, nullable=True),
         sa.Column("odynophagia", sa.Boolean(), nullable=True),
         sa.Column("odynophagia_severity", sa.SmallInteger(), nullable=True),
         sa.Column(
             "food_impaction_er_visit",
             sa.Boolean(),
             server_default=sa.false(),
-            nullable=False,
-        ),
-        sa.Column(
-            "coping_actions",
-            postgresql.ARRAY(coping_action),
-            server_default=sa.text("'{}'::coping_action[]"),
             nullable=False,
         ),
         sa.Column("avoided_foods_today", sa.Boolean(), server_default=sa.false(), nullable=False),
@@ -145,12 +133,25 @@ def upgrade() -> None:
         # "no" for those days would flatter the score of someone who lived on
         # shakes, which is the opposite of the truth.
         sa.CheckConstraint(
-            "ate_solid_food OR (dysphagia_occurred IS NULL AND dysphagia_severity IS NULL)",
+            "ate_solid_food OR (dysphagia_occurred IS NULL AND dysphagia_relief IS NULL)",
             name=op.f("ck_symptom_entries_dysphagia_requires_solid_food"),
         ),
+        # A day with solid food answers question 2; without it the diary day is
+        # not valid, and the score would silently count it as symptom-free.
         sa.CheckConstraint(
-            "dysphagia_occurred IS NOT TRUE OR dysphagia_severity IS NOT NULL",
-            name=op.f("ck_symptom_entries_dysphagia_needs_severity"),
+            "NOT ate_solid_food OR dysphagia_occurred IS NOT NULL",
+            name=op.f("ck_symptom_entries_solid_food_day_answers_dysphagia"),
+        ),
+        # Question 3 is asked exactly when question 2 was yes.
+        sa.CheckConstraint(
+            "(dysphagia_occurred IS TRUE) = (dysphagia_relief IS NOT NULL)",
+            name=op.f("ck_symptom_entries_relief_answers_dysphagia"),
+        ),
+        # An emergency visit for impacted food is medical attention, so the two
+        # answers cannot contradict each other on the report.
+        sa.CheckConstraint(
+            "NOT food_impaction_er_visit OR dysphagia_relief = 'sought_medical_attention'",
+            name=op.f("ck_symptom_entries_er_visit_is_medical_attention"),
         ),
         sa.CheckConstraint(
             "odynophagia_severity IS NULL OR odynophagia_severity BETWEEN 0 AND 3",
@@ -209,5 +210,5 @@ def downgrade() -> None:
     op.drop_table("symptom_entries")
     op.drop_table("clinical_instruments")
 
-    for enum_name in ("entry_method", "coping_action", "dysphagia_severity"):
+    for enum_name in ("entry_method", "dysphagia_relief"):
         op.execute(f"DROP TYPE IF EXISTS {enum_name}")

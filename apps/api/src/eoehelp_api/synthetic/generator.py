@@ -34,9 +34,8 @@ from zoneinfo import ZoneInfo
 
 from eoehelp_api.models.enums import (
     AllergenGroup,
-    CopingAction,
     DoseStatus,
-    DysphagiaSeverity,
+    DysphagiaRelief,
     EntryMethod,
     Meal,
     MedicationStopReason,
@@ -552,10 +551,9 @@ class HistoryGenerator:
                 entry_date=day,
                 ate_solid_food=False,
                 dysphagia_occurred=None,
-                dysphagia_severity=None,
+                dysphagia_relief=None,
                 odynophagia=False,
                 odynophagia_severity=None,
-                coping_actions=[],
                 food_impaction_er_visit=False,
                 avoided_foods_today=True,
                 modified_foods_today=rng.random() < 0.5,
@@ -567,33 +565,20 @@ class HistoryGenerator:
         dysphagia_chance = (0.08, 0.3, 0.6, 0.85)[severity]
         occurred = rng.random() < dysphagia_chance
 
-        chosen_severity: DysphagiaSeverity | None = None
-        coping: list[CopingAction] = []
+        relief: DysphagiaRelief | None = None
         er_visit = False
         if occurred:
-            weights = ((70, 25, 5), (55, 35, 10), (35, 45, 20), (20, 45, 35))[severity]
-            chosen_severity = rng.choices(
-                [
-                    DysphagiaSeverity.MILD_SLOW,
-                    DysphagiaSeverity.STUCK_SELF_RESOLVED,
-                    DysphagiaSeverity.STUCK_INTERVENTION,
-                ],
-                weights=weights,
-            )[0]
-
-            if chosen_severity is DysphagiaSeverity.MILD_SLOW:
-                coping = [CopingAction.EXTRA_CHEWING]
-            elif chosen_severity is DysphagiaSeverity.STUCK_SELF_RESOLVED:
-                coping = [CopingAction.DRANK_LIQUID]
-            else:
-                coping = [CopingAction.DRANK_LIQUID, CopingAction.LEFT_TABLE]
-                if rng.random() < 0.3:
-                    coping.append(CopingAction.INDUCED_VOMIT)
-                # A food impaction needing emergency care is rare even when bad.
-                if rng.random() < 0.04:
-                    coping.append(CopingAction.ER_VISIT)
-                    # The API requires these two to agree.
-                    er_visit = True
+            # Most episodes clear on their own or with a drink; vomiting and
+            # medical attention are the tail, and grow with severity.
+            weights = (
+                (70, 25, 4, 1, 0),
+                (50, 38, 8, 3, 1),
+                (30, 45, 14, 8, 3),
+                (18, 44, 18, 14, 6),
+            )[severity]
+            relief = rng.choices(list(DysphagiaRelief), weights=weights)[0]
+            # Most medical attention for stuck food is an emergency visit.
+            er_visit = relief is DysphagiaRelief.SOUGHT_MEDICAL_ATTENTION and rng.random() < 0.7
 
         pain_chance = (0.05, 0.12, 0.25, 0.4)[severity]
         pain = rng.random() < pain_chance
@@ -607,10 +592,9 @@ class HistoryGenerator:
             entry_date=day,
             ate_solid_food=True,
             dysphagia_occurred=occurred,
-            dysphagia_severity=chosen_severity,
+            dysphagia_relief=relief,
             odynophagia=pain,
             odynophagia_severity=pain_severity,
-            coping_actions=coping,
             food_impaction_er_visit=er_visit,
             avoided_foods_today=rng.random() < (0.5 if severity >= 2 else 0.15),
             modified_foods_today=rng.random() < (0.45 if severity >= 2 else 0.12),

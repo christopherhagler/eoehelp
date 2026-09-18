@@ -51,34 +51,20 @@ class AuditOutcome(enum.StrEnum):
     ERROR = "error"
 
 
-class DysphagiaSeverity(enum.StrEnum):
-    """Graded by what the patient had to do about it, not by a 1-10 feeling.
+class DysphagiaRelief(enum.StrEnum):
+    """DSQ question 3: what the patient had to do to get relief.
 
-    A self-reported intensity number is not comparable between patients or
-    against a trial cohort. "Did it stick, and did you need help getting it down"
-    is observable, and it is the distinction the DSQ itself draws.
+    Asked about the most difficult episode of the day, as a single choice, and
+    scored 0-4 in this order. The wording and the scoring follow the published
+    instrument (Dellon et al., Aliment Pharmacol Ther 2013); a bespoke severity
+    scale would produce a number no one can compare with a trial.
     """
 
-    NONE = "none"
-    MILD_SLOW = "mild_slow"
-    STUCK_SELF_RESOLVED = "stuck_self_resolved"
-    STUCK_INTERVENTION = "stuck_intervention"
-
-
-class CopingAction(enum.StrEnum):
-    """What the patient did when food stuck.
-
-    Recorded because it is the clearest signal of severity a patient can report
-    reliably, and because the behavioural adaptations are what a
-    gastroenterologist asks about and patients forget by the appointment.
-    """
-
+    CLEARED_ON_ITS_OWN = "cleared_on_its_own"
     DRANK_LIQUID = "drank_liquid"
-    EXTRA_CHEWING = "extra_chewing"
-    SPIT_OUT = "spit_out"
-    LEFT_TABLE = "left_table"
-    INDUCED_VOMIT = "induced_vomit"
-    ER_VISIT = "er_visit"
+    COUGHED_OR_GAGGED = "coughed_or_gagged"
+    VOMITED = "vomited"
+    SOUGHT_MEDICAL_ATTENTION = "sought_medical_attention"
 
 
 class EntryMethod(enum.StrEnum):

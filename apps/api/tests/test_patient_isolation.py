@@ -168,9 +168,9 @@ async def _insert_entry(engine, *, scope: uuid.UUID, patient_id: uuid.UUID) -> N
         await conn.execute(
             text(
                 "INSERT INTO symptom_entries "
-                "(patient_id, entry_date, ate_solid_food, entry_method, "
+                "(patient_id, entry_date, ate_solid_food, dysphagia_occurred, entry_method, "
                 " instrument_code, instrument_version) "
-                "VALUES (:pid, CURRENT_DATE - 1, true, 'same_day', 'DSQ', 'v4.0')"
+                "VALUES (:pid, CURRENT_DATE - 1, true, false, 'same_day', 'DSQ', 'v4.0')"
             ),
             {"pid": str(patient_id)},
         )

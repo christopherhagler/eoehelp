@@ -77,39 +77,32 @@
             </mat-button-toggle-group>
 
             @if (dysphagia() === true) {
-              <h3 id="q-severity" class="m-0 mt-6 text-base font-semibold">What happened?</h3>
+              <!-- DSQ question 3: one answer, for the worst time today. -->
+              <h3 id="q-relief" class="m-0 mt-6 text-base font-semibold">
+                At the worst time today, what did you have to do to get relief?
+              </h3>
               <mat-button-toggle-group
                 class="stacked mt-3"
-                aria-labelledby="q-severity"
-                [value]="severity()"
-                (change)="severity.set($event.value)"
+                aria-labelledby="q-relief"
+                [value]="relief()"
+                (change)="setRelief($event.value)"
               >
-                @for (choice of severities; track choice.value) {
+                @for (choice of reliefChoices; track choice.value) {
                   <mat-button-toggle [value]="choice.value">
-                    <span class="flex flex-col items-start py-2">
-                      <span class="font-medium">{{ choice.label }}</span>
-                      <span class="text-xs text-on-surface-variant">
-                        {{ choice.detail }}
-                      </span>
-                    </span>
+                    <span class="py-2 font-medium">{{ choice.label }}</span>
                   </mat-button-toggle>
                 }
               </mat-button-toggle-group>
 
-              <h3 class="m-0 mt-6 text-base font-semibold">What did you do?</h3>
-              <p class="mt-1 text-sm text-on-surface-variant">
-                Optional, and you can pick more than one.
-              </p>
-              <mat-chip-listbox class="mt-2" multiple aria-label="What you did about it">
-                @for (choice of copingChoices; track choice.value) {
-                  <mat-chip-option
-                    [selected]="isCopingSelected(choice.value)"
-                    (selectionChange)="toggleCoping(choice.value)"
-                  >
-                    {{ choice.label }}
-                  </mat-chip-option>
-                }
-              </mat-chip-listbox>
+              @if (relief() === 'sought_medical_attention') {
+                <mat-checkbox
+                  class="mt-4"
+                  [checked]="erVisit()"
+                  (change)="erVisit.set($event.checked)"
+                >
+                  It was an emergency visit because food was stuck
+                </mat-checkbox>
+              }
             }
           </mat-card-content>
         </mat-card>

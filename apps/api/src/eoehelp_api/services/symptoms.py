@@ -116,11 +116,10 @@ class SymptomService:
     def _apply(self, entry: SymptomEntry, payload: SymptomEntryInput) -> None:
         entry.ate_solid_food = payload.ate_solid_food
         entry.dysphagia_occurred = payload.dysphagia_occurred
-        entry.dysphagia_severity = payload.dysphagia_severity
+        entry.dysphagia_relief = payload.dysphagia_relief
         entry.odynophagia = payload.odynophagia
         entry.odynophagia_severity = payload.odynophagia_severity
         entry.food_impaction_er_visit = payload.food_impaction_er_visit
-        entry.coping_actions = payload.deduplicated_coping_actions
         entry.avoided_foods_today = payload.avoided_foods_today
         entry.modified_foods_today = payload.modified_foods_today
         entry.ate_unusually_slowly = payload.ate_unusually_slowly
@@ -209,11 +208,10 @@ class SymptomService:
             entry_date=entry.entry_date,
             ate_solid_food=entry.ate_solid_food,
             dysphagia_occurred=entry.dysphagia_occurred,
-            dysphagia_severity=entry.dysphagia_severity,
+            dysphagia_relief=entry.dysphagia_relief,
             odynophagia=entry.odynophagia,
             odynophagia_severity=entry.odynophagia_severity,
             food_impaction_er_visit=entry.food_impaction_er_visit,
-            coping_actions=list(entry.coping_actions),
             avoided_foods_today=entry.avoided_foods_today,
             modified_foods_today=entry.modified_foods_today,
             ate_unusually_slowly=entry.ate_unusually_slowly,

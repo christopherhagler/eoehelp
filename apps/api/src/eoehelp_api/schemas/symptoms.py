@@ -11,7 +11,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from eoehelp_api.models.enums import CopingAction, DysphagiaSeverity, EntryMethod
+from eoehelp_api.models.enums import DysphagiaRelief, EntryMethod
 
 
 class SymptomEntryInput(BaseModel):
@@ -23,16 +23,19 @@ class SymptomEntryInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    # DSQ question 1.
     ate_solid_food: bool
 
+    # DSQ question 2, required on a day with solid food.
     dysphagia_occurred: bool | None = None
-    dysphagia_severity: DysphagiaSeverity | None = None
+    # DSQ question 3, required exactly when question 2 is yes.
+    dysphagia_relief: DysphagiaRelief | None = None
 
+    # Pain on swallowing, 1-3 when present. Scored separately from the DSQ total.
     odynophagia: bool | None = None
     odynophagia_severity: int | None = Field(default=None, ge=0, le=3)
 
     food_impaction_er_visit: bool = False
-    coping_actions: list[CopingAction] = Field(default_factory=list)
 
     avoided_foods_today: bool = False
     modified_foods_today: bool = False
@@ -45,35 +48,34 @@ class SymptomEntryInput(BaseModel):
     @model_validator(mode="after")
     def _coherent(self) -> "SymptomEntryInput":
         if not self.ate_solid_food and (
-            self.dysphagia_occurred is not None or self.dysphagia_severity is not None
+            self.dysphagia_occurred is not None or self.dysphagia_relief is not None
         ):
             raise ValueError(
                 "A day without solid food has no dysphagia answer: the instrument asks "
                 "about swallowing food."
             )
-        if self.dysphagia_occurred and self.dysphagia_severity is None:
-            raise ValueError("dysphagia_severity is required when food went down slowly or stuck.")
-        if self.dysphagia_occurred is False and self.dysphagia_severity not in (
-            None,
-            DysphagiaSeverity.NONE,
-        ):
-            raise ValueError("dysphagia_severity must be absent or 'none' when nothing stuck.")
+        if self.ate_solid_food and self.dysphagia_occurred is None:
+            raise ValueError(
+                "dysphagia_occurred is required on a day with solid food: without it the "
+                "day cannot be scored."
+            )
+        if bool(self.dysphagia_occurred) != (self.dysphagia_relief is not None):
+            raise ValueError(
+                "dysphagia_relief is answered exactly when food went down slowly or stuck."
+            )
         if self.odynophagia is False and self.odynophagia_severity not in (None, 0):
             raise ValueError("odynophagia_severity must be absent or 0 when there was no pain.")
         if self.odynophagia and not self.odynophagia_severity:
             raise ValueError("odynophagia_severity is required when swallowing was painful.")
-        # An ER visit is recorded on its own column as well as in coping_actions,
-        # because the report flags it separately; keep them from contradicting.
-        if CopingAction.ER_VISIT in self.coping_actions and not self.food_impaction_er_visit:
+        if (
+            self.food_impaction_er_visit
+            and self.dysphagia_relief is not DysphagiaRelief.SOUGHT_MEDICAL_ATTENTION
+        ):
             raise ValueError(
-                "food_impaction_er_visit must be true when 'er_visit' is a coping action."
+                "An emergency visit for stuck food means dysphagia_relief is "
+                "'sought_medical_attention'."
             )
         return self
-
-    @property
-    def deduplicated_coping_actions(self) -> list[CopingAction]:
-        """Order-preserving deduplication: a client repeating a chip is not an error."""
-        return list(dict.fromkeys(self.coping_actions))
 
 
 class SymptomEntryRead(BaseModel):
@@ -82,11 +84,10 @@ class SymptomEntryRead(BaseModel):
     entry_date: date
     ate_solid_food: bool
     dysphagia_occurred: bool | None
-    dysphagia_severity: DysphagiaSeverity | None
+    dysphagia_relief: DysphagiaRelief | None
     odynophagia: bool | None
     odynophagia_severity: int | None
     food_impaction_er_visit: bool
-    coping_actions: list[CopingAction]
     avoided_foods_today: bool
     modified_foods_today: bool
     ate_unusually_slowly: bool
@@ -98,8 +99,9 @@ class SymptomEntryRead(BaseModel):
     instrument_code: str
     instrument_version: str
 
-    # The score for the day this entry belongs to, 0-6, or null for a day the
-    # instrument cannot score. Returned so the UI never has to reimplement it.
+    # The DSQ points for the day, 0-6 (question 2 yes = 2, plus question 3's
+    # 0-4), or null for a day the instrument cannot score. Returned so the UI
+    # never has to reimplement it.
     daily_score: int | None = None
 
     created_at: datetime

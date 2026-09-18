@@ -2,8 +2,10 @@
 
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.models.audit import AuditLog
@@ -20,10 +22,9 @@ CLEAR_DAY = {"ate_solid_food": True, "dysphagia_occurred": False}
 BAD_DAY = {
     "ate_solid_food": True,
     "dysphagia_occurred": True,
-    "dysphagia_severity": "stuck_intervention",
+    "dysphagia_relief": "vomited",
     "odynophagia": True,
     "odynophagia_severity": 2,
-    "coping_actions": ["drank_liquid", "left_table"],
 }
 
 
@@ -50,7 +51,8 @@ class TestWritingADay:
         second = await client.put(f"{SYMPTOMS}/{today()}", json=BAD_DAY, headers=auth(access))
 
         assert second.status_code == 200
-        assert second.json()["daily_score"] == 5  # 3 for the impaction, 2 for pain
+        # 2 for question 2 and 3 for vomiting; pain is scored separately.
+        assert second.json()["daily_score"] == 5
 
         count = (await session.execute(text("SELECT count(*) FROM symptom_entries"))).scalar_one()
         assert count == 1
@@ -90,7 +92,7 @@ class TestWritingADay:
         )
         assert response.status_code == 422
 
-    async def test_severity_is_required_when_something_stuck(
+    async def test_relief_is_required_when_something_stuck(
         self, client: AsyncClient, onboard
     ) -> None:
         access, _ = await onboard()
@@ -101,7 +103,29 @@ class TestWritingADay:
         )
         assert response.status_code == 422
 
-    async def test_an_er_visit_must_agree_with_the_coping_actions(
+    async def test_a_solid_food_day_must_answer_whether_food_stuck(
+        self, client: AsyncClient, onboard
+    ) -> None:
+        """Without question 2 the day is not a valid diary day, and silently
+        treating it as clear would lower the score."""
+        access, _ = await onboard()
+        response = await client.put(
+            f"{SYMPTOMS}/{today()}", json={"ate_solid_food": True}, headers=auth(access)
+        )
+        assert response.status_code == 422
+
+    async def test_relief_cannot_be_given_when_nothing_stuck(
+        self, client: AsyncClient, onboard
+    ) -> None:
+        access, _ = await onboard()
+        response = await client.put(
+            f"{SYMPTOMS}/{today()}",
+            json={**CLEAR_DAY, "dysphagia_relief": "drank_liquid"},
+            headers=auth(access),
+        )
+        assert response.status_code == 422
+
+    async def test_an_er_visit_must_be_medical_attention(
         self, client: AsyncClient, onboard
     ) -> None:
         access, _ = await onboard()
@@ -110,13 +134,40 @@ class TestWritingADay:
             json={
                 "ate_solid_food": True,
                 "dysphagia_occurred": True,
-                "dysphagia_severity": "stuck_intervention",
-                "coping_actions": ["er_visit"],
-                "food_impaction_er_visit": False,
+                "dysphagia_relief": "vomited",
+                "food_impaction_er_visit": True,
             },
             headers=auth(access),
         )
         assert response.status_code == 422
+
+    async def test_an_er_visit_scores_the_maximum_and_is_flagged(
+        self, client: AsyncClient, onboard
+    ) -> None:
+        access, _ = await onboard()
+        response = await client.put(
+            f"{SYMPTOMS}/{today()}",
+            json={
+                "ate_solid_food": True,
+                "dysphagia_occurred": True,
+                "dysphagia_relief": "sought_medical_attention",
+                "food_impaction_er_visit": True,
+            },
+            headers=auth(access),
+        )
+        assert response.status_code == 200
+        assert response.json()["daily_score"] == 6
+        assert response.json()["food_impaction_er_visit"] is True
+
+    async def test_the_database_holds_the_rules_on_its_own(
+        self, client: AsyncClient, onboard, session: AsyncSession
+    ) -> None:
+        """The validator explains; the check constraint is the guarantee."""
+        access, _ = await onboard()
+        await client.put(f"{SYMPTOMS}/{today()}", json=CLEAR_DAY, headers=auth(access))
+        with pytest.raises(IntegrityError, match="relief_answers_dysphagia"):
+            await session.execute(text("UPDATE symptom_entries SET dysphagia_relief = 'vomited'"))
+        await session.rollback()
 
 
 class TestDateRules:

@@ -44,8 +44,7 @@ export type SymptomEntryRead = Schemas['SymptomEntryRead'];
 export type SymptomEntryList = Schemas['SymptomEntryList'];
 export type SymptomBurdenRead = Schemas['SymptomBurdenRead'];
 export type SymptomBurdenTrend = Schemas['SymptomBurdenTrend'];
-export type DysphagiaSeverity = Schemas['DysphagiaSeverity'];
-export type CopingAction = Schemas['CopingAction'];
+export type DysphagiaRelief = Schemas['DysphagiaRelief'];
 export type EntryMethod = Schemas['EntryMethod'];
 
 export type AllergenGroup = Schemas['AllergenGroup'];
