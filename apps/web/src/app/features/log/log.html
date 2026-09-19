@@ -1,68 +1,71 @@
-<section class="mx-auto max-w-2xl px-6 py-10 sm:py-14">
-  <header class="mb-7">
-    <p class="m-0 text-sm font-semibold uppercase tracking-[0.12em] text-brand">
-      {{ dayLabel() }}
-    </p>
-    <h1 class="m-0 mt-1 text-3xl font-semibold tracking-tight">
-      @if (alreadyLogged()) {
-        Edit this day
-      } @else {
-        How was swallowing?
+<section class="page-hero">
+  <div class="mx-auto max-w-2xl px-5 pb-8">
+    <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+      <p class="hero-muted m-0 text-sm font-semibold">
+        {{ dayLabel() }}
+        @if (alreadyLogged()) {
+          · editing
+        }
+      </p>
+      @if (!isBackfill()) {
+        <a class="text-sm font-semibold" [routerLink]="['/log', previousDay()]">
+          Log yesterday instead
+        </a>
       }
-    </h1>
+    </div>
     @if (isBackfill()) {
-      <p class="mt-2 flex items-center gap-2 text-sm text-on-surface-variant">
-        <mat-icon class="!size-5 !text-xl">history</mat-icon>
+      <p class="hero-muted m-0 mt-1 flex items-center gap-2 text-sm">
+        <mat-icon class="!size-5 !text-xl" aria-hidden="true">history</mat-icon>
         Added later, and recorded as such.
       </p>
     }
-  </header>
 
-  @if (loading()) {
-    <div class="flex justify-center py-16"><mat-spinner diameter="36" /></div>
-  } @else {
+    <!-- Question 1. Most days end here or at question 2. -->
+    <h1 id="q-solid" class="m-0 mt-4 text-[1.75rem] font-semibold leading-tight">
+      Did you eat solid food today?
+    </h1>
+    @if (loading()) {
+      <div class="flex justify-center py-6"><mat-spinner diameter="32" /></div>
+    } @else {
+      <mat-button-toggle-group
+        class="answer mt-5"
+        aria-labelledby="q-solid"
+        [value]="ateSolidFood()"
+        (change)="setAteSolidFood($event.value)"
+      >
+        <mat-button-toggle [value]="true">Yes</mat-button-toggle>
+        <mat-button-toggle [value]="false">No</mat-button-toggle>
+      </mat-button-toggle-group>
+
+      @if (ateSolidFood() === false) {
+        <p class="hero-muted m-0 mt-4 flex items-start gap-2 text-sm">
+          <mat-icon class="!size-5 shrink-0 !text-xl" aria-hidden="true">info</mat-icon>
+          <span>
+            A day without solid food is recorded as its own thing, not as a symptom-free day —
+            counting it as zero would understate how you were doing.
+          </span>
+        </p>
+      }
+    }
+  </div>
+</section>
+
+<div class="mx-auto max-w-2xl px-4 pb-32 pt-4">
+  @if (!loading()) {
     @if (error()) {
       <div
         role="alert"
-        class="mb-5 flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger"
+        class="mb-4 flex items-start gap-2 rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger"
       >
         <mat-icon class="!size-5 shrink-0 !text-xl">error</mat-icon>
         <span>{{ error() }}</span>
       </div>
     }
 
-    <div class="flex flex-col gap-5">
-      <!-- Question 1. Most days end here or at question 2. -->
-      <mat-card appearance="outlined">
-        <mat-card-content class="!p-6">
-          <h2 id="q-solid" class="m-0 text-lg font-semibold tracking-tight">
-            Did you eat solid food today?
-          </h2>
-          <mat-button-toggle-group
-            class="answer mt-4"
-            aria-labelledby="q-solid"
-            [value]="ateSolidFood()"
-            (change)="setAteSolidFood($event.value)"
-          >
-            <mat-button-toggle [value]="true">Yes</mat-button-toggle>
-            <mat-button-toggle [value]="false">No</mat-button-toggle>
-          </mat-button-toggle-group>
-
-          @if (ateSolidFood() === false) {
-            <p class="mt-4 flex items-start gap-2 text-sm text-on-surface-variant">
-              <mat-icon class="!size-5 shrink-0 !text-xl text-brand">info</mat-icon>
-              <span>
-                A day without solid food is recorded as its own thing, not as a symptom-free day —
-                counting it as zero would understate how you were doing.
-              </span>
-            </p>
-          }
-        </mat-card-content>
-      </mat-card>
-
+    <div class="flex flex-col gap-3">
       @if (ateSolidFood() === true) {
         <mat-card appearance="outlined">
-          <mat-card-content class="!p-6">
+          <mat-card-content class="!p-5">
             <h2 id="q-stuck" class="m-0 text-lg font-semibold tracking-tight">
               Did food go down slowly or get stuck?
             </h2>
@@ -108,7 +111,7 @@
         </mat-card>
 
         <mat-card appearance="outlined">
-          <mat-card-content class="!p-6">
+          <mat-card-content class="!p-5">
             <h2 id="q-pain" class="m-0 text-lg font-semibold tracking-tight">
               Did it hurt to swallow?
             </h2>
@@ -144,7 +147,7 @@
            so a patient can log breakfast in the morning and the day's symptoms
            in the evening without either waiting on the other. -->
       <mat-card appearance="outlined">
-        <mat-card-content class="!p-6">
+        <mat-card-content class="!p-5">
           <h2 class="m-0 text-lg font-semibold tracking-tight">What did you eat?</h2>
           <p class="mt-1 text-sm text-on-surface-variant">
             Optional. Each food saves as you add it.
@@ -161,7 +164,7 @@
            dose logged against a past day is guesswork. -->
       @if (!isBackfill()) {
         <mat-card appearance="outlined">
-          <mat-card-content class="!p-6">
+          <mat-card-content class="!p-5">
             <h2 class="m-0 text-lg font-semibold tracking-tight">Today's medication</h2>
             <div class="mt-4">
               <app-dose-log />
@@ -174,7 +177,7 @@
            skip on an ordinary day and the log has to stay short. -->
       @if (ateSolidFood() !== null) {
         <mat-card appearance="outlined">
-          <mat-card-content class="!p-6">
+          <mat-card-content class="!p-5">
             @if (!showExtras()) {
               <button
                 mat-button
@@ -213,7 +216,7 @@
         </mat-card>
 
         <mat-card appearance="outlined">
-          <mat-card-content class="!p-6">
+          <mat-card-content class="!p-5">
             @if (!showNotes()) {
               <button
                 mat-button
@@ -240,32 +243,24 @@
           </mat-card-content>
         </mat-card>
       }
-
-      <!-- Opaque, so content scrolling underneath it stays unreadable rather than
-           showing through the buttons. -->
-      <div
-        class="sticky bottom-0 z-10 -mx-6 mt-2 flex flex-wrap items-center gap-3 border-t border-outline-variant bg-surface px-6 py-3"
-      >
-        <button
-          mat-flat-button
-          type="button"
-          class="!min-h-tap !px-7"
-          [disabled]="!canSave() || saving()"
-          (click)="save()"
-        >
-          @if (saving()) {
-            <mat-spinner diameter="20" />
-            Saving…
-          } @else {
-            Save {{ dayLabel().toLowerCase() }}
-          }
-        </button>
-        @if (!isBackfill()) {
-          <a mat-stroked-button class="!min-h-tap" [routerLink]="['/log', previousDay()]">
-            Log yesterday instead
-          </a>
-        }
-      </div>
     </div>
   }
-</section>
+</div>
+
+<!-- Where the navigation usually sits: saving is the one thing this screen is for. -->
+<div class="fixed inset-x-0 bottom-5 z-30 mx-auto w-[calc(100%-2rem)] max-w-2xl">
+  <button
+    mat-flat-button
+    type="button"
+    class="save-pill"
+    [disabled]="loading() || !canSave() || saving()"
+    (click)="save()"
+  >
+    @if (saving()) {
+      <mat-spinner diameter="20" />
+      Saving…
+    } @else {
+      Save {{ dayLabel().toLowerCase() }}
+    }
+  </button>
+</div>

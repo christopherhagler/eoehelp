@@ -131,18 +131,29 @@ function sameGroups(a: readonly AllergenGroup[], b: readonly AllergenGroup[]): b
     ProductPicker,
   ],
   styles: `
+    /* Four across when the editor is wide enough for "Breakfast", two by two
+       inside a phone-width card; never a clipped label. */
+    :host {
+      display: block;
+      container-type: inline-size;
+    }
     mat-button-toggle-group.meals {
-      width: 100%;
-      --mat-standard-button-toggle-height: 2.75rem;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.375rem;
+      /* The editor sits on the subtle surface; unchosen pills need to stand off it. */
+      --mat-button-toggle-background-color: var(--eo-card);
+      --mat-button-toggle-height: 2.75rem;
     }
-    mat-button-toggle-group.meals mat-button-toggle {
-      flex: 1;
-      min-width: 0;
+    mat-button-toggle-group.meals ::ng-deep .mat-button-toggle {
+      font-size: 0.875rem;
     }
-    /* Four meals have to fit a 360px phone. Material's default label padding
-       clips "Snack" at that width. */
     mat-button-toggle-group.meals ::ng-deep .mat-button-toggle-label-content {
       padding: 0 0.25rem;
+    }
+    @container (max-width: 26rem) {
+      mat-button-toggle-group.meals {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
   `,
   templateUrl: './food-editor.html',

@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,6 +8,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { describeApiError } from '../../core/api/api-errors';
 import {
+  AllergenGroup,
   CatalogIngredientRead,
   CustomIngredientRead,
   FoodItemInput,
@@ -17,7 +19,9 @@ import {
 } from '../../core/api/api-types';
 import { FoodService } from './food.service';
 import { FoodDraftSeed, FoodEditor } from './food-editor';
-import { ALLERGEN_GROUPS, MEALS, MEAL_LABELS, allergenSummary } from './food-labels';
+import { ALLERGEN_GROUPS, ALLERGEN_LABELS, MEALS, MEAL_LABELS } from './food-labels';
+import { IngredientLine, IngredientText } from './ingredient-text';
+import { LabelFacts } from './label-facts';
 
 /** Which editor is open, if any. One at a time keeps the screen short. */
 type Editing =
@@ -28,6 +32,17 @@ interface MealGroup {
   readonly meal: Meal;
   readonly label: string;
   readonly items: readonly FoodItemRead[];
+}
+
+function toLine(row: IngredientRead): IngredientLine {
+  return {
+    name: row.name,
+    depth: row.depth,
+    recognized: row.recognized,
+    note: row.note,
+    additiveClass: row.additive_class,
+    groups: row.allergen_groups,
+  };
 }
 
 /** The patient's own ingredients, as references; label rows come with the product. */
@@ -51,8 +66,44 @@ function refsFor(ingredients: readonly IngredientRead[]): FoodItemInput['ingredi
  */
 @Component({
   selector: 'app-food-log',
-  imports: [FoodEditor, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatTooltipModule],
+  imports: [
+    FoodEditor,
+    IngredientText,
+    LabelFacts,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    MatTooltipModule,
+    NgTemplateOutlet,
+  ],
   template: `
+    <ng-template #actions let-item let-dark="dark">
+      <div class="-mr-2 -mt-1 flex shrink-0 items-center">
+        <button
+          mat-icon-button
+          type="button"
+          matTooltip="Edit"
+          [class.!text-white]="dark"
+          [attr.aria-label]="'Edit ' + item.name"
+          [disabled]="!!editing()"
+          (click)="editing.set({ kind: 'edit', item })"
+        >
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          type="button"
+          matTooltip="Remove"
+          [class.!text-white]="dark"
+          [attr.aria-label]="'Remove ' + item.name"
+          [disabled]="!!editing()"
+          (click)="remove(item)"
+        >
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+    </ng-template>
+
     @if (loading()) {
       <div class="flex justify-center py-6"><mat-spinner diameter="24" /></div>
     } @else {
@@ -76,76 +127,103 @@ function refsFor(ingredients: readonly IngredientRead[]): FoodItemInput['ingredi
             >
               {{ group.label }}
             </h3>
-            <ul class="m-0 mt-2 flex list-none flex-col gap-2 p-0">
+            <ul class="m-0 mt-2 flex list-none flex-col gap-3 p-0">
               @for (item of group.items; track item.id) {
-                <li class="rounded-xl border border-outline-variant px-4 py-3">
+                <li>
                   @if (isEditing(item)) {
-                    <app-food-editor
-                      [day]="day()"
-                      [itemId]="item.id"
-                      [seed]="item"
-                      [catalog]="catalog()"
-                      [customIngredients]="customIngredients()"
-                      (saved)="afterSave()"
-                      (cancelled)="editing.set(null)"
-                    />
-                  } @else {
-                    <div class="flex items-start justify-between gap-3">
-                      <div class="min-w-0">
-                        <p class="m-0 font-medium">{{ item.name }}</p>
-                        @if (item.product; as product) {
-                          <p
-                            class="m-0 mt-0.5 flex items-center gap-1 text-xs text-on-surface-variant"
-                          >
-                            <mat-icon class="!size-4 !text-base" aria-hidden="true">
-                              qr_code_2
-                            </mat-icon>
-                            {{ product.brand ? product.brand + ' · ' : '' }}ingredients from the
-                            label
-                          </p>
-                        }
-                        @if (ingredientNames(item); as names) {
-                          <p class="m-0 mt-1 line-clamp-2 text-sm text-on-surface-variant">
-                            {{ names }}
-                          </p>
-                        }
-                        @if (containsLabel(item); as contains) {
-                          <p class="m-0 mt-1 flex items-center gap-1 text-xs">
-                            <mat-icon class="!size-4 !text-base" aria-hidden="true">
-                              info
-                            </mat-icon>
-                            Contains {{ contains }}
-                          </p>
-                        }
-                        @if (item.product && item.product.may_contain.length > 0) {
-                          <p class="m-0 mt-0.5 text-xs text-on-surface-variant">
-                            May contain {{ mayContainLabel(item) }}
-                          </p>
-                        }
-                      </div>
-                      <div class="flex shrink-0 items-center">
-                        <button
-                          mat-icon-button
-                          type="button"
-                          matTooltip="Edit"
-                          [attr.aria-label]="'Edit ' + item.name"
-                          [disabled]="!!editing()"
-                          (click)="editing.set({ kind: 'edit', item })"
-                        >
-                          <mat-icon>edit</mat-icon>
-                        </button>
-                        <button
-                          mat-icon-button
-                          type="button"
-                          matTooltip="Remove"
-                          [attr.aria-label]="'Remove ' + item.name"
-                          [disabled]="!!editing()"
-                          (click)="remove(item)"
-                        >
-                          <mat-icon>delete</mat-icon>
-                        </button>
-                      </div>
+                    <div class="rounded-[22px] bg-subtle p-4">
+                      <app-food-editor
+                        [day]="day()"
+                        [itemId]="item.id"
+                        [seed]="item"
+                        [catalog]="catalog()"
+                        [customIngredients]="customIngredients()"
+                        (saved)="afterSave()"
+                        (cancelled)="editing.set(null)"
+                      />
                     </div>
+                  } @else if (item.product; as product) {
+                    <!-- A packaged product: its own label, in full. -->
+                    <article
+                      class="on-dark flex flex-col gap-4 rounded-[22px] p-4 sm:p-5"
+                      style="background: var(--eo-label-card)"
+                      [attr.aria-label]="item.name"
+                    >
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                          <p class="hero-muted m-0 text-xs font-bold uppercase tracking-[0.08em]">
+                            From the label
+                          </p>
+                          <p class="m-0 mt-0.5 font-display text-lg font-semibold">
+                            {{ item.name }}
+                          </p>
+                          <p class="hero-muted m-0 text-sm">
+                            {{ product.brand ?? 'Unknown brand'
+                            }}{{ item.name !== product.name ? ' · ' + product.name : '' }}
+                          </p>
+                        </div>
+                        <ng-container
+                          [ngTemplateOutlet]="actions"
+                          [ngTemplateOutletContext]="{ $implicit: item, dark: true }"
+                        />
+                      </div>
+                      <app-label-facts
+                        [declared]="product.declared_allergens"
+                        [undeclared]="undeclared(item)"
+                        [mayContain]="product.may_contain"
+                        [additiveClasses]="additiveClasses(labelLines(item))"
+                      />
+                      @if (labelLines(item).length > 0) {
+                        <app-ingredient-text [lines]="labelLines(item)" />
+                      }
+                      @if (ownLines(item).length > 0) {
+                        <div>
+                          <p
+                            class="hero-muted m-0 mb-1 text-xs font-bold uppercase tracking-[0.08em]"
+                          >
+                            You added
+                          </p>
+                          <app-ingredient-text [lines]="ownLines(item)" />
+                        </div>
+                      }
+                    </article>
+                  } @else {
+                    <!-- A food logged by name: the patient's own ingredients. -->
+                    <article
+                      class="flex flex-col gap-3 rounded-[22px] bg-subtle p-4"
+                      [attr.aria-label]="item.name"
+                    >
+                      <div class="flex items-start justify-between gap-2">
+                        <p class="m-0 pt-2 font-semibold">{{ item.name }}</p>
+                        <ng-container
+                          [ngTemplateOutlet]="actions"
+                          [ngTemplateOutletContext]="{ $implicit: item, dark: false }"
+                        />
+                      </div>
+                      @let groups = groupsOf(item);
+                      @if (groups.definite.length + groups.usual.length > 0) {
+                        <div class="flex flex-wrap gap-1.5">
+                          @for (group of groups.definite; track group) {
+                            <span class="chip chip-allergen">
+                              <mat-icon class="!size-4 !text-base" aria-hidden="true"
+                                >error</mat-icon
+                              >
+                              Contains {{ groupLabel(group) }}
+                            </span>
+                          }
+                          @for (group of groups.usual; track group) {
+                            <span class="chip chip-caution">
+                              Usually contains {{ groupLabel(group) }}
+                            </span>
+                          }
+                        </div>
+                      }
+                      @if (ownLines(item).length > 0) {
+                        <app-ingredient-text [lines]="ownLines(item)" />
+                      } @else {
+                        <p class="m-0 text-sm text-muted">No ingredients recorded.</p>
+                      }
+                    </article>
                   }
                 </li>
               }
@@ -155,7 +233,7 @@ function refsFor(ingredients: readonly IngredientRead[]): FoodItemInput['ingredi
       </div>
 
       @if (newEditor(); as open) {
-        <div class="mt-4 rounded-xl border border-outline-variant px-4 py-4">
+        <div class="mt-4 rounded-[22px] bg-subtle p-4">
           <app-food-editor
             [day]="day()"
             [seed]="open.seed"
@@ -178,13 +256,13 @@ function refsFor(ingredients: readonly IngredientRead[]): FoodItemInput['ingredi
           <div class="mt-2 flex flex-wrap gap-2" role="group" aria-label="Recent foods">
             @for (food of recent(); track food.name) {
               <button
-                mat-stroked-button
+                mat-button
                 type="button"
-                class="!min-h-tap"
+                class="!min-h-tap !bg-subtle !px-4 !text-on-surface"
                 [attr.aria-label]="'Log ' + food.name + ' again'"
                 (click)="startFrom(food)"
               >
-                <mat-icon>replay</mat-icon>
+                <mat-icon>add</mat-icon>
                 {{ food.name }}
               </button>
             }
@@ -193,7 +271,7 @@ function refsFor(ingredients: readonly IngredientRead[]): FoodItemInput['ingredi
         <button
           mat-stroked-button
           type="button"
-          class="!mt-4 !min-h-tap"
+          class="!mt-4 !min-h-tap !w-full !border-dashed"
           (click)="editing.set({ kind: 'new', seed: null })"
         >
           <mat-icon>add</mat-icon>
@@ -260,28 +338,50 @@ export class FoodLog implements OnInit {
     return open?.kind === 'edit' && open.item.id === item.id;
   }
 
-  /** Top-level ingredients only; nested ones belong to the label's detail. */
-  protected ingredientNames(item: FoodItemRead): string {
-    return item.ingredients
-      .filter((ingredient) => ingredient.depth === 0)
-      .map((ingredient) => ingredient.name)
-      .join(', ');
+  /** The label's own rows, in label order. */
+  protected labelLines(item: FoodItemRead): IngredientLine[] {
+    return item.ingredients.filter((row) => row.provenance === 'label').map(toLine);
+  }
+
+  /** What the patient typed or added on top of a label. */
+  protected ownLines(item: FoodItemRead): IngredientLine[] {
+    return item.ingredients.filter((row) => row.provenance === 'patient').map(toLine);
+  }
+
+  /** Groups the label's ingredients imply that its "Contains" line leaves out. */
+  protected undeclared(item: FoodItemRead): AllergenGroup[] {
+    const declared = new Set(item.product?.declared_allergens ?? []);
+    const implied = new Set(
+      item.ingredients
+        .filter((row) => row.provenance === 'label')
+        .flatMap((row) => row.allergen_groups),
+    );
+    return ALLERGEN_GROUPS.filter((group) => implied.has(group) && !declared.has(group));
+  }
+
+  protected additiveClasses(lines: readonly IngredientLine[]): string[] {
+    return lines.map((line) => line.additiveClass).filter((cls): cls is string => cls !== null);
   }
 
   /**
-   * Every group the food is known to contain: the label's declaration and
-   * whatever its ingredients imply. Shown as text rather than colour.
+   * Groups a typed food contains. A catalog dish ("mayonnaise") only usually
+   * contains its groups, since recipes differ, so those are kept apart rather
+   * than stated as fact.
    */
-  protected containsLabel(item: FoodItemRead): string {
-    const present = new Set([
-      ...item.ingredients.flatMap((ingredient) => ingredient.allergen_groups),
-      ...(item.product?.declared_allergens ?? []),
-    ]);
-    return allergenSummary(ALLERGEN_GROUPS.filter((group) => present.has(group))).toLowerCase();
+  protected groupsOf(item: FoodItemRead): { definite: AllergenGroup[]; usual: AllergenGroup[] } {
+    const definite = new Set<AllergenGroup>();
+    const usual = new Set<AllergenGroup>();
+    for (const row of item.ingredients) {
+      for (const group of row.allergen_groups) (row.typical ? usual : definite).add(group);
+    }
+    return {
+      definite: ALLERGEN_GROUPS.filter((group) => definite.has(group)),
+      usual: ALLERGEN_GROUPS.filter((group) => usual.has(group) && !definite.has(group)),
+    };
   }
 
-  protected mayContainLabel(item: FoodItemRead): string {
-    return allergenSummary(item.product?.may_contain ?? []).toLowerCase();
+  protected groupLabel(group: AllergenGroup): string {
+    return ALLERGEN_LABELS[group].toLowerCase();
   }
 
   protected startFrom(food: RecentFood): void {

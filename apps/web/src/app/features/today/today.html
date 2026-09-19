@@ -1,166 +1,177 @@
-<section class="mx-auto max-w-4xl px-6 py-10 sm:py-14">
-  <header class="flex flex-wrap items-end justify-between gap-4">
-    <div>
-      <p class="m-0 text-sm font-semibold uppercase tracking-[0.12em] text-brand">
-        {{ todayLabel }}
-      </p>
-      <h1 class="m-0 mt-1 text-3xl font-semibold tracking-tight">{{ greeting() }}</h1>
-    </div>
-  </header>
+<section class="page-hero">
+  <div class="mx-auto max-w-4xl px-5 pb-24">
+    <p class="hero-muted m-0 text-sm font-semibold">{{ todayLabel }}</p>
+    <h1 class="m-0 mt-1 text-2xl font-semibold">{{ greeting() }}</h1>
 
+    @if (!loading()) {
+      <p class="hero-muted m-0 mt-6 text-sm">Symptom burden · last 14 days</p>
+      @if (burden(); as score) {
+        @if (score.score !== null) {
+          <p class="m-0 mt-1 flex items-end gap-3">
+            <span class="hero-figure">{{ score.score }}</span>
+            <span class="hero-muted pb-1.5 text-sm leading-snug">
+              of {{ score.max_score }} on the {{ score.instrument_code }}<br />
+              lower is better
+            </span>
+          </p>
+          <p class="hero-muted m-0 mt-2 max-w-xl text-xs leading-relaxed">
+            From {{ score.days_scorable }} scored {{ score.days_scorable === 1 ? 'day' : 'days' }},
+            using the {{ score.instrument_code }} {{ score.instrument_version }}, the measure EoE
+            treatment trials use.
+          </p>
+        } @else {
+          <p class="m-0 mt-1 font-display text-3xl font-semibold">Not enough days yet</p>
+          <p class="hero-muted m-0 mt-2 max-w-xl text-sm leading-relaxed">
+            {{ daysUntilScorable() }} more logged
+            {{ daysUntilScorable() === 1 ? 'day' : 'days' }} and a score appears here. We would
+            rather show nothing than divide a few days across a fortnight and call it remission.
+          </p>
+        }
+      }
+
+      <!-- The fortnight, oldest first. Height carries the day's score, and every
+           bar has a text description, so nothing depends on colour alone. -->
+      <figure class="m-0 mt-6">
+        <div class="day-bars" role="list" aria-label="Your last 14 days, oldest first">
+          @for (day of days(); track day.date) {
+            <div
+              class="bar-slot"
+              role="listitem"
+              [matTooltip]="day.description"
+              [attr.aria-label]="day.description"
+            >
+              <div
+                class="bar"
+                [class.bar-symptom]="day.scorable && (day.score ?? 0) > 0"
+                [class.bar-clear]="day.scorable && day.score === 0"
+                [class.bar-no-solid]="day.logged && !day.scorable"
+                [class.bar-missing]="!day.logged"
+                [class.bar-today]="!day.logged && day.date === today"
+                [style.height.px]="barHeight(day)"
+              ></div>
+            </div>
+          }
+        </div>
+        <figcaption class="hero-muted mt-3 text-xs leading-relaxed">
+          {{ loggedInWindow() }} of 14 days logged. Taller orange bars are days food stuck or it
+          hurt; short bars are clear days; faint stubs are days without solid food; outlines are
+          days not logged.
+        </figcaption>
+      </figure>
+    }
+  </div>
+</section>
+
+<div class="mx-auto -mt-16 max-w-4xl px-4">
   @if (loading()) {
-    <div class="flex justify-center py-20"><mat-spinner diameter="36" /></div>
+    <div class="flex justify-center rounded-[28px] bg-card py-16 shadow-lift">
+      <mat-spinner diameter="36" />
+    </div>
   } @else {
     <!-- Today. The single most important thing on the screen. -->
-    <mat-card appearance="outlined" class="mt-8">
-      <mat-card-content class="!p-7">
-        @if (todaysEntry(); as entry) {
-          <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="flex items-start gap-4">
-              <span
-                class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-container text-on-brand-container"
-              >
-                <mat-icon>task_alt</mat-icon>
-              </span>
-              <div>
-                <h2 class="m-0 text-lg font-semibold tracking-tight">Today is logged</h2>
-                <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">
-                  @if (!entry.ate_solid_food) {
-                    No solid food today, so there is no swallowing score to give.
-                  } @else if (entry.daily_score === 0) {
-                    Nothing stuck and nothing hurt.
-                  } @else {
-                    Scored {{ entry.daily_score }} out of 6 for the day.
-                  }
-                </p>
-              </div>
+    @if (todaysEntry(); as entry) {
+      <div class="flex items-center gap-4 rounded-[28px] bg-card p-5 shadow-lift">
+        <div class="min-w-0 flex-1">
+          <h2 class="m-0 text-lg font-semibold">Today is logged</h2>
+          <p class="m-0 mt-1 text-sm leading-relaxed text-muted">
+            @if (!entry.ate_solid_food) {
+              No solid food today, so there is no swallowing score to give.
+            } @else if (entry.daily_score === 0) {
+              Nothing stuck and nothing hurt.
+            } @else {
+              Scored {{ entry.daily_score }} out of 6 for the day.
+            }
+          </p>
+        </div>
+        <a mat-stroked-button class="!min-h-tap shrink-0" [routerLink]="['/log', today]">Edit</a>
+      </div>
+    } @else {
+      <a
+        class="group flex items-center gap-4 rounded-[28px] bg-card p-5 text-inherit no-underline shadow-lift"
+        [routerLink]="['/log', today]"
+      >
+        <div class="min-w-0 flex-1">
+          <h2 class="m-0 text-lg font-semibold">Log today</h2>
+          <p class="m-0 mt-1 text-sm text-muted">Not logged yet · two taps on an ordinary day</p>
+        </div>
+        <span
+          class="flex size-14 shrink-0 items-center justify-center rounded-[20px] bg-ink text-mint transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        >
+          <mat-icon>arrow_forward</mat-icon>
+        </span>
+      </a>
+    }
+
+    <div class="mt-3 grid grid-cols-2 gap-3">
+      <!-- Adherence: the first medication with a measurable rate this month. -->
+      <a
+        class="flex flex-col gap-2 rounded-[24px] bg-card p-4 text-inherit no-underline"
+        routerLink="/medications"
+      >
+        @if (adherence(); as row) {
+          <p class="m-0 truncate text-sm font-semibold text-muted">{{ row.generic_name }}</p>
+          @if (row.percentage !== null) {
+            <p class="stat-value m-0">
+              {{ rounded(row.percentage) }}<span class="text-xl">%</span>
+            </p>
+            <div
+              class="h-2 overflow-hidden rounded-full bg-brand-container"
+              role="img"
+              [attr.aria-label]="rounded(row.percentage) + '% of expected doses taken'"
+            >
+              <div class="h-2 rounded-full bg-brand" [style.width.%]="row.percentage"></div>
             </div>
-            <a mat-stroked-button class="!min-h-tap" [routerLink]="['/log', today]"> Edit </a>
-          </div>
+            <p class="m-0 text-xs text-muted">of expected doses taken · 30 days</p>
+          } @else {
+            <p class="stat-value m-0">—</p>
+            <p class="m-0 text-xs text-muted">Taken as needed, so there is nothing to miss.</p>
+          }
         } @else {
-          <div class="flex flex-wrap items-center justify-between gap-5">
-            <div class="flex items-start gap-4">
-              <span
-                class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-container text-on-brand-container"
-              >
-                <mat-icon>edit_note</mat-icon>
-              </span>
-              <div>
-                <h2 class="m-0 text-lg font-semibold tracking-tight">How was swallowing today?</h2>
-                <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">
-                  Two taps on an ordinary day.
-                </p>
-              </div>
-            </div>
-            <a mat-flat-button class="!min-h-tap !px-6" [routerLink]="['/log', today]">
-              Log today
-              <mat-icon iconPositionEnd>arrow_forward</mat-icon>
-            </a>
+          <p class="m-0 text-sm font-semibold text-muted">Medications</p>
+          <p class="m-0 text-sm leading-relaxed">Add what you take to see how often you take it.</p>
+        }
+      </a>
+
+      <!-- Food today: how much is logged, and which groups it touched. -->
+      <a
+        class="on-dark flex flex-col gap-2 rounded-[24px] bg-ink p-4 no-underline"
+        [routerLink]="['/log', today]"
+      >
+        <p class="hero-muted m-0 text-sm font-semibold">Food today</p>
+        <p class="stat-value m-0">{{ foodsToday().length }}</p>
+        @if (groupsToday().length > 0) {
+          <div class="flex flex-wrap gap-1">
+            @for (group of groupsToday(); track group) {
+              <span class="chip chip-allergen">{{ groupLabel(group) }}</span>
+            }
           </div>
         }
-      </mat-card-content>
-    </mat-card>
-
-    <div class="mt-5 grid gap-5 lg:grid-cols-2">
-      <!-- The 14-day DSQ score, or an honest refusal to produce one. -->
-      <mat-card appearance="outlined">
-        <mat-card-content class="!p-6">
-          <h3 class="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
-            Symptom burden · last 14 days
-          </h3>
-
-          @if (burden(); as score) {
-            @if (score.score !== null) {
-              <p class="m-0 mt-4 flex items-baseline gap-2">
-                <span class="text-4xl font-semibold tabular-nums tracking-tight">
-                  {{ score.score }}
-                </span>
-                <span class="text-sm text-on-surface-variant"> out of {{ score.max_score }} </span>
-              </p>
-              <mat-progress-bar
-                class="mt-4 !rounded-full"
-                mode="determinate"
-                [value]="(score.score / score.max_score) * 100"
-                [attr.aria-label]="'Symptom burden ' + score.score + ' out of ' + score.max_score"
-              />
-              <p class="mt-3 text-sm leading-relaxed text-on-surface-variant">
-                Lower is better. Based on {{ score.days_scorable }} scored
-                {{ score.days_scorable === 1 ? 'day' : 'days' }}, using the
-                {{ score.instrument_code }} {{ score.instrument_version }} — the same measure used
-                in EoE treatment trials.
-              </p>
-            } @else {
-              <p class="m-0 mt-4 text-2xl font-semibold tracking-tight">Not enough days yet</p>
-              <p class="mt-3 text-sm leading-relaxed text-on-surface-variant">
-                {{ daysUntilScorable() }} more logged
-                {{ daysUntilScorable() === 1 ? 'day' : 'days' }} and a score appears here. We would
-                rather show nothing than divide a few days across a fortnight and call it remission.
-              </p>
-            }
-          }
-        </mat-card-content>
-      </mat-card>
-
-      <!-- Every day in the window, gaps included. Number plus label, never
-           colour alone, per WCAG 2.2. -->
-      <mat-card appearance="outlined">
-        <mat-card-content class="!p-6">
-          <h3 class="m-0 text-xs font-semibold uppercase tracking-[0.1em] text-on-surface-variant">
-            Your fortnight · {{ loggedInWindow() }} of 14 logged
-          </h3>
-
-          <div class="day-strip mt-4">
-            @for (day of days(); track day.date) {
-              <div
-                class="flex aspect-square flex-col items-center justify-center rounded-lg border text-sm font-semibold tabular-nums"
-                [class]="
-                  day.logged
-                    ? day.scorable
-                      ? day.score === 0
-                        ? 'border-brand/40 bg-brand-container text-on-brand-container'
-                        : 'border-danger/40 bg-danger/10 text-danger'
-                      : 'border-outline-variant bg-surface-container-low text-on-surface-variant'
-                    : 'border-dashed border-outline-variant text-on-surface-variant'
-                "
-                [matTooltip]="day.description"
-                [attr.aria-label]="day.description"
-              >
-                @if (!day.logged) {
-                  <span aria-hidden="true">–</span>
-                } @else if (!day.scorable) {
-                  <span aria-hidden="true">·</span>
-                } @else {
-                  <span aria-hidden="true">{{ day.score }}</span>
-                }
-              </div>
-            }
-          </div>
-
-          <p class="mt-3 text-xs leading-relaxed text-on-surface-variant">
-            A number is that day's score out of 6. A dot is a day without solid food. A dash is a
-            day not logged.
-          </p>
-        </mat-card-content>
-      </mat-card>
+        <p class="hero-muted m-0 text-xs">
+          {{ foodsToday().length === 1 ? 'food' : 'foods' }} logged
+        </p>
+      </a>
     </div>
 
     @if (missedDays().length > 0) {
-      <mat-card appearance="outlined" class="mt-5">
-        <mat-card-content class="!p-6">
-          <h3 class="m-0 text-base font-semibold tracking-tight">Catch up</h3>
-          <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">
-            Days can be added up to a week late. Older ones stay blank rather than being recalled,
-            because a guess is worse than a gap.
-          </p>
-          <div class="mt-4 flex flex-wrap gap-2">
-            @for (day of missedDays(); track day.date) {
-              <a mat-stroked-button class="!min-h-tap" [routerLink]="['/log', day.date]">
-                {{ day.label }}
-              </a>
-            }
-          </div>
-        </mat-card-content>
-      </mat-card>
+      <div class="mt-3 rounded-[24px] bg-card p-5">
+        <h2 class="m-0 text-lg font-semibold">Catch up</h2>
+        <p class="m-0 mt-1 text-sm leading-relaxed text-muted">
+          Days can be added up to a week late. Older ones stay blank rather than being recalled,
+          because a guess is worse than a gap.
+        </p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          @for (day of missedDays(); track day.date) {
+            <a
+              mat-button
+              class="!min-h-tap !bg-subtle !px-4 !text-on-surface"
+              [routerLink]="['/log', day.date]"
+            >
+              {{ day.label }}
+            </a>
+          }
+        </div>
+      </div>
     }
   }
-</section>
+</div>

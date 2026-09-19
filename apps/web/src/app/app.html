@@ -1,83 +1,49 @@
 <a
   href="#main"
-  class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-brand focus:px-4 focus:py-3 focus:text-on-brand"
+  class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-mint focus:px-4 focus:py-3 focus:text-on-mint"
 >
   Skip to main content
 </a>
 
-<div class="flex min-h-screen flex-col bg-surface text-on-surface">
-  <mat-toolbar class="sticky top-0 z-20 border-b border-outline-variant !bg-surface">
-    <div class="mx-auto flex w-full max-w-6xl items-center gap-4 px-1">
+<div class="relative flex min-h-screen flex-col" [class.pb-28]="showNav()">
+  <!-- Floats over the top of each page's hero band, so the two read as one. -->
+  <header class="absolute inset-x-0 top-0 z-20">
+    <div class="mx-auto flex h-16 max-w-5xl items-center gap-3 px-5">
       <a
-        routerLink="/"
+        [routerLink]="auth.isSignedIn() ? '/today' : '/'"
         aria-label="eoehelp home"
-        class="flex items-center gap-2.5 font-semibold tracking-tight text-on-surface no-underline"
+        class="flex items-center gap-2.5 font-display text-lg font-semibold tracking-tight !text-white no-underline"
       >
-        <app-logo [size]="26" class="text-brand" />
-        <span class="hidden text-lg sm:inline" aria-hidden="true">eoehelp</span>
+        <app-logo [size]="26" class="text-mint" />
+        <span aria-hidden="true">eoehelp</span>
       </a>
 
       <span class="flex-1"></span>
 
-      <nav aria-label="Main" class="flex items-center gap-1">
-        @if (auth.isSignedIn()) {
-          <!-- Icons alone below the sm breakpoint, where the labelled bar is
-               wider than a phone. The aria-labels keep every link named. -->
-          <a
-            mat-button
-            class="max-sm:!min-w-0 max-sm:!px-3"
-            aria-label="Today"
-            routerLink="/today"
-            routerLinkActive="!text-brand"
-            [routerLinkActiveOptions]="{ exact: true }"
-          >
-            <mat-icon>today</mat-icon>
-            <span class="hidden sm:inline">Today</span>
-          </a>
-          <a
-            mat-button
-            class="max-sm:!min-w-0 max-sm:!px-3"
-            aria-label="Log"
-            routerLink="/log"
-            routerLinkActive="!text-brand"
-          >
-            <mat-icon>edit_note</mat-icon>
-            <span class="hidden sm:inline">Log</span>
-          </a>
-          <a
-            mat-button
-            class="max-sm:!min-w-0 max-sm:!px-3"
-            aria-label="Medications"
-            routerLink="/medications"
-            routerLinkActive="!text-brand"
-          >
-            <mat-icon>medication</mat-icon>
-            <span class="hidden sm:inline">Medications</span>
-          </a>
-          <button
-            mat-button
-            type="button"
-            class="max-sm:!min-w-0 max-sm:!px-3"
-            aria-label="Sign out"
-            (click)="signOut()"
-          >
-            <mat-icon class="sm:!hidden">logout</mat-icon>
-            <span class="hidden sm:inline">Sign out</span>
-          </button>
-        } @else if (!auth.isRestoring()) {
-          <a mat-flat-button routerLink="/sign-in">Sign in</a>
-        }
-      </nav>
+      @if (auth.isSignedIn()) {
+        <button
+          mat-button
+          type="button"
+          class="!text-white max-sm:!min-w-0 max-sm:!px-3"
+          aria-label="Sign out"
+          (click)="signOut()"
+        >
+          <mat-icon>logout</mat-icon>
+          <span class="hidden sm:inline">Sign out</span>
+        </button>
+      } @else if (!auth.isRestoring() && !onSignIn()) {
+        <a mat-flat-button routerLink="/sign-in" class="!bg-mint !text-on-mint">Sign in</a>
+      }
     </div>
-  </mat-toolbar>
+  </header>
 
   <main id="main" tabindex="-1" class="flex-1 outline-none">
     <router-outlet />
   </main>
 
-  <footer class="mt-16 border-t border-outline-variant bg-surface-container-low">
+  <footer class="mt-16">
     <div
-      class="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-8 text-sm text-on-surface-variant sm:flex-row sm:items-center sm:justify-between"
+      class="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-8 text-sm text-muted sm:flex-row sm:items-center sm:justify-between"
     >
       <p class="m-0 max-w-prose">
         eoehelp is a personal health record you control. It is not a medical record system and does
@@ -87,4 +53,26 @@
       <p class="m-0 shrink-0 tabular-nums">&copy; 2026 eoehelp.org</p>
     </div>
   </footer>
+
+  <!-- Within thumb reach on a phone, and the same place on every screen size.
+       Hidden on the daily log, whose own Save button takes this spot. -->
+  @if (showNav()) {
+    <nav
+      aria-label="Main"
+      class="fixed inset-x-0 bottom-5 z-30 mx-auto flex w-[calc(100%-2.5rem)] max-w-md items-center justify-between gap-1 rounded-full bg-ink p-2 shadow-lift"
+    >
+      @for (link of links; track link.path) {
+        <a
+          class="nav-link"
+          [routerLink]="link.path"
+          routerLinkActive="is-active"
+          ariaCurrentWhenActive="page"
+          [attr.aria-label]="link.label"
+        >
+          <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
+          <span class="nav-label">{{ link.label }}</span>
+        </a>
+      }
+    </nav>
+  }
 </div>

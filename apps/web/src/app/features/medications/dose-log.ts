@@ -29,25 +29,29 @@ import { frequencyLabel } from './frequency-labels';
         and they will appear here to tick off.
       </p>
     } @else {
-      <ul class="m-0 flex list-none flex-col gap-3 p-0">
+      <ul class="m-0 flex list-none flex-col gap-4 p-0">
         @for (item of items(); track item.medication_id) {
-          <li
-            class="flex flex-wrap items-center justify-between gap-3 rounded-xl
-                   border border-outline-variant px-4 py-3"
-          >
-            <div class="min-w-0">
-              <p class="m-0 font-medium">
+          <li class="flex flex-wrap items-center gap-3">
+            <span
+              class="flex size-11 shrink-0 items-center justify-center rounded-[14px]
+                     bg-brand-container text-brand"
+              aria-hidden="true"
+            >
+              <mat-icon>medication</mat-icon>
+            </span>
+            <div class="min-w-[11rem] flex-1">
+              <p class="m-0 font-bold">
                 {{ item.generic_name }}
                 @if (item.dose_label) {
                   <span class="text-on-surface-variant">· {{ item.dose_label }}</span>
                 }
               </p>
-              <p class="m-0 mt-0.5 text-xs text-on-surface-variant">
+              <p class="m-0 mt-0.5 text-sm text-muted">
                 {{ label(item) }}
               </p>
             </div>
 
-            <div class="flex shrink-0 items-center gap-1">
+            <div class="ml-auto flex shrink-0 items-center gap-1">
               @if (item.doses_today.length > 0) {
                 <button
                   mat-icon-button

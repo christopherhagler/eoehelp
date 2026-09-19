@@ -11,8 +11,16 @@ import { AuthService } from '../../core/auth/auth.service';
   selector: 'app-verify',
   imports: [RouterLink, MatButtonModule, MatCardModule, MatIconModule, MatProgressSpinnerModule],
   template: `
-    <section class="mx-auto flex max-w-md px-6 py-16 sm:py-24">
-      <mat-card appearance="outlined" class="w-full">
+    <section class="page-hero">
+      <div class="mx-auto max-w-md px-5 pb-20 pt-6">
+        <h1 class="m-0 text-3xl font-semibold">
+          {{ failed() ? "That link didn't work" : 'Signing you in…' }}
+        </h1>
+      </div>
+    </section>
+
+    <section class="mx-auto -mt-14 flex max-w-md px-4">
+      <mat-card appearance="outlined" class="w-full shadow-lift">
         <mat-card-content class="!p-7" aria-live="polite">
           @if (failed()) {
             <div class="flex flex-col items-center text-center">
@@ -22,8 +30,7 @@ import { AuthService } from '../../core/auth/auth.service';
               >
                 <mat-icon>link_off</mat-icon>
               </span>
-              <h1 class="m-0 text-2xl font-semibold tracking-tight">That link didn't work</h1>
-              <p class="mt-3 text-sm leading-relaxed text-on-surface-variant">
+              <p class="m-0 text-sm leading-relaxed text-on-surface-variant">
                 Sign-in links expire after 15 minutes and can only be used once. If you opened this
                 one already, or asked for a newer one, request a fresh link.
               </p>
@@ -32,8 +39,7 @@ import { AuthService } from '../../core/auth/auth.service';
           } @else {
             <div class="flex flex-col items-center py-4 text-center">
               <mat-spinner diameter="40" />
-              <h1 class="m-0 mt-6 text-xl font-semibold tracking-tight">Signing you in…</h1>
-              <p class="mt-2 text-sm text-on-surface-variant">One moment.</p>
+              <p class="m-0 mt-4 text-sm text-muted">One moment.</p>
             </div>
           }
         </mat-card-content>

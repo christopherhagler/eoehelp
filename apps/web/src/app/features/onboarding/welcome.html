@@ -1,26 +1,25 @@
-<section class="mx-auto max-w-2xl px-6 py-12 sm:py-16">
-  <div class="flex flex-col items-center text-center">
-    <app-logo [size]="40" class="mb-5 text-brand" />
-    <h1 class="m-0 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-      Let's set up your record
-    </h1>
-    <p class="mt-3 max-w-xl text-base leading-relaxed text-on-surface-variant">
+<section class="page-hero">
+  <div class="mx-auto max-w-2xl px-5 pb-12 pt-4">
+    <h1 class="m-0 text-3xl font-semibold text-balance sm:text-4xl">Let's set up your record</h1>
+    <p class="hero-muted m-0 mt-3 max-w-xl text-base leading-relaxed">
       Four short answers, then you can log your first day. Everything here can be changed later, and
       none of it is shared with anyone unless you decide to.
     </p>
   </div>
+</section>
 
+<section class="mx-auto max-w-2xl px-4 pt-4">
   @if (error()) {
     <div
       role="alert"
-      class="mt-6 flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger"
+      class="mb-2 flex items-start gap-2 rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger"
     >
       <mat-icon class="!size-5 shrink-0 !text-xl">error</mat-icon>
       <span>{{ error() }}</span>
     </div>
   }
 
-  <form class="mt-9 flex flex-col gap-5" (ngSubmit)="submit()" novalidate>
+  <form class="flex flex-col gap-3" (ngSubmit)="submit()" novalidate>
     <mat-card appearance="outlined">
       <mat-card-content class="!p-6">
         <h2 class="m-0 text-lg font-semibold tracking-tight">About you</h2>

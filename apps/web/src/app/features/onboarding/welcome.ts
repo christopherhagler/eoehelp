@@ -15,7 +15,6 @@ import { SexAtBirth } from '../../core/api/api-types';
 import { detectTimezone } from '../../core/dates';
 import { PatientService } from '../../core/patient.service';
 import { ReferenceService } from '../../core/reference.service';
-import { Logo } from '../../shared/logo';
 import { MonthPicker } from '../../shared/month-picker';
 
 const MINIMUM_AGE = 18;
@@ -24,7 +23,6 @@ const MINIMUM_AGE = 18;
   selector: 'app-welcome',
   imports: [
     FormsModule,
-    Logo,
     MonthPicker,
     MatButtonModule,
     MatCardModule,

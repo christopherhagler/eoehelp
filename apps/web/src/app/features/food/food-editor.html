@@ -1,6 +1,6 @@
 <form class="flex flex-col gap-4" (submit)="$event.preventDefault(); save()">
   <mat-button-toggle-group
-    class="meals"
+    class="answer meals"
     aria-label="Meal"
     hideSingleSelectionIndicator
     [value]="meal()"
@@ -12,11 +12,13 @@
   </mat-button-toggle-group>
 
   <!-- A packaged product: its real label, not a guess. -->
-  <section class="rounded-lg border border-outline-variant px-4 py-3" aria-label="Product">
+  <section aria-label="Product">
     @if (product(); as chosen) {
       <app-product-label [product]="chosen" (changed)="product.set(null)" />
     } @else {
-      <app-product-picker (chosen)="useProduct($event)" />
+      <div class="rounded-[22px] bg-subtle p-4">
+        <app-product-picker (chosen)="useProduct($event)" />
+      </div>
     }
   </section>
 
@@ -94,7 +96,7 @@
 
   <!-- Tagging, only for ingredients the catalog does not describe. -->
   @for (item of ownIngredients(); track item.key) {
-    <div class="rounded-lg border border-outline-variant px-4 py-3">
+    <div class="rounded-[22px] bg-subtle px-4 py-3">
       <p class="m-0 text-sm">
         Does <span class="font-medium">{{ item.name }}</span> contain any of these?
       </p>

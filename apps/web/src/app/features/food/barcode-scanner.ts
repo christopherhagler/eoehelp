@@ -44,7 +44,7 @@ export function canScanBarcodes(): boolean {
       @if (error()) {
         <p role="alert" class="m-0 text-sm text-danger">{{ error() }}</p>
       } @else {
-        <div class="relative overflow-hidden rounded-xl bg-black">
+        <div class="relative overflow-hidden rounded-[22px] bg-black">
           <video
             #video
             class="block aspect-video w-full object-cover"

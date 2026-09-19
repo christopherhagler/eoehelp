@@ -8,7 +8,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { AuthService } from '../../core/auth/auth.service';
-import { Logo } from '../../shared/logo';
 
 @Component({
   selector: 'app-sign-in',
@@ -20,13 +19,24 @@ import { Logo } from '../../shared/logo';
     MatIconModule,
     MatInputModule,
     MatProgressSpinnerModule,
-    Logo,
   ],
   template: `
-    <section class="mx-auto flex max-w-md flex-col items-center px-6 py-16 sm:py-24">
-      <app-logo [size]="40" class="mb-6 text-brand" />
+    <section class="page-hero">
+      <div class="mx-auto max-w-md px-5 pb-20 pt-6">
+        <h1 class="m-0 text-3xl font-semibold">{{ sent() ? 'Check your email' : 'Sign in' }}</h1>
+        <p class="hero-muted m-0 mt-2 text-sm leading-relaxed">
+          @if (sent()) {
+            It works once and expires in 15 minutes.
+          } @else {
+            We email you a link instead of using a password. There is no password to forget, and
+            none to steal.
+          }
+        </p>
+      </div>
+    </section>
 
-      <mat-card appearance="outlined" class="w-full">
+    <section class="mx-auto -mt-14 flex max-w-md flex-col items-center px-4">
+      <mat-card appearance="outlined" class="w-full shadow-lift">
         <mat-card-content class="!p-7">
           @if (sent()) {
             <div class="flex flex-col items-center text-center">
@@ -36,34 +46,27 @@ import { Logo } from '../../shared/logo';
               >
                 <mat-icon>mark_email_read</mat-icon>
               </span>
-              <h1 class="m-0 text-2xl font-semibold tracking-tight">Check your email</h1>
-              <p class="mt-3 text-sm leading-relaxed text-on-surface-variant">
+              <p class="m-0 text-sm leading-relaxed text-muted">
                 If <strong class="text-on-surface">{{ submittedEmail() }}</strong> can receive mail,
-                a sign-in link is on its way. It works once and expires in 15 minutes.
+                a sign-in link is on its way.
               </p>
               <button mat-stroked-button type="button" class="mt-6" (click)="reset()">
                 Use a different address
               </button>
             </div>
           } @else {
-            <h1 class="m-0 text-2xl font-semibold tracking-tight">Sign in</h1>
-            <p class="mt-2 text-sm leading-relaxed text-on-surface-variant">
-              We email you a link instead of using a password. There is no password to forget, and
-              none to steal.
-            </p>
-
             @if (error()) {
               <div
                 role="alert"
-                class="mt-5 flex items-start gap-2 rounded-lg border border-danger/40
-                       bg-danger/10 px-4 py-3 text-sm text-danger"
+                class="mb-5 flex items-start gap-2 rounded-2xl bg-danger/10 px-4 py-3
+                       text-sm text-danger"
               >
                 <mat-icon class="!size-5 shrink-0 !text-xl">error</mat-icon>
                 <span>{{ error() }}</span>
               </div>
             }
 
-            <form class="mt-6 flex flex-col" (ngSubmit)="submit()" novalidate>
+            <form class="flex flex-col" (ngSubmit)="submit()" novalidate>
               <mat-form-field appearance="outline">
                 <mat-label>Email address</mat-label>
                 <input

@@ -1,9 +1,9 @@
 <!-- Hero -->
-<section class="border-b border-outline-variant bg-surface-container-low">
-  <div class="mx-auto max-w-6xl px-6 py-16 sm:py-24">
+<section class="page-hero">
+  <div class="mx-auto max-w-6xl px-6 pb-20 pt-10 sm:pb-28 sm:pt-16">
     <div class="max-w-3xl">
       <p
-        class="m-0 mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-brand"
+        class="m-0 mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-mint"
       >
         <app-logo [size]="18" [weight]="4.2" />
         For people living with eosinophilic esophagitis
@@ -15,7 +15,7 @@
         Walk into your next appointment with the whole story.
       </h1>
 
-      <p class="mt-6 max-w-2xl text-lg leading-relaxed text-on-surface-variant">
+      <p class="hero-muted mt-6 max-w-2xl text-lg leading-relaxed">
         EoE is managed on months of evidence — how often food sticks, which eliminations held, what
         the last biopsy showed. Most of that lives in your head, and a fifteen-minute appointment is
         not long enough to rebuild it. eoehelp keeps the record, and turns it into a summary your
@@ -23,16 +23,16 @@
       </p>
 
       <div class="mt-9 flex flex-wrap items-center gap-3">
-        <a mat-flat-button routerLink="/sign-in" class="!min-h-tap !px-6">
+        <a mat-flat-button routerLink="/sign-in" class="!min-h-tap !bg-mint !px-6 !text-on-mint">
           Start tracking
           <mat-icon iconPositionEnd>arrow_forward</mat-icon>
         </a>
-        <a mat-stroked-button href="#how" class="!min-h-tap !px-6">How it works</a>
+        <a mat-stroked-button href="#how" class="!min-h-tap !border-white/40 !px-6 !text-white"
+          >How it works</a
+        >
       </div>
 
-      <p class="mt-4 text-sm text-on-surface-variant">
-        No password to remember — we email you a sign-in link.
-      </p>
+      <p class="hero-muted mt-4 text-sm">No password to remember — we email you a sign-in link.</p>
     </div>
   </div>
 </section>
@@ -70,7 +70,7 @@
 </section>
 
 <!-- Research -->
-<section class="border-y border-outline-variant bg-surface-container-low">
+<section class="bg-card">
   <div class="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-2 lg:items-center">
     <div>
       <h2 class="m-0 text-3xl font-semibold tracking-tight text-balance">

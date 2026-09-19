@@ -41,32 +41,18 @@ interface ReliefChoice {
   ],
   templateUrl: './log.html',
   styles: `
-    /* Material's toggle buttons are sized for dense toolbars. On a flare day the
-       user may be one-handed and tired, so every choice here is a large target
-       well above the 44px WCAG 2.2 minimum. */
-    mat-button-toggle-group.answer {
+    /* The answer toggles are styled globally (styles.scss), so the hero's and
+       the cards' read as one set. */
+    .save-pill {
       width: 100%;
-      --mat-standard-button-toggle-height: 3.25rem;
+      height: 3.75rem;
+      font-family: 'Sora', 'DM Sans', sans-serif;
+      font-size: 1.0625rem;
+      box-shadow: var(--eo-shadow-lift);
     }
-    mat-button-toggle-group.answer mat-button-toggle {
-      flex: 1;
-      font-size: 1rem;
-    }
-    mat-button-toggle-group.stacked {
-      flex-direction: column;
-      width: 100%;
-      --mat-standard-button-toggle-height: auto;
-    }
-    mat-button-toggle-group.stacked mat-button-toggle {
-      width: 100%;
-      text-align: left;
-    }
-    /* Material keeps toggle labels on one line, which cuts off a full answer on
-       a phone. Answers here are sentences, so they wrap. */
-    mat-button-toggle-group.stacked ::ng-deep .mat-button-toggle-label-content {
-      white-space: normal;
-      line-height: 1.35;
-      padding-block: 0.75rem;
+    .save-pill:not([disabled]) {
+      --mat-button-filled-container-color: var(--eo-mint);
+      --mat-button-filled-label-text-color: var(--eo-on-mint);
     }
   `,
 })

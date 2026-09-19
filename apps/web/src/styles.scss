@@ -1,19 +1,25 @@
 @use '@angular/material' as mat;
 
-/* Angular Material 3 supplies the design system: colour roles, type scale,
- * elevation, density, and the accessibility behaviour of every component. Tailwind
- * sits on top for layout and spacing only (see src/tailwind.css).
+/* Angular Material 3 supplies the components: colour roles, type scale, and the
+ * accessibility behaviour of every control. Its components carry tested keyboard
+ * handling, focus management, and screen-reader semantics, which matters for a
+ * WCAG 2.2 AA target and for patients who are often on a phone, sometimes having
+ * a bad day. Hand-rolled form fields do not get that for free.
  *
- * Material is chosen here for more than looks. Its components carry tested
- * keyboard handling, focus management, and screen-reader semantics, which matters
- * for a WCAG 2.2 AA target and for a patient population that skews young, often
- * on a phone, sometimes having a bad day. Hand-rolled form fields do not get that
- * for free.
+ * The look is the "bold" direction chosen on 2026-09-18: a deep teal hero band,
+ * white cards with generous radii on a cool grey page, ink surfaces with a mint
+ * accent, Sora for headings and DM Sans for everything else. The tokens below are
+ * that direction; Material's own tokens are pointed at them so both agree.
+ *
+ * Contrast notes, because the palette was chosen against them:
+ * - Hero text sits on #0a1c20..#17665e; the brightest stop keeps #cfe7e3 text at
+ *   5.3:1 and white at 6.8:1.
+ * - Muted text #52605f is 6.1:1 on the page and 6.7:1 on a card.
+ * - Allergen chips (#7a3a14 on #fbe6d6) and additive chips (#45397a on #ebe7f5)
+ *   are both above 7:1.
  */
 
 html {
-  /* Emits light and dark values via light-dark(), so the viewer's OS setting is
-   * honoured without a second theme block to keep in sync. */
   color-scheme: light dark;
 
   @include mat.theme(
@@ -23,32 +29,124 @@ html {
         tertiary: mat.$spring-green-palette,
       ),
       typography: (
-        plain-family: (Inter, ui-sans-serif, system-ui, sans-serif),
-        brand-family: (Inter, ui-sans-serif, system-ui, sans-serif),
+        plain-family: ('DM Sans', ui-sans-serif, system-ui, sans-serif),
+        brand-family: ('Sora', 'DM Sans', ui-sans-serif, system-ui, sans-serif),
       ),
-      /* Slightly tighter than Material's default. A clinical tool shows more
-       * information per screen than a consumer app; -1 buys that without
-       * dropping below comfortable touch targets. */
       density: -1,
     )
   );
 
-  /* Material's cyan palette is the closest stock tonal family to the brand, but
-   * the brand teal is more muted than cyan's key colour. Pinning the primary
-   * roles directly keeps the exact brand colour while letting Material derive
-   * the rest of the tonal system. */
-  --mat-sys-primary: #0f6b6b;
-  --mat-sys-on-primary: #ffffff;
-  --mat-sys-primary-container: #e2f1f1;
+  /* --- Direction tokens (light) --- */
+  --eo-page: #eef2f1;
+  --eo-card: #ffffff;
+  --eo-subtle: #e3ebe9;
+  --eo-text: #0d1b1e;
+  --eo-muted: #52605f;
+  --eo-line: #d5dfdd;
+  --eo-teal: #0b6e66;
+  --eo-on-teal: #ffffff;
+  --eo-mint: #7ef0c2;
+  --eo-on-mint: #06302a;
+  /* Ink surfaces: the dark tiles, buttons, and product cards on a light page. */
+  --eo-ink: #0d1b1e;
+  --eo-on-ink: #ffffff;
+  --eo-hero: radial-gradient(120% 110% at 100% 0%, #17665e 0%, #0f3c3f 48%, #0a1c20 100%);
+  --eo-hero-text: #ffffff;
+  --eo-hero-muted: #cfe7e3;
+  --eo-label-card: linear-gradient(160deg, #0f3c3f, #0a1c20);
+  /* Allergen and additive chips on light surfaces. */
+  --eo-allergen-bg: #fbe6d6;
+  --eo-allergen-text: #7a3a14;
+  --eo-additive-bg: #ebe7f5;
+  --eo-additive-text: #45397a;
+  /* The symptom-day bar on the hero. */
+  --eo-symptom: #ffb38a;
+  --eo-danger: #b3261e;
+  --eo-shadow-lift: 0 18px 40px rgba(10, 28, 32, 0.18);
+
+  /* Material roles, pinned to the direction. */
+  --mat-sys-primary: var(--eo-teal);
+  --mat-sys-on-primary: var(--eo-on-teal);
+  --mat-sys-primary-container: #d7efe9;
   --mat-sys-on-primary-container: #05312f;
+  --mat-sys-surface: var(--eo-card);
+  --mat-sys-on-surface: var(--eo-text);
+  --mat-sys-on-surface-variant: var(--eo-muted);
+  --mat-sys-outline-variant: var(--eo-line);
+  --mat-sys-error: var(--eo-danger);
+
+  @include mat.card-overrides(
+    (
+      outlined-container-color: var(--eo-card),
+      outlined-container-shape: 26px,
+      outlined-outline-width: 0,
+      elevated-container-shape: 26px,
+    )
+  );
+
+  @include mat.button-overrides(
+    (
+      filled-container-height: 48px,
+      outlined-container-height: 48px,
+      text-container-height: 44px,
+      filled-label-text-weight: 700,
+      outlined-label-text-weight: 600,
+      text-label-text-weight: 600,
+      outlined-outline-color: var(--eo-line),
+    )
+  );
+
+  @include mat.button-toggle-overrides(
+    (
+      shape: 18px,
+      background-color: var(--eo-subtle),
+      text-color: var(--eo-text),
+      selected-state-background-color: var(--eo-ink),
+      selected-state-text-color: var(--eo-mint),
+      divider-color: transparent,
+      label-text-weight: 700,
+    )
+  );
+
+  @include mat.form-field-overrides(
+    (
+      outlined-container-shape: 16px,
+      outlined-outline-color: var(--eo-line),
+    )
+  );
+
+  @include mat.snack-bar-overrides(
+    (
+      container-color: var(--eo-ink),
+      supporting-text-color: var(--eo-on-ink),
+      button-color: var(--eo-mint),
+      container-shape: 16px,
+    )
+  );
 }
 
 @media (prefers-color-scheme: dark) {
   html {
-    /* On a dark ground the deep teal fails contrast, so the primary role lifts
-     * to a lighter tone and the text on it darkens to match. */
-    --mat-sys-primary: #5ec9c1;
-    --mat-sys-on-primary: #06201f;
+    --eo-page: #071215;
+    --eo-card: #0f2226;
+    --eo-subtle: #17302f;
+    --eo-text: #e6f0ee;
+    --eo-muted: #9db3b0;
+    --eo-line: #24403f;
+    /* On a dark ground the deep teal fails contrast; the lighter tone passes. */
+    --eo-teal: #5ec9c1;
+    --eo-on-teal: #06201f;
+    --eo-ink: #123c3a;
+    --eo-on-ink: #ffffff;
+    --eo-hero: radial-gradient(120% 110% at 100% 0%, #135850 0%, #0c3134 48%, #071417 100%);
+    --eo-label-card: linear-gradient(160deg, #123c3a, #0a1c20);
+    --eo-allergen-bg: rgba(255, 179, 138, 0.18);
+    --eo-allergen-text: #ffc9ab;
+    --eo-additive-bg: rgba(196, 181, 253, 0.16);
+    --eo-additive-text: #d9d0ff;
+    --eo-danger: #ffb4ab;
+    --eo-shadow-lift: 0 18px 40px rgba(0, 0, 0, 0.45);
+
     --mat-sys-primary-container: #12312f;
     --mat-sys-on-primary-container: #b6ece6;
   }
@@ -65,15 +163,13 @@ body {
 }
 
 body {
-  background: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
+  background: var(--eo-page);
+  color: var(--eo-text);
   font: var(--mat-sys-body-large);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Material's type scale carries hierarchy, so headings should not also inherit
- * the browser's default sizes and margins. */
 h1,
 h2,
 h3,
@@ -82,17 +178,143 @@ h4 {
   font-weight: inherit;
 }
 
-a {
-  color: var(--mat-sys-primary);
-  text-underline-offset: 2px;
+/* Headings carry the display face; everything else, numbers included, stays in
+ * the body sans so figures read as data rather than decoration. */
+h1,
+h2 {
+  font-family: 'Sora', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
 }
 
-/* Keyboard focus must stay visible. Material handles this inside its own
- * components; this covers everything else. */
+/* In the base layer, like Tailwind's preflight, so a utility on a card that
+ * happens to be a link (text-inherit) wins over it. Unlayered, it would beat
+ * every utility regardless of specificity. */
+@layer base {
+  a {
+    color: var(--eo-teal);
+    text-underline-offset: 2px;
+  }
+}
+
 :focus-visible {
-  outline: 3px solid var(--mat-sys-primary);
+  outline: 3px solid var(--eo-teal);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* --- Hero band ---------------------------------------------------------------
+ * Every signed-in page opens on it. The app bar floats over its top edge, so
+ * the band pads for it and the two read as one surface. */
+.page-hero {
+  background: var(--eo-hero);
+  color: var(--eo-hero-text);
+  padding-top: calc(var(--app-bar-height, 4rem) + 0.5rem);
+}
+
+.page-hero :focus-visible {
+  outline-color: var(--eo-mint);
+}
+
+.page-hero a:not(.mat-mdc-button-base) {
+  color: var(--eo-mint);
+}
+
+.hero-muted {
+  color: var(--eo-hero-muted);
+}
+
+/* --- Answer toggles ------------------------------------------------------------
+ * Material joins toggles into one segmented bar. The log's answers are separate,
+ * large targets instead: a flare-day patient may be one-handed and tired. */
+mat-button-toggle-group.answer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 0.625rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  --mat-button-toggle-height: 3.5rem;
+}
+
+mat-button-toggle-group.answer .mat-button-toggle {
+  border: 0 !important;
+  border-radius: 18px;
+  overflow: hidden;
+  font-size: 1rem;
+}
+
+mat-button-toggle-group.stacked {
+  grid-template-columns: 1fr;
+  --mat-button-toggle-height: auto;
+}
+
+mat-button-toggle-group.stacked .mat-button-toggle {
+  text-align: left;
+}
+
+/* Answers here are sentences, so they wrap rather than being cut off. */
+mat-button-toggle-group.stacked .mat-button-toggle-label-content {
+  white-space: normal;
+  line-height: 1.35;
+  padding-block: 0.875rem;
+}
+
+/* The same toggles on the hero: mint when chosen, glass when not. */
+.page-hero mat-button-toggle-group.answer .mat-button-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--eo-hero-text);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  font-family: 'Sora', 'DM Sans', sans-serif;
+  font-size: 1.125rem;
+}
+
+.page-hero mat-button-toggle-group.answer .mat-button-toggle-checked {
+  background: var(--eo-mint);
+  color: var(--eo-on-mint);
+  box-shadow: none;
+}
+
+/* --- Chips for what a food contains -------------------------------------------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.75rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.chip-allergen {
+  background: var(--eo-allergen-bg);
+  color: var(--eo-allergen-text);
+}
+
+.chip-additive {
+  background: var(--eo-additive-bg);
+  color: var(--eo-additive-text);
+}
+
+.chip-caution {
+  box-shadow: inset 0 0 0 1.5px currentColor;
+  color: var(--eo-muted);
+}
+
+/* Inside an ink or label card the same chips switch to their on-dark tones. */
+.on-dark {
+  --eo-allergen-bg: rgba(255, 179, 138, 0.2);
+  --eo-allergen-text: #ffc9ab;
+  --eo-additive-bg: rgba(196, 181, 253, 0.18);
+  --eo-additive-text: #dcd4ff;
+  --eo-muted: var(--eo-hero-muted);
+  color: var(--eo-on-ink);
+}
+
+.on-dark .chip-caution {
+  color: var(--eo-hero-muted);
 }
 
 /* Material Symbols is the icon font paired with Material 3. The Google Fonts

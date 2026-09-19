@@ -60,8 +60,13 @@ const BARCODE = /^\d{8,14}$/;
           />
         </mat-form-field>
         @if (scanAvailable) {
-          <button mat-stroked-button type="button" class="!min-h-tap" (click)="scanning.set(true)">
-            <mat-icon>barcode_scanner</mat-icon>
+          <button
+            mat-flat-button
+            type="button"
+            class="!min-h-tap !bg-ink !text-on-ink"
+            (click)="scanning.set(true)"
+          >
+            <mat-icon class="!text-mint">barcode_scanner</mat-icon>
             Scan
           </button>
         }
