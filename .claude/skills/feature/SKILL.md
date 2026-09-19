@@ -56,15 +56,30 @@ Then run everything CI runs:
 For UI work, also run the app and look at it: screenshot the affected screens
 at phone width in light and dark mode, and fix what you see.
 
-## 4a. Legal review (when the change touches legal or clinical wording)
+## 4a. Legal review (only when a document's claims change)
 
-If the change adds or alters patient-facing legal or regulatory wording —
-terms, a privacy or consumer-health-data disclosure, consent text, or any
-claim about liability, safety, or data use — spawn the `legal-reviewer`
-agent before the code review. Loop on its blocking findings the same way,
-and record each round in the plan's review log. It is not a substitute for
-the attorney review that the launch gate requires; it makes that review
-cheaper and stops untrue claims from shipping in the meantime.
+Spawn the `legal-reviewer` agent when the change either:
+
+- **alters patient-facing legal wording:** the terms, the privacy policy, the
+  consumer health data disclosure, consent text, or any claim the product
+  makes about liability, safety, or data use; or
+- **makes an existing document's factual claims stale**, even with no wording
+  change: a new third party or outbound call, a new field collected, a change
+  to retention, deletion, encryption, logging, the audit trail, what research
+  sharing includes, or who can reach a record.
+
+The second case is the one that is easy to miss. A privacy policy that
+overstates what the software does is a misrepresentation, and the code can
+drift away from it without anyone editing a document.
+
+**It does not run** for work that changes no such claim: build and tooling,
+refactors, dependency bumps, performance, tests, or a screen that displays
+data already described. Note in the plan's review log when it was skipped and
+why, so the decision is visible rather than forgotten.
+
+Loop on its blocking findings the way the other reviews loop. It is not a
+substitute for the attorney review the launch gate requires; it makes that
+review cheaper and stops untrue claims from shipping in the meantime.
 
 ## 5. Code review (the code reviewer)
 

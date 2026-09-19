@@ -14,8 +14,10 @@ in `.claude/skills/feature/SKILL.md` (`/feature <description>`):
    `docs/plans/`.
 2. You implement the plan and run the checks CI runs. Design problems go
    back to the architect, not into improvised code.
-3. Patient-facing legal or clinical wording also goes to the
-   `legal-reviewer` agent first.
+3. The `legal-reviewer` agent reviews changes to patient-facing legal
+   wording, and changes that make an existing document's claims stale (a new
+   third party, a new field collected, changed retention or logging). Build,
+   refactor and dependency work skips it.
 4. The `code-reviewer` agent reviews the changes; fix until it passes.
 5. Changes that touch the attack surface (auth, patient data access, public
    endpoints, outbound calls, crypto, database grants, dependencies, headers,
