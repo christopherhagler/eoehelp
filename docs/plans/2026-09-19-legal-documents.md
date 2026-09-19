@@ -127,6 +127,16 @@ report sign-off):
 - ADR 0011 recording the approach.
 - Regenerated OpenAPI contract and web types.
 
+**Dependency: the audit-metadata change lands first.**
+`docs/plans/2026-09-19-audit-metadata-policy.md` corrects a defect the legal
+reviewer found — the audit trail stores clinical values (drug, stop reason,
+symptom dates, timezone) and keeps them, with IP address and user agent, after
+account deletion, while this plan's documents and `CLAUDE.md` say it does not.
+Two sections here describe the trail, so they cannot be written truthfully until
+that change is in: the privacy policy's *What is collected* row for the activity
+log, and its *How long it is kept* section. Everything else in this plan is
+independent of it.
+
 **Out of scope, deliberately**
 
 - **Re-consent when a version is bumped.** There is no mechanism today to
@@ -520,7 +530,7 @@ that stops being true is a bug in the document.
 | Year of birth, not full date of birth | `identity/patient_schemas.py` |
 | Free-text notes are encrypted in the application with AES-256-GCM, key held outside the database | `core/security.py`, `config.py` |
 | Row-level security; an unscoped query returns nothing | ADR 0002, `db/session.py` |
-| The audit trail records field names and counts, never values, and survives account deletion | `audit/`, `identity/onboarding_service.delete_account` |
+| The audit trail records the time, the kind of record, random ids, the outcome, and shape metadata (field names, counts, presence flags) — never the patient's health, behaviour, or whereabouts — and survives account deletion with `ip_address` and `user_agent` nulled | `audit/`, `identity/onboarding_service.delete_account`, **after** `docs/plans/2026-09-19-audit-metadata-policy.md` lands |
 | Deletion removes the account, profile, and clinical rows by cascade | `identity/onboarding_service.delete_account` |
 | Consent rows keep IP address and user agent | `identity/consent.py` |
 | Logs hold the route pattern, not the resolved path, and no request bodies | `main.py`, `observability.py` |
@@ -904,9 +914,13 @@ feature; a documented manual register is adequate at beta scale.
    biopsy and dilation details, free-text notes), consent records (version,
    time, IP address, browser user agent, and a digest of the exact text, with
    the reason: it is the evidence consent was given), activity log (which
-   records were read or changed, when, from which address, and the *names* of
-   changed fields — never their values), and technical logs (method, route
-   pattern rather than the path, status, duration, request id).
+   records were read or changed, when, from which address, with which browser,
+   the outcome, and shape information about the change — the *names* of the
+   fields, how many records, whether an optional field was filled in — **never
+   the contents, and never anything about the patient's health, behaviour, or
+   whereabouts**; see `docs/plans/2026-09-19-audit-metadata-policy.md` for the
+   rule the code enforces), and technical logs (method, route pattern rather
+   than the path, status, duration, request id).
 4. **What is never collected** — no full date of birth, address, phone number,
    payment details, location, advertising identifiers, or device
    fingerprinting; no cookies other than the sign-in session cookie, which is
@@ -927,9 +941,18 @@ feature; a documented manual register is adequate at beta scale.
    unscoped query returns nothing; access limited to the operator for support
    and maintenance, with every access logged; and the honest limit that no
    system is perfectly secure.
-7. **How long it is kept** — until deleted; what deletion removes and what the
-   activity log keeps (field names, no values) and why; and that encrypted
-   backups may hold deleted data until they expire (*open question 6*).
+7. **How long it is kept** — until deleted, and then, specifically: the account,
+   the profile, and every health entry are removed; the activity log survives
+   **with the IP address and browser string erased**, keeping only when each
+   action happened, what kind of record it touched, random ids whose rows no
+   longer exist, the outcome, and the shape information from section 3. Say why:
+   it is the evidence that the deletion was carried out, and it is what answers
+   "was my record ever accessed" if a breach is investigated later. Then the
+   retention period for those rows (*open question 6a*), and that encrypted
+   backups may hold deleted data until they expire (*open question 6*). **Do not
+   write this section until the audit-metadata change has landed** — the list
+   above is the behaviour after
+   `docs/plans/2026-09-19-audit-metadata-policy.md`, not before it.
 8. **Your choices** — see and correct in the app; ask for a copy by email;
    delete (the route that exists today); research sharing is not available and
    will be opt-in, scoped, and withdrawable when it is.
@@ -969,15 +992,24 @@ test asserts them:
    when a barcode is scanned (the image never leaves the browser; only the
    decoded number is sent). No data brokers, no third-party sources, no
    purchased data.
-4. **What we share** — none of it, followed by the exact exceptions: reports the
-   patient chooses to share by link, and service providers processing on our
-   behalf.
+4. **What we share** — **none of it, with no exceptions today**, followed by the
+   processors that hold it on our behalf. Do **not** describe report sharing by
+   link: it is in the product plan for M3 and **does not exist anywhere in the
+   codebase**, and a disclosure of a sharing route that cannot happen is both
+   wrong and the kind of error that undermines the whole document. Say instead
+   that no feature for sharing with anyone exists yet, and that when one does it
+   will be the patient's own decision and asked for separately (section 7).
 5. **The third parties and affiliates it is shared with** — named categories:
    the hosting provider and the email sender, as processors. No affiliates,
    because there is no corporate group. The Open Food Facts and USDA lookups are
    described precisely here too: whether a barcode or search phrase sent from
    our server is a sharing of consumer health data is exactly the judgment
    counsel must make, and disclosing it is the safer default (*open question 7*).
+   **Google Fonts belongs in this list as well** — the browser requests two
+   stylesheets from Google on pages that display health data, so Google receives
+   the IP address, the user agent, and the site's origin (not the path). The
+   privacy policy discloses it; a reader comparing the two documents and finding
+   it in only one would reasonably ask what else is missing.
 6. **Your rights and how to use them** — confirm whether we collect or share,
    get a copy including the list of third parties, withdraw consent, and delete.
    How a request is authenticated, the 45-day response with a possible 45-day
@@ -987,10 +1019,24 @@ test asserts them:
    running two standards means deciding a patient's rights from their claimed
    location, which is both error-prone and worse for the patient. Recorded here
    as a deliberate choice for counsel to confirm, not an accident of drafting.
-7. **Consent** — separate, specific, opt-in, and never bundled; we collect and
-   share only what this policy describes; **we do not sell consumer health data**
-   and would need a signed authorisation with the contents the statute
-   prescribes, which we do not seek.
+7. **Consent** — separate, specific, opt-in, and never bundled. Be exact about
+   what the consent recorded at onboarding actually covers, because the code and
+   an earlier draft of this outline disagreed: **`ConsentType.CONSUMER_HEALTH_DATA`
+   is consent to collect, and nothing else.** MHMD requires consent to collection
+   and consent to sharing to be sought separately, and the product shares nothing
+   — there is no share link, no research export, no recipient. So the document
+   says: this consent covers collecting the data in order to keep the record; no
+   sharing happens; and if a way to share is built, consent for it will be asked
+   for separately, at that time, and can be refused without losing the account.
+   **Do not add a second `ConsentType` now.** An unused
+   `CONSUMER_HEALTH_DATA_SHARING` type sitting in the enum is an invitation for a
+   future onboarding screen to collect it alongside the others, which is exactly
+   the bundling the statute prohibits. The type is added by the feature that
+   first shares something — the report share link (M3) — and that feature's plan
+   owns both the type and the screen that asks for it. Recorded here so the
+   sequencing is deliberate rather than an omission.
+   Then: **we do not sell consumer health data** and would need a signed
+   authorisation with the contents the statute prescribes, which we do not seek.
 8. **No geofencing** — eoehelp does not use location at all and operates no
    geofence around any health facility.
 9. **Nevada residents** — the equivalent statements under SB370.
@@ -1232,6 +1278,14 @@ user's or counsel's decision, not ours.
    until they expire, and the policy should say for how long.
    *Default:* 35 days, matching the RDS point-in-time-recovery window in ADR
    0004; correct it if the deployed configuration differs.
+6a. **How long the activity log itself is kept.** Nothing prunes `audit_log`
+   today, so the honest answer is "indefinitely", which the policy should not
+   promise by omission. Carried from open question 2 of the audit-metadata plan
+   so whichever document ships first states the same number.
+   *Default:* say two years, and implement pruning when a scheduler exists (M4).
+   If the user would rather not state a period that is not yet enforced, the
+   fallback is to say the rows are kept while the service operates and that a
+   limit is being introduced — honest, and weaker.
 7. **Are the Open Food Facts and USDA lookups a sharing of consumer health
    data?** A barcode sent from our server, with no identifier, in response to a
    patient's scan.
@@ -1262,3 +1316,4 @@ user's or counsel's decision, not ours.
 | 3 | implementer | Built | All three documents written, registry pinned by digest, migration 0006 with the published digests as literals, public `/legal` routes, the web pages, the onboarding dialog and notices, ADR 0011. Deviations, all small: the grammar allows a blank line between a table caption and its table, because the source reads better that way; the router converts blocks with `dataclasses.asdict`, since a block's spans are dataclasses too; `tests/db/test_patient_isolation.py` needed its raw consent fixture updated for the new NOT NULL column (a stand-in digest, not a published one), which is also the proof that the check constraint binds. Corrections the architect caught in my drafts and I applied: the deletion sentence now describes the email route that exists rather than a screen that does not; section 13 names wantonness and Nevada SB370; the conspicuous notice sits before section 1. Checks: 557 API tests, 63 web tests, ruff, mypy, contract regenerated; legal pages screenshotted in light and dark. |
 | 4 | legal-reviewer | CHANGES REQUESTED | Verified against the code, so counsel need not recheck: token hashing, cookie flags, note encryption, year-of-birth, route-pattern-only logs, food lookups carrying no identifier, on-device barcode decoding, no analytics, no research sharing, real cascade deletion, the 18+ gate. Eight blocking findings, all of the same kind: sentences describing the system as planned rather than as it is. **Fixed in this commit:** report sharing by link described but absent from the codebase (removed from all three documents); hosting, US storage, at-rest encryption, backups and processor contracts asserted before any infrastructure exists (now stated as commitments, with the fact that nothing is deployed); Google Fonts missing from the consumer-health-data third-party list (added, and the "no third-party script" line reworded); the terms contradicting themselves about another person's health information, which a parent could read as permission to log a child (now one rule: your own data only); the privacy policy's "nobody receives your health entries" sitting above the hosting row (reworded); §12 now reads "subject to section 13"; the age claim, the location claim, the RLS scope claim, the user-agent omission, the font description, and the consumer-health-data definition all corrected; consent separateness now states the truth (collection only, nothing shared, sharing consent if sharing is added); the deletion clock split from the response clock. **Outstanding, with the architect:** the audit trail stores medication codes, stop reasons, dose status, entry dates, eaten-on dates, timezone, IP and user agent against a patient id, and survives deletion, which contradicts CLAUDE.md, ADR 0002's posture and all three documents. **Outstanding, deferred and recorded:** re-consent on a version bump; the account screen; the consent-withdrawal path and what it means; a third-party licence section (ODbL share-alike, the unconfirmed DSQ licence); `content_sha256` missing from the consent audit metadata and the onboarding digest tests unwritten; a draft marker inside each file's text; whether the production draft gate should extend to staging. Seven questions for counsel recorded in the reviewer's report. |
 | 5 | implementer | Committed unreviewed | Committed with the wording fixes above so the work is not lost. The code review, the security review and the database review have NOT run on this feature; they are the first thing to do next. The documents remain drafts, and `enforce_review_status` still refuses to serve them in production. |
+| 3 | architect (revision after the legal reviewer's code check) | Draft ready, with one dependency | The reviewer found that the audit trail stores clinical values — drug code, frequency, stop reason, dose status, symptom and food dates, timezone, and counts of flagged findings — and keeps them, with IP address and browser string, against a durable `patient_id` after account deletion, while these documents, ADR 0002 and `CLAUDE.md` all say it holds field names and counts only. That is a product defect, not a wording problem, so it is **its own plan and lands first**: `docs/plans/2026-09-19-audit-metadata-policy.md`. The rule decided there — metadata may describe the request and the shape of a change, never the patient's health, behaviour, or whereabouts; no dates at any precision, because `resource_id` already identifies the row; date ranges become `window_days`; counts of records allowed, counts of clinical findings not; `ip_address` and `user_agent` nulled inside the deletion transaction through a column-level grant — is now reflected in three places here: the *Facts the documents state* table, the privacy policy's activity-log row, and its retention section, which now lists precisely what survives a deletion instead of the inadequate "field names, no values". A *Dependency* note in *Scope* says those two sections must not be written before that change lands, because a claim in a legal document has to be true when it is written, not merely before a patient reads it. Added open question 6a: nothing prunes `audit_log`, so the policy must not promise a retention period by omission; default two years, with pruning when a scheduler exists. Also corrected two things in my own outlines that the reviewer's other findings exposed. The consumer-health-data policy must **not** describe report sharing by link — it is M3 in the product plan and does not exist in the codebase — and its third-party list must include **Google Fonts**, which the privacy policy discloses and this one omitted; a reader comparing the two would rightly ask what else is missing. On the consent-separateness question: `ConsentType.CONSUMER_HEALTH_DATA` is consent to **collect**, and the document now says so plainly, adding that nothing is shared and that consent to share will be asked for separately when something can be. **No second `ConsentType` now** — an unused `CONSUMER_HEALTH_DATA_SHARING` in the enum invites a future onboarding screen to collect it alongside the others, which is the bundling MHMD prohibits; it belongs to the feature that first shares something, and that feature's plan owns both the type and the screen. The remaining reviewer findings (hosting, at-rest encryption, backups and processor contracts asserted before any infrastructure exists) are wording the coordinator is correcting, and they are governed by open question 5, which already says to describe only what is true on the day the documents ship. |
