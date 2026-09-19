@@ -14,8 +14,10 @@ in `.claude/skills/feature/SKILL.md` (`/feature <description>`):
    `docs/plans/`.
 2. You implement the plan and run the checks CI runs. Design problems go
    back to the architect, not into improvised code.
-3. The `code-reviewer` agent reviews the changes; fix until it passes.
-4. Commit with the plan, push to `development`, and watch CI.
+3. Patient-facing legal or clinical wording also goes to the
+   `legal-reviewer` agent first.
+4. The `code-reviewer` agent reviews the changes; fix until it passes.
+5. Commit with the plan, push to `development`, and watch CI.
 
 Small fixes (a typo, a one-line bug, a dependency bump) can skip the
 architect, but still get a code review before committing.

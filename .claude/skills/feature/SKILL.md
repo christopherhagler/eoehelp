@@ -56,6 +56,16 @@ Then run everything CI runs:
 For UI work, also run the app and look at it: screenshot the affected screens
 at phone width in light and dark mode, and fix what you see.
 
+## 4a. Legal review (when the change touches legal or clinical wording)
+
+If the change adds or alters patient-facing legal or regulatory wording —
+terms, a privacy or consumer-health-data disclosure, consent text, or any
+claim about liability, safety, or data use — spawn the `legal-reviewer`
+agent before the code review. Loop on its blocking findings the same way,
+and record each round in the plan's review log. It is not a substitute for
+the attorney review that the launch gate requires; it makes that review
+cheaper and stops untrue claims from shipping in the meantime.
+
 ## 5. Code review (the code reviewer)
 
 Spawn the `code-reviewer` agent with the plan's path. When it returns:
