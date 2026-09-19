@@ -24,7 +24,12 @@ in `.claude/skills/feature/SKILL.md` (`/feature <description>`):
    parsing) then go to the `security-reviewer` agent.
 6. Build, container, CI and infrastructure changes go to the
    `devops-reviewer` agent.
-7. Commit with the plan, push to `development`, and watch CI.
+7. Changes to models, migrations, indexes, constraints, grants or query
+   shape go to the `database-reviewer` agent.
+8. Commit with the plan, push to `development`, and watch CI.
+
+Reviews run only when they apply, and a plan's review log records which ran
+and which were skipped.
 
 Small fixes (a typo, a one-line bug, a dependency bump) can skip the
 architect, but still get a code review before committing.

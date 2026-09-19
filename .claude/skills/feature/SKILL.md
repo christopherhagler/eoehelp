@@ -124,6 +124,17 @@ backup nobody has restored, and a bill that arrives at the end of the month.
 One person operates this, so anything needing a remembered step will
 eventually not happen.
 
+## 5c. Database review (schema, migrations, and queries)
+
+If the change touches models, migrations, indexes, constraints, RLS policies
+or grants, or the shape of a query, spawn the `database-reviewer` agent after
+the code review. Fix its blocking findings, and record each round in the
+plan's review log.
+
+Nothing is deployed yet, so a schema correction is cheap today and expensive
+after the first patient. That asymmetry is why this review happens now rather
+than when something gets slow.
+
 ## 6. Ship
 
 Commit the feature and its plan together on `development`, never `main`
