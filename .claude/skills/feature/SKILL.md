@@ -77,6 +77,23 @@ Spawn the `code-reviewer` agent with the plan's path. When it returns:
 Record each round in the plan's review log. After three rounds without a pass,
 bring the remaining findings to the user.
 
+## 5a. Security review (when the change touches the attack surface)
+
+If the change touches authentication, sessions, patient data access, an
+unauthenticated endpoint, outbound requests, cryptography, database
+permissions, dependencies, response headers, or any parsing or rendering of
+input, spawn the `security-reviewer` agent after the code review passes. Fix
+its critical and high findings before shipping, record each round in the
+plan's review log, and note in the log when a feature did not need this pass
+and why.
+
+It is not the independent penetration test the launch gate requires. It
+exists because a per-feature code review is not an adversarial pass: the
+review on 2026-09-17 found that production would accept the public
+development encryption key, that nothing was rate-limited, and that
+concurrent sign-ins raced, and none of those would have surfaced from
+reading one diff against one plan.
+
 ## 6. Ship
 
 Commit the feature and its plan together on `development`, never `main`

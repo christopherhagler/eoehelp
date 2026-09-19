@@ -17,7 +17,10 @@ in `.claude/skills/feature/SKILL.md` (`/feature <description>`):
 3. Patient-facing legal or clinical wording also goes to the
    `legal-reviewer` agent first.
 4. The `code-reviewer` agent reviews the changes; fix until it passes.
-5. Commit with the plan, push to `development`, and watch CI.
+5. Changes that touch the attack surface (auth, patient data access, public
+   endpoints, outbound calls, crypto, database grants, dependencies, headers,
+   parsing) then go to the `security-reviewer` agent.
+6. Commit with the plan, push to `development`, and watch CI.
 
 Small fixes (a typo, a one-line bug, a dependency bump) can skip the
 architect, but still get a code review before committing.
