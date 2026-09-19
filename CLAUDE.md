@@ -10,14 +10,15 @@ as a production medical-adjacent product.
 Every new feature or substantial change goes through the reviewed workflow
 in `.claude/skills/feature/SKILL.md` (`/feature <description>`):
 
-1. Write a plan in `docs/plans/`.
-2. The `architect` agent reviews it; revise until it approves.
-3. Implement, then run the checks CI runs.
-4. The `code-reviewer` agent reviews the changes; fix until it passes.
-5. Commit with the plan, push to `development`, and watch CI.
+1. The `architect` agent designs the feature and writes its plan in
+   `docs/plans/`.
+2. You implement the plan and run the checks CI runs. Design problems go
+   back to the architect, not into improvised code.
+3. The `code-reviewer` agent reviews the changes; fix until it passes.
+4. Commit with the plan, push to `development`, and watch CI.
 
-Small fixes (a typo, a one-line bug, a dependency bump) can skip the plan and
-the architect, but still get a code review before committing.
+Small fixes (a typo, a one-line bug, a dependency bump) can skip the
+architect, but still get a code review before committing.
 
 ## Commands
 

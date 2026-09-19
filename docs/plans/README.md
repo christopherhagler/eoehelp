@@ -1,8 +1,8 @@
 # Feature plans
 
-Every feature starts as a plan in this folder. The architect agent reviews it
-before any code is written, and the code-reviewer agent reviews the result
-before it is committed. The workflow lives in `.claude/skills/feature/` (run it
+Every feature starts as a plan in this folder. The architect agent designs the
+feature and writes the plan before any code is written. The implementer builds
+from it, and the code-reviewer agent reviews the result before it is committed. The workflow lives in `.claude/skills/feature/` (run it
 with `/feature <description>`), and the reviewers' criteria are in
 `.claude/agents/`.
 
