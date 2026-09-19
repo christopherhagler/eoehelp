@@ -109,6 +109,21 @@ development encryption key, that nothing was rate-limited, and that
 concurrent sign-ins raced, and none of those would have surfaced from
 reading one diff against one plan.
 
+## 5b. DevOps review (build, containers, CI, and infrastructure)
+
+If the change touches Dockerfiles, compose, the task runner or scripts,
+GitHub Actions, Terraform or AWS configuration, or anything affecting how the
+app is built, started, deployed, migrated, backed up, or rolled back, spawn
+the `devops-reviewer` agent after the code review. Fix its blocking findings,
+and record each round in the plan's review log.
+
+Infrastructure fails in ways a code review does not look for: an image that
+only builds on the machine that built it, a deploy with no way back, a secret
+in a layer, a migration that runs in the wrong order against live data, a
+backup nobody has restored, and a bill that arrives at the end of the month.
+One person operates this, so anything needing a remembered step will
+eventually not happen.
+
 ## 6. Ship
 
 Commit the feature and its plan together on `development`, never `main`

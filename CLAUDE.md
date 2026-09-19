@@ -22,7 +22,9 @@ in `.claude/skills/feature/SKILL.md` (`/feature <description>`):
 5. Changes that touch the attack surface (auth, patient data access, public
    endpoints, outbound calls, crypto, database grants, dependencies, headers,
    parsing) then go to the `security-reviewer` agent.
-6. Commit with the plan, push to `development`, and watch CI.
+6. Build, container, CI and infrastructure changes go to the
+   `devops-reviewer` agent.
+7. Commit with the plan, push to `development`, and watch CI.
 
 Small fixes (a typo, a one-line bug, a dependency bump) can skip the
 architect, but still get a code review before committing.
