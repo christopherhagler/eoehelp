@@ -7,6 +7,9 @@ What each limit protects:
   created on first request).
 - **Magic-link verify** and **refresh**: guessing, and replay loops.
 - **Product lookups**: the Open Food Facts and USDA quotas every patient shares.
+- **Insights**: the food-pattern analysis reads up to 18 months of a patient's
+  log and runs exact tests, far more work than a list read, so one client
+  cannot tie up an API task by refreshing it.
 
 Counters live in Redis wherever more than one API task runs, since per-process
 counters would let each task grant the whole limit. Production refuses to start
@@ -32,6 +35,8 @@ MAGIC_LINK_REQUEST = "5/15 minutes"
 MAGIC_LINK_VERIFY = "10/minute"
 SESSION_REFRESH = "30/minute"
 PRODUCT_LOOKUP = "60/minute"
+# The food-pattern analysis costs more than a list read.
+INSIGHTS = "30/minute"
 
 # Per address, independent of the caller: enforced in the auth service against
 # the tokens table, so it holds even when requests arrive from many addresses.

@@ -6,9 +6,15 @@ so both conftest and the test modules can import it.
 """
 
 import os
+from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
+
+from eoehelp_api.food.enums import AllergenGroup
+from eoehelp_api.insights.food_patterns import DayFood, PatternInput
+from eoehelp_api.synthetic.generator import INGREDIENT_GROUPS
+from eoehelp_api.synthetic.plans import HistoryPlan
 
 DEFAULT_ONBOARDING: dict[str, Any] = {
     "display_name": "Test Patient",
@@ -64,3 +70,31 @@ def app_role_url(database_url: str) -> str:
     password = os.environ.get("APP_RUNTIME_PASSWORD", "app_runtime_local_only")
     netloc = f"app_runtime:{password}@{parts.hostname}:{parts.port or 5432}"
     return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
+
+
+def synthetic_pattern_input(plan: HistoryPlan, window_end: date) -> PatternInput:
+    """A generated history as the food-pattern analysis sees a real one.
+
+    Lives in the tests, not the application: nothing outside `synthetic` may
+    import the generator (tests/test_architecture.py). Ingredients are catalog
+    codes here; the database path keys them by canonical key instead, so only
+    group-level results are comparable between the two.
+    """
+    outcomes = {
+        d.entry_date: bool(d.dysphagia_occurred)
+        for d in plan.days
+        if d.ate_solid_food and d.dysphagia_occurred is not None
+    }
+    groups: dict[date, set[AllergenGroup]] = defaultdict(set)
+    ingredients: dict[date, set[str]] = defaultdict(set)
+    for food in plan.foods:
+        for code in food.ingredient_codes:
+            groups[food.eaten_on] |= INGREDIENT_GROUPS[code]
+            ingredients[food.eaten_on].add(code)
+    foods = {
+        day: DayFood(groups=frozenset(groups[day]), ingredients=frozenset(ingredients[day]))
+        for day in {f.eaten_on for f in plan.foods}
+    }
+    return PatternInput(
+        window_end=window_end, outcomes=outcomes, foods=foods, logged_days=len(plan.days)
+    )

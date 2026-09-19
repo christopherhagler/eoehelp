@@ -65,3 +65,7 @@ export type ProductSummaryRead = Schemas['ProductSummaryRead'];
 export type ProductRead = Schemas['ProductRead'];
 export type ProductIngredientRead = Schemas['ProductIngredientRead'];
 export type ProductSnapshotRead = Schemas['ProductSnapshotRead'];
+
+export type FoodPatternReport = Schemas['FoodPatternReport'];
+export type FoodPatternRead = Schemas['FoodPatternRead'];
+export type PatternStatus = Schemas['PatternStatus'];

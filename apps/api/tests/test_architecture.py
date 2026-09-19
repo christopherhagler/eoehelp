@@ -93,6 +93,13 @@ def test_clinical_domains_do_not_import_each_other() -> None:
     assert _violations(dict.fromkeys(CLINICAL, allowed)) == []
 
 
+def test_insights_combines_clinical_domains_from_above() -> None:
+    """Views over several domains live in their own package, above the domains
+    they read; the domains never import it (the rule above covers that side)."""
+    allowed = FOUNDATION | {"audit", "identity", "deps", "symptoms", "food"}
+    assert _violations({"insights": allowed}) == []
+
+
 @pytest.mark.parametrize("module", ["deps", "health"])
 def test_request_wiring_is_imported_only_by_routers_and_the_app(module: str) -> None:
     importers = [

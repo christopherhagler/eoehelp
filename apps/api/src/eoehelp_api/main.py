@@ -19,6 +19,7 @@ from eoehelp_api.db.session import dispose_engine
 from eoehelp_api.deps import API_V1_PREFIX
 from eoehelp_api.food import router as food_router
 from eoehelp_api.identity import auth_router, me_router
+from eoehelp_api.insights import router as insights_router
 from eoehelp_api.medications import router as medications_router
 from eoehelp_api.observability import configure_logging, get_logger
 from eoehelp_api.procedures import router as procedures_router
@@ -38,6 +39,7 @@ V1_ROUTERS = (
     food_router.catalog_router,
     food_router.router,
     procedures_router.router,
+    insights_router.router,
 )
 
 logger = get_logger(__name__)

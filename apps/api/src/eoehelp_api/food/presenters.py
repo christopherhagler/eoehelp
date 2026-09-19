@@ -8,6 +8,7 @@ improvement to the classifier corrects past days as well as new ones.
 """
 
 from eoehelp_api.food.enums import FoodDataSource
+from eoehelp_api.food.exposure import additive_class, row_groups
 from eoehelp_api.food.models import FoodLogItem, FoodLogItemIngredient, FoodProduct
 from eoehelp_api.food.products import vocabulary
 from eoehelp_api.food.products.records import ProductRecord
@@ -27,11 +28,6 @@ ATTRIBUTION = {
 }
 
 
-def _additive_class(key: str) -> str | None:
-    found = vocabulary.additive(key)
-    return found.additive_class.value if found else None
-
-
 def ingredient_read(row: FoodLogItemIngredient) -> IngredientRead:
     common = {
         "canonical_key": row.canonical_key,
@@ -39,14 +35,14 @@ def ingredient_read(row: FoodLogItemIngredient) -> IngredientRead:
         "recognized": row.recognized,
         "depth": row.depth,
         "note": row.note,
-        "additive_class": _additive_class(row.canonical_key),
+        "additive_class": additive_class(row.canonical_key),
     }
     if row.catalog is not None:
         return IngredientRead(
             code=row.catalog.code,
             custom_ingredient_id=None,
             name=row.catalog.name,
-            allergen_groups=list(row.catalog.allergen_groups),
+            allergen_groups=row_groups(row),
             typical=row.catalog.is_composite,
             **common,
         )
@@ -55,19 +51,16 @@ def ingredient_read(row: FoodLogItemIngredient) -> IngredientRead:
             code=None,
             custom_ingredient_id=row.custom.id,
             name=row.custom.name,
-            allergen_groups=list(row.custom.allergen_groups),
+            allergen_groups=row_groups(row),
             typical=False,
             **common,
         )
-    # A label ingredient. Its groups are classified on read, so an improvement
-    # to the classifier corrects past days too, as a retag does.
+    # A label ingredient. Its groups are classified on read (see food.exposure).
     return IngredientRead(
         code=None,
         custom_ingredient_id=None,
         name=row.display_name,
-        allergen_groups=vocabulary.ordered(
-            vocabulary.allergen_groups(row.canonical_key, row.display_name)
-        ),
+        allergen_groups=row_groups(row),
         typical=False,
         **common,
     )
@@ -105,7 +98,7 @@ def product_read(record: ProductRecord) -> ProductRead:
                 recognized=i.recognized,
                 note=i.note,
                 allergen_groups=vocabulary.ordered(vocabulary.allergen_groups(i.key, i.name)),
-                additive_class=_additive_class(i.key),
+                additive_class=additive_class(i.key),
             )
             for i in record.ingredients
         ],

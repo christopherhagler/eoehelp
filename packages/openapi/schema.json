@@ -1222,6 +1222,193 @@
         "title": "FoodItemRead",
         "type": "object"
       },
+      "FoodPatternRead": {
+        "description": "One allergen group, ingredient, or additive class, and what the log shows for it.\n\nAllergen groups carry a tested status. Ingredients and additive classes are\n`counts_only` in v1: what happened on the days they were eaten, with no\nverdict attached.",
+        "properties": {
+          "explained_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AllergenGroup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exposed_days": {
+            "title": "Exposed Days",
+            "type": "integer"
+          },
+          "exposed_symptom_days": {
+            "title": "Exposed Symptom Days",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "often_with": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AllergenGroup"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "q_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q Value"
+          },
+          "risk_difference": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Difference"
+          },
+          "same_day_only": {
+            "title": "Same Day Only",
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PatternStatus"
+          },
+          "unexposed_days": {
+            "title": "Unexposed Days",
+            "type": "integer"
+          },
+          "unexposed_symptom_days": {
+            "title": "Unexposed Symptom Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "status",
+          "exposed_days",
+          "exposed_symptom_days",
+          "unexposed_days",
+          "unexposed_symptom_days",
+          "explained_by",
+          "often_with",
+          "same_day_only",
+          "risk_difference",
+          "q_value"
+        ],
+        "title": "FoodPatternRead",
+        "type": "object"
+      },
+      "FoodPatternReport": {
+        "properties": {
+          "additives": {
+            "items": {
+              "$ref": "#/components/schemas/FoodPatternRead"
+            },
+            "title": "Additives",
+            "type": "array"
+          },
+          "analyzable_days": {
+            "title": "Analyzable Days",
+            "type": "integer"
+          },
+          "complete_window_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Complete Window Share"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/FoodPatternRead"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/FoodPatternRead"
+            },
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "lag_days": {
+            "title": "Lag Days",
+            "type": "integer"
+          },
+          "logged_days": {
+            "title": "Logged Days",
+            "type": "integer"
+          },
+          "logging_gap": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logging Gap"
+          },
+          "method_version": {
+            "title": "Method Version",
+            "type": "string"
+          },
+          "symptom_days": {
+            "title": "Symptom Days",
+            "type": "integer"
+          },
+          "window_end": {
+            "format": "date",
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "format": "date",
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method_version",
+          "window_start",
+          "window_end",
+          "lag_days",
+          "analyzable_days",
+          "symptom_days",
+          "logged_days",
+          "complete_window_share",
+          "logging_gap",
+          "groups",
+          "ingredients",
+          "additives"
+        ],
+        "title": "FoodPatternReport",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2032,6 +2219,18 @@
         },
         "title": "PatientProfileUpdate",
         "type": "object"
+      },
+      "PatternStatus": {
+        "enum": [
+          "flagged",
+          "no_pattern",
+          "cant_tell",
+          "not_enough_data",
+          "no_baseline",
+          "counts_only"
+        ],
+        "title": "PatternStatus",
+        "type": "string"
       },
       "PeakCount": {
         "description": "The procedure's highest reported count, with how it was stated.",
@@ -3768,6 +3967,52 @@
         "summary": "Update Food",
         "tags": [
           "food"
+        ]
+      }
+    },
+    "/api/v1/me/insights/food-patterns": {
+      "get": {
+        "description": "Which allergen groups the patient's log links to symptom days, and which it does not.\n\nDescriptive only: counts and one of a fixed set of statuses, never advice.\nIngredients and additive classes are counts only. The method is described in\ndocs/plans/2026-09-19-insights-food-patterns.md.",
+        "operationId": "read_food_patterns_api_v1_me_insights_food_patterns_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lag_days",
+            "required": false,
+            "schema": {
+              "default": 2,
+              "maximum": 3,
+              "minimum": 0,
+              "title": "Lag Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodPatternReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Food Patterns",
+        "tags": [
+          "insights"
         ]
       }
     },

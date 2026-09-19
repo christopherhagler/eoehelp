@@ -72,6 +72,7 @@ export class App implements OnInit {
   protected readonly links: readonly NavLink[] = [
     { path: '/today', label: 'Today', icon: 'home' },
     { path: '/log', label: 'Log', icon: 'edit_note' },
+    { path: '/insights', label: 'Insights', icon: 'insights' },
     { path: '/medications', label: 'Medications', icon: 'medication' },
   ];
 

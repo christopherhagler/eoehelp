@@ -346,6 +346,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/insights/food-patterns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Food Patterns
+         * @description Which allergen groups the patient's log links to symptom days, and which it does not.
+         *
+         *     Descriptive only: counts and one of a fixed set of statuses, never advice.
+         *     Ingredients and additive classes are counts only. The method is described in
+         *     docs/plans/2026-09-19-insights-food-patterns.md.
+         */
+        get: operations["read_food_patterns_api_v1_me_insights_food_patterns_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/medications": {
         parameters: {
             query?: never;
@@ -1207,6 +1231,70 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * FoodPatternRead
+         * @description One allergen group, ingredient, or additive class, and what the log shows for it.
+         *
+         *     Allergen groups carry a tested status. Ingredients and additive classes are
+         *     `counts_only` in v1: what happened on the days they were eaten, with no
+         *     verdict attached.
+         */
+        FoodPatternRead: {
+            explained_by: components["schemas"]["AllergenGroup"] | null;
+            /** Exposed Days */
+            exposed_days: number;
+            /** Exposed Symptom Days */
+            exposed_symptom_days: number;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            often_with: components["schemas"]["AllergenGroup"] | null;
+            /** Q Value */
+            q_value: number | null;
+            /** Risk Difference */
+            risk_difference: number | null;
+            /** Same Day Only */
+            same_day_only: boolean;
+            status: components["schemas"]["PatternStatus"];
+            /** Unexposed Days */
+            unexposed_days: number;
+            /** Unexposed Symptom Days */
+            unexposed_symptom_days: number;
+        };
+        /** FoodPatternReport */
+        FoodPatternReport: {
+            /** Additives */
+            additives: components["schemas"]["FoodPatternRead"][];
+            /** Analyzable Days */
+            analyzable_days: number;
+            /** Complete Window Share */
+            complete_window_share: number | null;
+            /** Groups */
+            groups: components["schemas"]["FoodPatternRead"][];
+            /** Ingredients */
+            ingredients: components["schemas"]["FoodPatternRead"][];
+            /** Lag Days */
+            lag_days: number;
+            /** Logged Days */
+            logged_days: number;
+            /** Logging Gap */
+            logging_gap: number | null;
+            /** Method Version */
+            method_version: string;
+            /** Symptom Days */
+            symptom_days: number;
+            /**
+             * Window End
+             * Format: date
+             */
+            window_end: string;
+            /**
+             * Window Start
+             * Format: date
+             */
+            window_start: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1514,6 +1602,11 @@ export interface components {
             /** Timezone */
             timezone?: string | null;
         };
+        /**
+         * PatternStatus
+         * @enum {string}
+         */
+        PatternStatus: "flagged" | "no_pattern" | "cant_tell" | "not_enough_data" | "no_baseline" | "counts_only";
         /**
          * PeakCount
          * @description The procedure's highest reported count, with how it was stated.
@@ -2473,6 +2566,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_food_patterns_api_v1_me_insights_food_patterns_get: {
+        parameters: {
+            query?: {
+                lag_days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FoodPatternReport"];
+                };
             };
             /** @description Validation Error */
             422: {
