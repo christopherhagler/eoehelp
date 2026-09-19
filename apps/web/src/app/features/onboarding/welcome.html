@@ -117,28 +117,58 @@
           should be able to see what each one is.
         </p>
 
+        @if (anyDraft()) {
+          <p class="mt-4 flex items-start gap-2 rounded-[16px] bg-subtle p-3 text-sm" role="note">
+            <mat-icon class="!size-5 shrink-0 !text-xl" aria-hidden="true">gavel</mat-icon>
+            <span>
+              These documents are drafts and have not yet been reviewed by a lawyer. This build is
+              for testing, not for real health information.
+            </span>
+          </p>
+        }
+
         <div class="mt-5 flex flex-col gap-4">
           <mat-checkbox name="terms" [(ngModel)]="acceptedTerms">
             <span class="text-sm leading-relaxed">
-              I agree to the <strong>terms of service</strong>. eoehelp is a personal health record
-              and does not provide medical advice.
+              I agree to the
+              <a href="/terms" (click)="openDocument($event, 'terms')">terms of service</a>. eoehelp
+              is a personal health record and does not provide medical advice.
             </span>
           </mat-checkbox>
 
+          <!-- Static, not behind a link: notice of an arbitration clause at the
+               moment of acceptance is part of what makes it enforceable. -->
+          <p class="m-0 pl-10 text-xs leading-relaxed text-muted">
+            The terms include <strong class="font-semibold">individual arbitration</strong> and a
+            waiver of jury trial and class actions. You can opt out of that within 30 days, at no
+            cost, as section 18.7 explains.
+          </p>
+
           <mat-checkbox name="privacy" [(ngModel)]="acceptedPrivacy">
             <span class="text-sm leading-relaxed">
-              I have read the <strong>privacy policy</strong>, covering what is stored and how to
-              delete it.
+              I have read the
+              <a href="/privacy" (click)="openDocument($event, 'privacy')">privacy policy</a>,
+              covering what is stored and how to delete it.
             </span>
           </mat-checkbox>
 
           <mat-checkbox name="healthData" [(ngModel)]="acceptedHealthData">
             <span class="text-sm leading-relaxed">
-              I consent to eoehelp collecting my <strong>consumer health data</strong>
+              I consent to eoehelp collecting my
+              <a href="/health-data" (click)="openDocument($event, 'health-data')">
+                consumer health data</a
+              >
               to keep this record for me.
             </span>
           </mat-checkbox>
         </div>
+
+        @if (versions(); as agreeing) {
+          <p class="m-0 mt-4 text-xs leading-relaxed text-muted">
+            You are agreeing to the versions in force today: {{ agreeing }}. Each one stays readable
+            at its own address, and your record keeps the exact text.
+          </p>
+        }
 
         <p class="mt-5 flex items-start gap-2 text-sm text-on-surface-variant">
           <mat-icon class="!size-5 shrink-0 !text-xl text-brand">science</mat-icon>

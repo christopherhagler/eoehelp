@@ -163,6 +163,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/legal/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Documents
+         * @description Every document currently in force, without its text.
+         */
+        get: operations["list_documents_api_v1_legal_documents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/legal/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Document
+         * @description One document by version id ("tos-2026-09") or by slug ("terms").
+         */
+        get: operations["read_document_api_v1_legal_documents__document_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -904,6 +944,11 @@ export interface components {
              */
             granted_at: string;
         };
+        /**
+         * ConsentType
+         * @enum {string}
+         */
+        ConsentType: "terms_of_service" | "privacy_policy" | "consumer_health_data" | "research_participation";
         /** CustomIngredientRead */
         CustomIngredientRead: {
             /** Allergen Groups */
@@ -1370,6 +1415,108 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /** LegalBullets */
+        LegalBullets: {
+            /** Items */
+            items: components["schemas"]["LegalSpan"][][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "bullets";
+        };
+        /** LegalDocumentRead */
+        LegalDocumentRead: {
+            /** Blocks */
+            blocks: (components["schemas"]["LegalHeading"] | components["schemas"]["LegalParagraph"] | components["schemas"]["LegalBullets"] | components["schemas"]["LegalTable"])[];
+            consent_type: components["schemas"]["ConsentType"];
+            /** Content Sha256 */
+            content_sha256: string;
+            /**
+             * Effective On
+             * Format: date
+             */
+            effective_on: string;
+            /** Id */
+            id: string;
+            review_status: components["schemas"]["ReviewStatus"];
+            /** Slug */
+            slug: string;
+            /** Superseded By */
+            superseded_by?: string | null;
+            /** Title */
+            title: string;
+        };
+        /** LegalDocumentSummary */
+        LegalDocumentSummary: {
+            consent_type: components["schemas"]["ConsentType"];
+            /** Content Sha256 */
+            content_sha256: string;
+            /**
+             * Effective On
+             * Format: date
+             */
+            effective_on: string;
+            /** Id */
+            id: string;
+            review_status: components["schemas"]["ReviewStatus"];
+            /** Slug */
+            slug: string;
+            /** Superseded By */
+            superseded_by?: string | null;
+            /** Title */
+            title: string;
+        };
+        /** LegalHeading */
+        LegalHeading: {
+            /** Anchor */
+            anchor: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "heading";
+            /** Level */
+            level: number;
+            /** Text */
+            text: string;
+        };
+        /** LegalParagraph */
+        LegalParagraph: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "paragraph";
+            /** Spans */
+            spans: components["schemas"]["LegalSpan"][];
+        };
+        /** LegalSpan */
+        LegalSpan: {
+            /**
+             * Bold
+             * @default false
+             */
+            bold: boolean;
+            /** Href */
+            href?: string | null;
+            /** Text */
+            text: string;
+        };
+        /** LegalTable */
+        LegalTable: {
+            /** Caption */
+            caption?: string | null;
+            /** Header */
+            header: string[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "table";
+            /** Rows */
+            rows: components["schemas"]["LegalSpan"][][][];
+        };
         /** MagicLinkRequest */
         MagicLinkRequest: {
             /**
@@ -1747,6 +1894,16 @@ export interface components {
             /** Times Logged */
             times_logged: number;
         };
+        /**
+         * ReviewStatus
+         * @description Whether a legal document has been through attorney review.
+         *
+         *     `DRAFT` means written in-house and not yet read by a lawyer. The API
+         *     refuses to start in production while a document required at onboarding is
+         *     still a draft (identity/documents.enforce_review_status).
+         * @enum {string}
+         */
+        ReviewStatus: "draft" | "attorney_reviewed";
         /** SessionUser */
         SessionUser: {
             /**
@@ -2164,6 +2321,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_documents_api_v1_legal_documents_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalDocumentSummary"][];
+                };
+            };
+        };
+    };
+    read_document_api_v1_legal_documents__document_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalDocumentRead"];
                 };
             };
             /** @description Validation Error */

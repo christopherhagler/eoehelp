@@ -28,4 +28,18 @@ describe('App shell', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('does not provide medical advice');
   });
+
+  it('links the three legal documents from every page', () => {
+    // Washington requires the consumer health data policy to be prominently
+    // linked and distinct from the privacy policy, so the label is exact.
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const links = Array.from(element.querySelectorAll('footer nav a')).map((a) =>
+      a.textContent?.trim(),
+    );
+    expect(links).toContain('Terms of service');
+    expect(links).toContain('Privacy policy');
+    expect(links).toContain('Consumer Health Data Privacy Policy');
+  });
 });

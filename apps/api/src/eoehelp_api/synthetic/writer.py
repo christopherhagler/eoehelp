@@ -20,7 +20,7 @@ from eoehelp_api.food.enums import IngredientProvenance
 from eoehelp_api.food.models import CatalogIngredient, FoodLogItem, FoodLogItemIngredient
 from eoehelp_api.food.schemas import name_key
 from eoehelp_api.identity.consent import Consent
-from eoehelp_api.identity.documents import CURRENT_VERSIONS, REQUIRED_AT_ONBOARDING
+from eoehelp_api.identity.documents import REQUIRED_AT_ONBOARDING, current_for
 from eoehelp_api.identity.enums import UserRole, UserStatus
 from eoehelp_api.identity.patient import Patient
 from eoehelp_api.identity.user import User
@@ -119,7 +119,8 @@ class SyntheticWriter:
             Consent(
                 patient_id=patient_id,
                 consent_type=consent_type,
-                document_version=CURRENT_VERSIONS[consent_type],
+                document_version=current_for(consent_type).version,
+                document_sha256=current_for(consent_type).sha256,
                 granted=True,
             )
             for consent_type in REQUIRED_AT_ONBOARDING

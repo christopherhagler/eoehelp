@@ -57,5 +57,31 @@ export const routes: Routes = [
     loadComponent: () => import('./features/log/log').then((m) => m.Log),
     title: "Today's log — eoehelp",
   },
+  // Public, and readable before an account exists. The slug routes are the
+  // ones people link to; /legal/:documentId is the permanent link to the exact
+  // version a consent record names.
+  {
+    path: 'terms',
+    loadComponent: () => import('./features/legal/legal-document').then((m) => m.LegalDocument),
+    data: { documentId: 'terms' },
+    title: 'Terms of service — eoehelp',
+  },
+  {
+    path: 'privacy',
+    loadComponent: () => import('./features/legal/legal-document').then((m) => m.LegalDocument),
+    data: { documentId: 'privacy' },
+    title: 'Privacy policy — eoehelp',
+  },
+  {
+    path: 'health-data',
+    loadComponent: () => import('./features/legal/legal-document').then((m) => m.LegalDocument),
+    data: { documentId: 'health-data' },
+    title: 'Consumer Health Data Privacy Policy — eoehelp',
+  },
+  {
+    path: 'legal/:documentId',
+    loadComponent: () => import('./features/legal/legal-document').then((m) => m.LegalDocument),
+    title: 'Legal — eoehelp',
+  },
   { path: '**', redirectTo: '' },
 ];

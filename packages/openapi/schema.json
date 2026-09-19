@@ -360,6 +360,16 @@
         "title": "ConsentRecord",
         "type": "object"
       },
+      "ConsentType": {
+        "enum": [
+          "terms_of_service",
+          "privacy_policy",
+          "consumer_health_data",
+          "research_participation"
+        ],
+        "title": "ConsentType",
+        "type": "string"
+      },
       "CustomIngredientRead": {
         "properties": {
           "allergen_groups": {
@@ -1594,6 +1604,294 @@
         "title": "IngredientRef",
         "type": "object"
       },
+      "LegalBullets": {
+        "properties": {
+          "items": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/LegalSpan"
+              },
+              "type": "array"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "const": "bullets",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "items"
+        ],
+        "title": "LegalBullets",
+        "type": "object"
+      },
+      "LegalDocumentRead": {
+        "properties": {
+          "blocks": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "bullets": "#/components/schemas/LegalBullets",
+                  "heading": "#/components/schemas/LegalHeading",
+                  "paragraph": "#/components/schemas/LegalParagraph",
+                  "table": "#/components/schemas/LegalTable"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/LegalHeading"
+                },
+                {
+                  "$ref": "#/components/schemas/LegalParagraph"
+                },
+                {
+                  "$ref": "#/components/schemas/LegalBullets"
+                },
+                {
+                  "$ref": "#/components/schemas/LegalTable"
+                }
+              ]
+            },
+            "title": "Blocks",
+            "type": "array"
+          },
+          "consent_type": {
+            "$ref": "#/components/schemas/ConsentType"
+          },
+          "content_sha256": {
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "effective_on": {
+            "format": "date",
+            "title": "Effective On",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "review_status": {
+            "$ref": "#/components/schemas/ReviewStatus"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "consent_type",
+          "slug",
+          "title",
+          "effective_on",
+          "review_status",
+          "content_sha256",
+          "blocks"
+        ],
+        "title": "LegalDocumentRead",
+        "type": "object"
+      },
+      "LegalDocumentSummary": {
+        "properties": {
+          "consent_type": {
+            "$ref": "#/components/schemas/ConsentType"
+          },
+          "content_sha256": {
+            "title": "Content Sha256",
+            "type": "string"
+          },
+          "effective_on": {
+            "format": "date",
+            "title": "Effective On",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "review_status": {
+            "$ref": "#/components/schemas/ReviewStatus"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "consent_type",
+          "slug",
+          "title",
+          "effective_on",
+          "review_status",
+          "content_sha256"
+        ],
+        "title": "LegalDocumentSummary",
+        "type": "object"
+      },
+      "LegalHeading": {
+        "properties": {
+          "anchor": {
+            "title": "Anchor",
+            "type": "string"
+          },
+          "kind": {
+            "const": "heading",
+            "title": "Kind",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "level",
+          "text",
+          "anchor"
+        ],
+        "title": "LegalHeading",
+        "type": "object"
+      },
+      "LegalParagraph": {
+        "properties": {
+          "kind": {
+            "const": "paragraph",
+            "title": "Kind",
+            "type": "string"
+          },
+          "spans": {
+            "items": {
+              "$ref": "#/components/schemas/LegalSpan"
+            },
+            "title": "Spans",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "spans"
+        ],
+        "title": "LegalParagraph",
+        "type": "object"
+      },
+      "LegalSpan": {
+        "properties": {
+          "bold": {
+            "default": false,
+            "title": "Bold",
+            "type": "boolean"
+          },
+          "href": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Href"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "LegalSpan",
+        "type": "object"
+      },
+      "LegalTable": {
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "header": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Header",
+            "type": "array"
+          },
+          "kind": {
+            "const": "table",
+            "title": "Kind",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "items": {
+                  "$ref": "#/components/schemas/LegalSpan"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "header",
+          "rows"
+        ],
+        "title": "LegalTable",
+        "type": "object"
+      },
       "MagicLinkRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2650,6 +2948,15 @@
         "title": "RecentFood",
         "type": "object"
       },
+      "ReviewStatus": {
+        "description": "Whether a legal document has been through attorney review.\n\n`DRAFT` means written in-house and not yet read by a lawyer. The API\nrefuses to start in production while a document required at onboarding is\nstill a draft (identity/documents.enforce_review_status).",
+        "enum": [
+          "draft",
+          "attorney_reviewed"
+        ],
+        "title": "ReviewStatus",
+        "type": "string"
+      },
       "SessionUser": {
         "properties": {
           "email": {
@@ -3410,6 +3717,75 @@
         "summary": "Product Detail",
         "tags": [
           "food"
+        ]
+      }
+    },
+    "/api/v1/legal/documents": {
+      "get": {
+        "description": "Every document currently in force, without its text.",
+        "operationId": "list_documents_api_v1_legal_documents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LegalDocumentSummary"
+                  },
+                  "title": "Response List Documents Api V1 Legal Documents Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Documents",
+        "tags": [
+          "legal"
+        ]
+      }
+    },
+    "/api/v1/legal/documents/{document_id}": {
+      "get": {
+        "description": "One document by version id (\"tos-2026-09\") or by slug (\"terms\").",
+        "operationId": "read_document_api_v1_legal_documents__document_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "document_id",
+            "required": true,
+            "schema": {
+              "title": "Document Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalDocumentRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Document",
+        "tags": [
+          "legal"
         ]
       }
     },

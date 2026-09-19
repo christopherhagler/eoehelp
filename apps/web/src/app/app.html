@@ -42,14 +42,22 @@
   </main>
 
   <footer class="mt-16">
-    <div
-      class="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-8 text-sm text-muted sm:flex-row sm:items-center sm:justify-between"
-    >
+    <div class="mx-auto flex max-w-5xl flex-col gap-4 px-6 py-8 text-sm text-muted">
       <p class="m-0 max-w-prose">
         eoehelp is a personal health record you control. It is not a medical record system and does
         not provide medical advice. Always talk to your gastroenterologist before changing
         treatment.
       </p>
+      <nav aria-label="Legal" class="flex flex-wrap items-center gap-x-4">
+        <a class="flex min-h-tap items-center" routerLink="/terms">Terms of service</a>
+        <a class="flex min-h-tap items-center" routerLink="/privacy">Privacy policy</a>
+        <!-- This exact label, prominently linked, is what Washington's My Health
+             My Data Act asks for; it must stay distinct from the privacy policy. -->
+        <a class="flex min-h-tap items-center" routerLink="/health-data">
+          Consumer Health Data Privacy Policy
+        </a>
+        <a class="flex min-h-tap items-center" href="mailto:privacy@eoehelp.org">Contact</a>
+      </nav>
       <p class="m-0 shrink-0 tabular-nums">&copy; 2026 eoehelp.org</p>
     </div>
   </footer>

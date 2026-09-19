@@ -1,9 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -11,8 +12,10 @@ import { MatSelectModule } from '@angular/material/select';
 import { Router } from '@angular/router';
 
 import { describeApiError } from '../../core/api/api-errors';
-import { SexAtBirth } from '../../core/api/api-types';
+import { LegalDocumentSummary, SexAtBirth } from '../../core/api/api-types';
 import { detectTimezone } from '../../core/dates';
+import { LegalDialog } from '../legal/legal-dialog';
+import { LegalService } from '../legal/legal.service';
 import { PatientService } from '../../core/patient.service';
 import { ReferenceService } from '../../core/reference.service';
 import { MonthPicker } from '../../shared/month-picker';
@@ -69,10 +72,39 @@ export class Welcome {
   protected acceptedHealthData = false;
 
   protected readonly saving = signal(false);
+  private readonly legal = inject(LegalService);
+  private readonly dialog = inject(MatDialog);
+  private readonly documents = signal<LegalDocumentSummary[]>([]);
+
+  /** The version ids being agreed to, so the record is legible as it is made. */
+  protected readonly versions = computed(() =>
+    this.documents()
+      .map((document) => document.id)
+      .join(', '),
+  );
+
+  protected readonly anyDraft = computed(() =>
+    this.documents().some((document) => document.review_status === 'draft'),
+  );
+
+  /**
+   * Open a document without leaving the page.
+   *
+   * `stopPropagation` matters as much as `preventDefault`: a link inside a
+   * checkbox label otherwise toggles the checkbox too, which would record
+   * agreement because someone clicked to read. The href stays real so
+   * middle-click and "open in new tab" work.
+   */
+  protected openDocument(event: MouseEvent, slug: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.dialog.open(LegalDialog, { data: slug, maxWidth: '44rem', width: '92vw' });
+  }
   protected readonly error = signal<string | null>(null);
   protected readonly showTimezonePicker = signal(false);
 
   constructor() {
+    void this.loadDocuments();
     void this.loadTimezones();
   }
 
@@ -129,6 +161,16 @@ export class Welcome {
       );
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  private async loadDocuments(): Promise<void> {
+    try {
+      this.documents.set(await this.legal.list());
+    } catch {
+      // The versions caption and the draft notice are context, not a gate: a
+      // failure here must not stop someone signing up.
+      this.documents.set([]);
     }
   }
 }

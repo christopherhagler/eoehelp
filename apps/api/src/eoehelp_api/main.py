@@ -18,7 +18,7 @@ from eoehelp_api.core.ratelimit import limiter, rate_limit_exceeded
 from eoehelp_api.db.session import dispose_engine
 from eoehelp_api.deps import API_V1_PREFIX
 from eoehelp_api.food import router as food_router
-from eoehelp_api.identity import auth_router, me_router
+from eoehelp_api.identity import auth_router, documents, legal_router, me_router
 from eoehelp_api.insights import router as insights_router
 from eoehelp_api.medications import router as medications_router
 from eoehelp_api.observability import configure_logging, get_logger
@@ -32,6 +32,7 @@ from eoehelp_api.symptoms import router as symptoms_router
 V1_ROUTERS = (
     auth_router.router,
     me_router.router,
+    legal_router.router,
     reference_router.router,
     medications_router.catalog_router,
     medications_router.router,
@@ -49,6 +50,11 @@ logger = get_logger(__name__)
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(environment=settings.environment, debug=settings.debug)
+    # A document that is missing, altered, or unparseable must stop the boot
+    # rather than reach a patient about to consent to it; and an unreviewed
+    # draft must never be served in production.
+    documents.verify_integrity()
+    documents.enforce_review_status(settings.environment)
     logger.info("api.startup", environment=settings.environment, version=__version__)
     yield
     await dispose_engine()

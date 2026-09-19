@@ -69,3 +69,10 @@ export type ProductSnapshotRead = Schemas['ProductSnapshotRead'];
 export type FoodPatternReport = Schemas['FoodPatternReport'];
 export type FoodPatternRead = Schemas['FoodPatternRead'];
 export type PatternStatus = Schemas['PatternStatus'];
+
+export type LegalDocumentSummary = Schemas['LegalDocumentSummary'];
+export type LegalDocumentRead = Schemas['LegalDocumentRead'];
+export type LegalBlock = LegalDocumentRead['blocks'][number];
+export type LegalSpan = Schemas['LegalSpan'];
+export type LegalHeading = Schemas['LegalHeading'];
+export type ReviewStatus = Schemas['ReviewStatus'];

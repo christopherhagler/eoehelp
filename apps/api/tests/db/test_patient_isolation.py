@@ -53,8 +53,12 @@ async def two_patients(session) -> tuple[uuid.UUID, uuid.UUID]:
         ).scalar_one()
         await session.execute(
             text(
-                "INSERT INTO consents (patient_id, consent_type, document_version, granted) "
-                "VALUES (:pid, 'terms_of_service', 'tos-2026-01', true)"
+                "INSERT INTO consents "
+                "(patient_id, consent_type, document_version, document_sha256, granted) "
+                # A fixture row, so the digest is a well-formed stand-in rather
+                # than any published document's: the check constraint only asks
+                # that it be 64 hex characters.
+                "VALUES (:pid, 'terms_of_service', 'tos-2026-01', repeat('a', 64), true)"
             ),
             {"pid": patient_id},
         )

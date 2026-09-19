@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -19,7 +19,13 @@ class Consent(UUIDPrimaryKey, Base):
     """
 
     __tablename__ = "consents"
-    __table_args__ = (Index("ix_consents_current", "patient_id", "consent_type", "granted_at"),)
+    __table_args__ = (
+        Index("ix_consents_current", "patient_id", "consent_type", "granted_at"),
+        CheckConstraint(
+            "document_sha256 ~ '^[0-9a-f]{64}$'",
+            name="document_sha256_is_hex",
+        ),
+    )
 
     patient_id: Mapped[uuid.UUID] = mapped_column(
         postgresql.UUID(as_uuid=True), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False
@@ -32,6 +38,12 @@ class Consent(UUIDPrimaryKey, Base):
     # Which version of the document was agreed to, e.g. "tos-2026-01". Required:
     # "they consented" is meaningless without knowing to what.
     document_version: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    # The sha256 of that document's text. The version is a label; this is the
+    # text itself. It is what answers "show me exactly what they agreed to"
+    # after the document has been superseded, and it detects the one failure the
+    # registry cannot: a published file edited together with its recorded digest.
+    document_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
 
     granted: Mapped[bool] = mapped_column(nullable=False)
     granted_at: Mapped[datetime] = mapped_column(

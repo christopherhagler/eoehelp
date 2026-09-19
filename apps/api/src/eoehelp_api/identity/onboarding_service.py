@@ -14,7 +14,7 @@ from eoehelp_api.core import security
 from eoehelp_api.core.errors import BadRequestError, ConflictError, NotFoundError
 from eoehelp_api.db.session import apply_rls_scope
 from eoehelp_api.identity.consent import Consent
-from eoehelp_api.identity.documents import CURRENT_VERSIONS, REQUIRED_AT_ONBOARDING
+from eoehelp_api.identity.documents import REQUIRED_AT_ONBOARDING, current_for
 from eoehelp_api.identity.patient import Patient
 from eoehelp_api.identity.patient_schemas import (
     OnboardingRequest,
@@ -79,16 +79,22 @@ class OnboardingService:
             # as a server error.
             raise ConflictError("This account already has a patient record.") from exc
 
+        # The version names the document; the digest pins the exact text, so the
+        # record stays meaningful after the document is superseded.
+        documents = {
+            consent_type: current_for(consent_type) for consent_type in REQUIRED_AT_ONBOARDING
+        }
         consents = [
             Consent(
                 patient_id=patient.id,
                 consent_type=consent_type,
-                document_version=CURRENT_VERSIONS[consent_type],
+                document_version=document.version,
+                document_sha256=document.sha256,
                 granted=True,
                 ip_address=context.ip_address if context else None,
                 user_agent=context.user_agent if context else None,
             )
-            for consent_type in REQUIRED_AT_ONBOARDING
+            for consent_type, document in documents.items()
         ]
         self._session.add_all(consents)
         await self._session.flush()

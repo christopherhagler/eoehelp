@@ -79,6 +79,12 @@ explicit_package_bases = true
 module = ["slowapi.*", "argon2.*"]
 ignore_missing_imports = true
 
+[tool.setuptools.package-data]
+# The legal documents are data files inside the package. Without this the wheel
+# the runtime image installs omits them, while tests still pass from the source
+# tree (PYTHONPATH=/app/src). documents.verify_integrity catches it at startup.
+"eoehelp_api.identity" = ["legal/*.md"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

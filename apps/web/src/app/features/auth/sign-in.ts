@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -13,6 +14,7 @@ import { AuthService } from '../../core/auth/auth.service';
   selector: 'app-sign-in',
   imports: [
     FormsModule,
+    RouterLink,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,
@@ -97,8 +99,10 @@ import { AuthService } from '../../core/auth/auth.service';
       </mat-card>
 
       <p class="mt-6 text-center text-xs leading-relaxed text-on-surface-variant">
-        By continuing you agree to our terms and privacy policy. eoehelp is a personal health
-        record, not a medical record system, and does not provide medical advice.
+        By continuing you agree to the <a routerLink="/terms">terms of service</a>, the
+        <a routerLink="/privacy">privacy policy</a>, and the
+        <a routerLink="/health-data">Consumer Health Data Privacy Policy</a>. eoehelp is a personal
+        health record, not a medical record system, and does not provide medical advice.
       </p>
     </section>
   `,

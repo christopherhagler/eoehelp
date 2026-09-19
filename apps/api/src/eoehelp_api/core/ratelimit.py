@@ -7,6 +7,8 @@ What each limit protects:
   created on first request).
 - **Magic-link verify** and **refresh**: guessing, and replay loops.
 - **Product lookups**: the Open Food Facts and USDA quotas every patient shares.
+- **Legal documents**: public, unauthenticated reads; the limit keeps them
+  from being a cheap way to make the API do work.
 - **Insights**: the food-pattern analysis reads up to 18 months of a patient's
   log and runs exact tests, far more work than a list read, so one client
   cannot tie up an API task by refreshing it.
@@ -37,6 +39,7 @@ SESSION_REFRESH = "30/minute"
 PRODUCT_LOOKUP = "60/minute"
 # The food-pattern analysis costs more than a list read.
 INSIGHTS = "30/minute"
+LEGAL_DOCUMENTS = "60/minute"
 
 # Per address, independent of the caller: enforced in the auth service against
 # the tokens table, so it holds even when requests arrive from many addresses.
