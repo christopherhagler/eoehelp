@@ -18,11 +18,35 @@ decisions they have already made, and the relevant product-plan section at
 there. If something only the user can decide blocks the design entirely, ask
 now. Otherwise, let the architect list it as an open question with a default.
 
+## 1a. Clinical framing (the specialist), for patient-facing features
+
+Before the architect designs anything a patient or clinician will see, spawn
+the `eoe-specialist` agent with the request. It writes the clinical brief:
+who opens this and in what state, the question it answers, what must be
+captured and at what precision, what the product may never claim, the exact
+wording patients should see, what a gastroenterologist would trust, and what
+needs the paid advisor's judgement.
+
+It may also say the feature is not worth building, or that a simpler version
+helps more. Take that seriously: the daily log is the product, and anything
+that lengthens it has to earn the seconds.
+
+Skip it for work with no clinical surface — build tooling, refactors,
+infrastructure, legal text (which has its own reviewer). Record the skip in
+the plan's review log.
+
 ## 2. Design (the architect)
 
-Spawn the `architect` agent with the feature request and that context. It
-writes the plan to `docs/plans/<yyyy-mm-dd>-<feature-slug>.md` and returns a
-summary with its open questions.
+Spawn the `architect` agent with the feature request, that context, and the
+specialist's brief where there is one. The architect owns the architecture;
+the specialist owns what matters to the patient. Where they disagree, the
+specialist decides what the feature must do and the architect decides how it
+is built.
+
+It writes the plan to `docs/plans/<yyyy-mm-dd>-<feature-slug>.md` and returns
+a summary with its open questions. When the plan changes what a patient sees
+or what is claimed, send it back to the specialist for a clinical review
+before implementing.
 
 Read the plan in full before building anything.
 - **Open questions:** bring any that the user has not answered to them, and

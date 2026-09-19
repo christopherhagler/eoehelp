@@ -10,23 +10,26 @@ as a production medical-adjacent product.
 Every new feature or substantial change goes through the reviewed workflow
 in `.claude/skills/feature/SKILL.md` (`/feature <description>`):
 
-1. The `architect` agent designs the feature and writes its plan in
+1. For anything a patient or clinician sees, the `eoe-specialist` agent
+   writes the clinical brief first: what matters to the patient, what may
+   never be claimed, and the wording to use.
+2. The `architect` agent designs the feature and writes its plan in
    `docs/plans/`.
-2. You implement the plan and run the checks CI runs. Design problems go
+3. You implement the plan and run the checks CI runs. Design problems go
    back to the architect, not into improvised code.
-3. The `legal-reviewer` agent reviews changes to patient-facing legal
+4. The `legal-reviewer` agent reviews changes to patient-facing legal
    wording, and changes that make an existing document's claims stale (a new
    third party, a new field collected, changed retention or logging). Build,
    refactor and dependency work skips it.
-4. The `code-reviewer` agent reviews the changes; fix until it passes.
-5. Changes that touch the attack surface (auth, patient data access, public
+5. The `code-reviewer` agent reviews the changes; fix until it passes.
+6. Changes that touch the attack surface (auth, patient data access, public
    endpoints, outbound calls, crypto, database grants, dependencies, headers,
    parsing) then go to the `security-reviewer` agent.
-6. Build, container, CI and infrastructure changes go to the
+7. Build, container, CI and infrastructure changes go to the
    `devops-reviewer` agent.
-7. Changes to models, migrations, indexes, constraints, grants or query
+8. Changes to models, migrations, indexes, constraints, grants or query
    shape go to the `database-reviewer` agent.
-8. Commit with the plan, push to `development`, and watch CI.
+9. Commit with the plan, push to `development`, and watch CI.
 
 Reviews run only when they apply, and a plan's review log records which ran
 and which were skipped.
