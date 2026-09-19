@@ -2,8 +2,9 @@
 
 Every feature starts as a plan in this folder. The architect agent designs the
 feature and writes the plan before any code is written. The implementer builds
-from it, and the code-reviewer agent reviews the result before it is committed. The workflow lives in `.claude/skills/feature/` (run it
-with `/feature <description>`), and the reviewers' criteria are in
+from it, and the code-reviewer agent reviews the result before it is
+committed. The workflow lives in `.claude/skills/feature/` (run it with
+`/feature <description>`), and the agents' instructions are in
 `.claude/agents/`.
 
 A plan is committed with the feature it describes. Its review log records
