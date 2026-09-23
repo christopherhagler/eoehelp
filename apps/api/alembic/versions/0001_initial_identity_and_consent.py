@@ -24,7 +24,10 @@ depends_on: str | Sequence[str] | None = None
 # Tables carrying patient-owned data. Row-level security is applied to each as a
 # backstop behind the scoped-repository pattern in the application. The list grows
 # as clinical tables land; every new patient-scoped table must be added here.
-RLS_TABLES = ("patients", "consents")
+# Scoped by patient_id, which is the policy the loop below writes. `patients`
+# is scoped by its own id and so is handled separately; keeping it out of this
+# tuple means the name carries one meaning here and in 0002-0005.
+RLS_TABLES = ("consents", "research_consent_scopes")
 
 
 def upgrade() -> None:
@@ -152,17 +155,32 @@ def upgrade() -> None:
             name="fk_consents_patient_id_patients",
             ondelete="CASCADE",
         ),
+        # The target for research_consent_scopes' composite foreign key. Without
+        # it, that table's denormalised patient_id would be an unchecked claim,
+        # and a row naming the wrong patient would be visible to the wrong
+        # patient — the leak the denormalisation exists to prevent.
+        sa.UniqueConstraint("id", "patient_id", name="uq_consents_id_patient_id"),
     )
     op.create_index("ix_consents_current", "consents", ["patient_id", "consent_type", "granted_at"])
 
     op.create_table(
         "research_consent_scopes",
         sa.Column("consent_id", postgresql.UUID(as_uuid=True), nullable=False),
+        # Denormalised from the parent consent so this table carries the column
+        # row-level security scopes on, like every other patient-owned table.
+        # Keying only by consent_id left it outside the isolation backstop while
+        # passing the catalogue test that looks for a patient_id — it was
+        # covered by omission rather than by a policy.
+        sa.Column("patient_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("scope", research_scope, nullable=False),
         sa.PrimaryKeyConstraint("consent_id", "scope", name="pk_research_consent_scopes"),
+        # Composite, so the denormalised patient_id cannot disagree with its
+        # parent. No separate foreign key to patients: this already guarantees a
+        # real patient and gives one cascade path, and deletion semantics that
+        # have to be explained in a privacy policy should have one answer.
         sa.ForeignKeyConstraint(
-            ["consent_id"],
-            ["consents.id"],
+            ["consent_id", "patient_id"],
+            ["consents.id", "consents.patient_id"],
             name="fk_research_consent_scopes_consent_id_consents",
             ondelete="CASCADE",
         ),
@@ -273,7 +291,11 @@ def _apply_row_level_security() -> None:
     op.execute("ALTER TABLE patients ENABLE ROW LEVEL SECURITY")
     op.execute(f"CREATE POLICY patient_isolation ON patients USING (id = {scope})")
 
-    for table in ("consents",):
+    # Driven by RLS_TABLES rather than a literal, so adding a table to that
+    # tuple is all it takes. It was a literal, which is how
+    # research_consent_scopes ended up outside the backstop while the constant
+    # above suggested otherwise.
+    for table in RLS_TABLES:
         op.execute(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY")
         op.execute(f"CREATE POLICY patient_isolation ON {table} USING (patient_id = {scope})")
 

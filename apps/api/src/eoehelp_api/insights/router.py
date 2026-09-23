@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.audit.service import AuditContext
 from eoehelp_api.core import ratelimit
-from eoehelp_api.core.ratelimit import limiter
 from eoehelp_api.deps import (
     get_authenticated_audit_context,
     get_current_patient,
@@ -20,7 +19,7 @@ router = APIRouter(prefix="/me/insights", tags=["insights"])
 
 
 @router.get("/food-patterns", response_model=FoodPatternReport)
-@limiter.limit(ratelimit.INSIGHTS)
+@ratelimit.route_limit(ratelimit.INSIGHTS, "insights")
 async def read_food_patterns(
     request: Request,
     lag_days: int = Query(

@@ -68,4 +68,16 @@ class LegalDocumentSummary(BaseModel):
 
 
 class LegalDocumentRead(LegalDocumentSummary):
+    """One revision of one document.
+
+    `content_sha256` and `review_status` describe **the revision that was
+    returned**, not the version: ask for a digest and you get those bytes and
+    the review status they had. That distinction is the feature — it is what
+    lets a patient read the words they actually agreed to.
+    """
+
+    # The digest of the version's current revision. Differs from
+    # `content_sha256` exactly when the reader is looking at older wording,
+    # which is what the page uses to say so.
+    current_content_sha256: str
     blocks: list[LegalBlock]

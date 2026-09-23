@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -46,6 +47,18 @@ import { LegalService } from './legal.service';
               <strong class="font-semibold">This is a draft.</strong> It was written by the person
               who runs eoehelp and has not been reviewed by a lawyer. This build is for testing, not
               for real health information.
+            </span>
+          </div>
+        }
+        @if (doc.content_sha256 !== doc.current_content_sha256) {
+          <div class="mb-4 flex items-start gap-2 rounded-[20px] bg-subtle p-4 text-sm" role="note">
+            <mat-icon class="!size-5 shrink-0 !text-xl" aria-hidden="true">description</mat-icon>
+            <span>
+              This is an earlier wording of this document. It is kept so that a consent recorded
+              against it can still be read.
+              <a class="inline-flex min-h-tap items-center" [routerLink]="['/legal', doc.id]"
+                >Read the current wording</a
+              >.
             </span>
           </div>
         }
@@ -112,14 +125,25 @@ export class LegalDocument {
   );
 
   constructor() {
-    void this.load();
+    // paramMap, not snapshot: the superseded notice links from one version of a
+    // document to another, and Angular reuses this component instance when only
+    // the parameter changes. Reading the snapshot once would leave the page
+    // showing the previous document's text under the new URL.
+    this.route.paramMap
+      .pipe(takeUntilDestroyed())
+      .subscribe((params) => void this.load(params.get('documentId') ?? undefined));
   }
 
-  protected async load(): Promise<void> {
+  protected async load(documentId?: string): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
+    // The retry button calls load() with nothing, so fall back to whichever id
+    // the current URL carries — the param on /legal/:documentId, or the static
+    // data on the slug routes (/terms, /privacy, /health-data).
     const id =
-      this.route.snapshot.paramMap.get('documentId') ?? this.route.snapshot.data['documentId'];
+      documentId ??
+      this.route.snapshot.paramMap.get('documentId') ??
+      this.route.snapshot.data['documentId'];
     try {
       const document = await this.legal.document(id);
       this.document.set(document);

@@ -80,6 +80,19 @@ class TestRefusals:
             ("Table: Orphan\n\nNot a table\n", "a caption with no table"),
             ("| A | B |\n|---|---|\n", "a table with no rows"),
             ("", "an empty document"),
+            # Emphasis may not cross a link: the whole-line ** count is even
+            # here, so only the per-segment check catches it. Left unchecked it
+            # renders, with the bolding inverted from the link onwards.
+            ("a **b [x](/y) c** d\n", "emphasis crossing a link"),
+            # Header cells and captions reach the client as strings, so they
+            # never pass through parse_spans and none of its refusals apply.
+            ("| A | **B** |\n|---|---|\n| one | two |\n", "markup in a header cell"),
+            ("Table: A **bold** caption\n| A |\n|---|\n| one |\n", "markup in a caption"),
+            # Protocol-relative and backslash-prefixed targets leave the site
+            # while looking internal, and would be bound to routerLink.
+            ("[x](//evil.test)\n", "a protocol-relative link"),
+            ("[x](/\\evil.test)\n", "a backslash-prefixed link"),
+            ("[x](/%2fevil.test)\n", "an encoded-slash link"),
         ],
     )
     def test_the_grammar_refuses(self, source: str, reason: str) -> None:

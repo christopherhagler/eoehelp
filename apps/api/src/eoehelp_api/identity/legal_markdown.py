@@ -30,6 +30,14 @@ TABLE_CAPTION = re.compile(r"^Table:\s+(?P<caption>.+)$")
 TABLE_RULE = re.compile(r"^\|(\s*:?-+:?\s*\|)+$")
 LINK = re.compile(r"\[(?P<text>[^\]\[]+)\]\((?P<href>[^)\s]+)\)")
 ALLOWED_SCHEMES = ("https://", "mailto:")
+# An internal path is a single slash followed by something that is not another
+# slash or a backslash. "//evil.test" is a protocol-relative URL and "/\evil.test"
+# is normalised to one by browsers: both leave the site while looking internal
+# to a bare startswith("/"), which would bind them to routerLink. The documents
+# are repository-controlled, so this is a lint today rather than a boundary —
+# but it is the check the web app mirrors, and the parser is where the rule
+# belongs.
+INTERNAL_PATH = re.compile(r"^/(?![/\\]|%2[fF]|%5[cC])")
 
 
 class LegalTextError(ValueError):
@@ -109,7 +117,7 @@ def parse_spans(text: str) -> list[Span]:
     for match in LINK.finditer(text):
         spans.extend(_emphasis(text[position : match.start()]))
         href = match.group("href")
-        if not href.startswith(ALLOWED_SCHEMES) and not href.startswith("/"):
+        if not href.startswith(ALLOWED_SCHEMES) and not INTERNAL_PATH.match(href):
             raise LegalTextError(f"Unsupported link target in legal text: {href!r}")
         spans.append(Span(text=match.group("text"), href=href))
         position = match.end()
@@ -118,6 +126,17 @@ def parse_spans(text: str) -> list[Span]:
 
 
 def _emphasis(text: str) -> list[Span]:
+    """Bold runs within one link-free segment.
+
+    Emphasis may not span a link. The whole-string balance check above counts
+    every ``**`` in the line, so ``a **b [x](/y) c** d`` passes it while each
+    segment here sees an odd count — which would silently invert the bolding
+    from the link onwards. In a grammar whose contract is that anything
+    unrecognised raises, rendering a legal document wrongly is the one outcome
+    that must not happen quietly.
+    """
+    if text.count("**") % 2:
+        raise LegalTextError(f"Emphasis crosses a link in legal text: {text!r}")
     return [
         Span(text=part, bold=bool(index % 2)) for index, part in enumerate(text.split("**")) if part
     ]
@@ -163,13 +182,30 @@ def _row(line: str) -> list[str]:
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
 
 
+def _plain(text: str, what: str) -> str:
+    """Header cells and captions reach the client as strings, not spans.
+
+    They therefore never pass through `parse_spans`, so none of its refusals
+    apply to them. Rather than leave one unchecked path through a parser whose
+    whole value is that it is fatal, hold them to the stricter rule headings
+    already follow: plain text, no markup.
+    """
+    if "<" in text or ">" in text:
+        raise LegalTextError(f"Literal angle bracket in {what}: {text!r}")
+    if "**" in text or "[" in text:
+        raise LegalTextError(f"Table {what} is plain text: {text!r}")
+    return text
+
+
 def _table(reader: _Reader, caption: str | None) -> Table:
     header_line = reader.take()
     rule = reader.peek()
     if rule is None or not TABLE_RULE.match(rule):
         raise LegalTextError(f"Table without a |---| rule after its header: {header_line!r}")
     reader.take()
-    header = _row(header_line)
+    header = [_plain(cell, "header cell") for cell in _row(header_line)]
+    if caption is not None:
+        caption = _plain(caption, "caption")
     rows: list[list[list[Span]]] = []
     while (line := reader.peek()) is not None and line.startswith("|"):
         cells = _row(reader.take())

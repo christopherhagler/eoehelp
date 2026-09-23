@@ -15,10 +15,11 @@ from slowapi.errors import RateLimitExceeded
 from eoehelp_api import __version__, health
 from eoehelp_api.config import get_settings
 from eoehelp_api.core.ratelimit import limiter, rate_limit_exceeded
-from eoehelp_api.db.session import dispose_engine
+from eoehelp_api.db.session import dispose_engine, session_scope
 from eoehelp_api.deps import API_V1_PREFIX
 from eoehelp_api.food import router as food_router
 from eoehelp_api.identity import auth_router, documents, legal_router, me_router
+from eoehelp_api.identity.legal_ledger import verify_published_revisions
 from eoehelp_api.insights import router as insights_router
 from eoehelp_api.medications import router as medications_router
 from eoehelp_api.observability import configure_logging, get_logger
@@ -55,6 +56,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # draft must never be served in production.
     documents.verify_integrity()
     documents.enforce_review_status(settings.environment)
+    # And the check the source tree cannot make about itself: the ledger in the
+    # database records what was actually published, so a build whose registry
+    # disagrees with it — a file edited together with its digest — stops here
+    # rather than serving different words under an id patients agreed to.
+    # No patient scope: legal_documents is reference data with no RLS.
+    async with session_scope() as session:
+        await verify_published_revisions(session)
     logger.info("api.startup", environment=settings.environment, version=__version__)
     yield
     await dispose_engine()
@@ -76,6 +84,15 @@ def create_app() -> FastAPI:
         docs_url=None if settings.is_production else "/docs",
         redoc_url=None,
         openapi_url="/openapi.json",
+        # Starlette builds an absolute Location for the trailing-slash redirect
+        # from the request scope, whose host comes from the Host header — so
+        # `Host: evil.test` on `/legal/documents/terms/` returns a 307 to
+        # evil.test. It matters now that the legal routes are public and
+        # link-shaped. Nothing depends on the redirect: a trailing slash
+        # becomes a 404. TrustedHostMiddleware with the deployed hostnames is
+        # the complete fix and belongs with the deploy plan; this removes the
+        # open redirect today rather than carrying it until then.
+        redirect_slashes=False,
     )
 
     app.state.limiter = limiter
@@ -124,6 +141,14 @@ def create_app() -> FastAPI:
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("Cache-Control", "no-store")
+        # CORSMiddleware adds Vary: Origin only when the request carried an
+        # allowed Origin, so a response fetched without one carries no Vary.
+        # That is harmless while everything is no-store, but the legal routes
+        # serve reviewed documents as "public, max-age=3600": a shared cache
+        # would store the Origin-less copy and hand it to the browser, which
+        # then fails CORS and blanks the page. Set it for every response, so a
+        # future cacheable route cannot reintroduce the same bug.
+        response.headers.setdefault("Vary", "Origin")
         if get_settings().is_production:
             response.headers.setdefault(
                 "Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload"

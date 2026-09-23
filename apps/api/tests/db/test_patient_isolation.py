@@ -3,6 +3,13 @@
 These tests connect as `app_runtime` — the unprivileged role the deployed
 application uses — because RLS is bypassed by table owners and superusers. Run
 as the owner, every one of these would pass while proving nothing.
+
+`consents` has no case of its own here on purpose: the digest column added in
+0006 sits inside the policy and the grants migration 0001 already gave the
+table, because those are table-level rather than per column. What 0006 does add
+is its append-only property, and that is asserted next door in
+test_consent_grants.py, which is also where the reference-table grants are
+proved — see its note on why proving them here would have been misleading.
 """
 
 import uuid
@@ -10,9 +17,11 @@ import uuid
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.exc import IntegrityError, ProgrammingError
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from eoehelp_api.identity import documents
+from eoehelp_api.identity.enums import ConsentType
 from helpers import app_role_url
 
 
@@ -51,16 +60,18 @@ async def two_patients(session) -> tuple[uuid.UUID, uuid.UUID]:
                 {"uid": user_id, "name": email.split("@")[0]},
             )
         ).scalar_one()
+        # A published triple, not an invented one. The foreign key to
+        # legal_documents now refuses anything else — and a fixture that
+        # invents evidence is how the reproducibility invariant was lost in the
+        # first place.
+        terms = documents.current_for(ConsentType.TERMS_OF_SERVICE)
         await session.execute(
             text(
                 "INSERT INTO consents "
                 "(patient_id, consent_type, document_version, document_sha256, granted) "
-                # A fixture row, so the digest is a well-formed stand-in rather
-                # than any published document's: the check constraint only asks
-                # that it be 64 hex characters.
-                "VALUES (:pid, 'terms_of_service', 'tos-2026-01', repeat('a', 64), true)"
+                "VALUES (:pid, 'terms_of_service', :version, :digest, true)"
             ),
-            {"pid": patient_id},
+            {"pid": patient_id, "version": terms.version, "digest": terms.sha256},
         )
         await session.execute(
             text(
@@ -328,6 +339,143 @@ class TestRowLevelSecurity:
             with pytest.raises(ProgrammingError, match="permission denied"):
                 async with app_role_engine.connect() as conn, conn.begin():
                     await conn.execute(text(statement))
+
+    async def test_the_published_document_ledger_is_read_only(self, app_role_engine) -> None:
+        """It is the record of what was published; only a migration writes it.
+
+        If the application could write here it could publish a revision to
+        match a file it had just changed, which is the whole defect back again
+        with an extra step.
+        """
+        terms = documents.current_for(ConsentType.TERMS_OF_SERVICE)
+        async with app_role_engine.connect() as conn:
+            found = (
+                await conn.execute(
+                    text("SELECT count(*) FROM legal_documents WHERE content_sha256 = :digest"),
+                    {"digest": terms.sha256},
+                )
+            ).scalar_one()
+            assert found == 1
+
+        for statement in (
+            "INSERT INTO legal_documents (consent_type, version, content_sha256) "
+            "VALUES ('terms_of_service', 'tos-2099-01', repeat('b', 64))",
+            "UPDATE legal_documents SET content_sha256 = repeat('c', 64)",
+            "DELETE FROM legal_documents",
+        ):
+            with pytest.raises(ProgrammingError, match="permission denied"):
+                async with app_role_engine.connect() as conn, conn.begin():
+                    await conn.execute(text(statement))
+
+
+class TestResearchConsentScopes:
+    """The table that passed the catalogue test by having no patient_id at all.
+
+    It records which parts of their record a patient agreed to share for
+    research. Nothing grants that consent yet, which is exactly why this is the
+    moment to put it inside the backstop.
+    """
+
+    @pytest_asyncio.fixture
+    async def scoped_consent(self, session, two_patients) -> tuple[uuid.UUID, uuid.UUID]:
+        """One research consent with a scope, for Alice. Seeded as the owner."""
+        alice, _ = two_patients
+        terms = documents.current_for(ConsentType.TERMS_OF_SERVICE)
+        consent_id = (
+            await session.execute(
+                text(
+                    "INSERT INTO consents "
+                    "(patient_id, consent_type, document_version, document_sha256, granted) "
+                    "VALUES (:pid, 'terms_of_service', :version, :digest, true) RETURNING id"
+                ),
+                {"pid": alice, "version": terms.version, "digest": terms.sha256},
+            )
+        ).scalar_one()
+        await session.execute(
+            text(
+                "INSERT INTO research_consent_scopes (consent_id, patient_id, scope) "
+                "VALUES (:cid, :pid, 'symptoms')"
+            ),
+            {"cid": consent_id, "pid": alice},
+        )
+        await session.commit()
+        return alice, consent_id
+
+    async def test_one_patient_cannot_read_another_patients_scopes(
+        self, app_role_engine, two_patients, scoped_consent
+    ) -> None:
+        alice, bob = two_patients
+        async with app_role_engine.connect() as conn, conn.begin():
+            await conn.execute(
+                text("SELECT set_config('app.current_patient_id', :pid, true)"),
+                {"pid": str(bob)},
+            )
+            visible = (
+                await conn.execute(text("SELECT count(*) FROM research_consent_scopes"))
+            ).scalar_one()
+        assert visible == 0
+
+        # And Alice sees it, so the assertion above is about the policy rather
+        # than about a fixture that silently wrote nothing.
+        async with app_role_engine.connect() as conn, conn.begin():
+            await conn.execute(
+                text("SELECT set_config('app.current_patient_id', :pid, true)"),
+                {"pid": str(alice)},
+            )
+            own = (
+                await conn.execute(text("SELECT count(*) FROM research_consent_scopes"))
+            ).scalar_one()
+        assert own == 1
+
+    async def test_a_scope_cannot_claim_a_patient_its_consent_does_not_belong_to(
+        self, app_role_engine, two_patients, scoped_consent
+    ) -> None:
+        """The composite foreign key, not the policy.
+
+        Bob names Alice's consent with his own patient id: the triple does not
+        exist in `consents`, so this fails before row-level security is ever
+        consulted. Matched on the constraint name so it cannot pass on a
+        permission error instead.
+        """
+        _, bob = two_patients
+        _, consent_id = scoped_consent
+        async with app_role_engine.connect() as conn, conn.begin():
+            await conn.execute(
+                text("SELECT set_config('app.current_patient_id', :pid, true)"),
+                {"pid": str(bob)},
+            )
+            insert = text(
+                "INSERT INTO research_consent_scopes (consent_id, patient_id, scope) "
+                "VALUES (:cid, :pid, 'diet')"
+            )
+            with pytest.raises(
+                IntegrityError, match="fk_research_consent_scopes_consent_id_consents"
+            ):
+                await conn.execute(insert, {"cid": consent_id, "pid": str(bob)})
+
+    async def test_a_scope_cannot_be_planted_in_another_patients_record(
+        self, app_role_engine, two_patients, scoped_consent
+    ) -> None:
+        """The policy, not the foreign key — and the dangerous direction.
+
+        Bob writes a row that is internally consistent (Alice's consent, Alice's
+        patient id), so the foreign key is satisfied. Only the policy stops it,
+        and without that check the previous test would pass with the policy
+        dropped entirely.
+        """
+        alice, bob = two_patients
+        _, consent_id = scoped_consent
+        async with app_role_engine.connect() as conn, conn.begin():
+            await conn.execute(
+                text("SELECT set_config('app.current_patient_id', :pid, true)"),
+                {"pid": str(bob)},
+            )
+            insert = text(
+                "INSERT INTO research_consent_scopes (consent_id, patient_id, scope) "
+                "VALUES (:cid, :pid, 'diet')"
+            )
+            with pytest.raises(ProgrammingError, match="row-level security"):
+                await conn.execute(insert, {"cid": consent_id, "pid": str(alice)})
 
 
 async def test_database_constraint_names_match_the_models(session) -> None:

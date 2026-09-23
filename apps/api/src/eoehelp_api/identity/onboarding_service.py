@@ -124,6 +124,12 @@ class OnboardingService:
                 metadata={
                     "consent_type": consent.consent_type.value,
                     "document_version": consent.document_version,
+                    # The consent row cascades away with the account; this audit
+                    # row does not. Without the digest, the only surviving
+                    # statement of what someone agreed to names a version label,
+                    # and a label does not identify wording. A digest of public
+                    # document text is not PHI.
+                    "content_sha256": consent.document_sha256,
                 },
             )
 

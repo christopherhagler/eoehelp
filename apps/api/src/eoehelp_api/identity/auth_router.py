@@ -5,7 +5,6 @@ from eoehelp_api.audit.service import AuditContext
 from eoehelp_api.config import Settings, get_settings
 from eoehelp_api.core import ratelimit
 from eoehelp_api.core.errors import InvalidTokenError
-from eoehelp_api.core.ratelimit import limiter
 from eoehelp_api.deps import (
     REFRESH_COOKIE_NAME,
     REFRESH_COOKIE_PATH,
@@ -61,7 +60,7 @@ def _clear_refresh_cookie(response: Response, settings: Settings) -> None:
     response_model=MagicLinkRequestAccepted,
     status_code=status.HTTP_202_ACCEPTED,
 )
-@limiter.limit(ratelimit.MAGIC_LINK_REQUEST)
+@ratelimit.route_limit(ratelimit.MAGIC_LINK_REQUEST, "magic_link_request")
 async def request_magic_link(
     request: Request,
     payload: MagicLinkRequest,
@@ -73,7 +72,7 @@ async def request_magic_link(
 
 
 @router.post("/magic-link/verify", response_model=AccessTokenResponse)
-@limiter.limit(ratelimit.MAGIC_LINK_VERIFY)
+@ratelimit.route_limit(ratelimit.MAGIC_LINK_VERIFY, "magic_link_verify")
 async def verify_magic_link(
     request: Request,
     payload: MagicLinkVerify,
@@ -90,7 +89,7 @@ async def verify_magic_link(
 
 
 @router.post("/refresh", response_model=AccessTokenResponse)
-@limiter.limit(ratelimit.SESSION_REFRESH)
+@ratelimit.route_limit(ratelimit.SESSION_REFRESH, "session_refresh")
 async def refresh_session(
     request: Request,
     response: Response,

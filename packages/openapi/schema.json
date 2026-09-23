@@ -337,6 +337,10 @@
             "title": "Consent Type",
             "type": "string"
           },
+          "document_sha256": {
+            "title": "Document Sha256",
+            "type": "string"
+          },
           "document_version": {
             "title": "Document Version",
             "type": "string"
@@ -354,6 +358,7 @@
         "required": [
           "consent_type",
           "document_version",
+          "document_sha256",
           "granted",
           "granted_at"
         ],
@@ -1630,6 +1635,7 @@
         "type": "object"
       },
       "LegalDocumentRead": {
+        "description": "One revision of one document.\n\n`content_sha256` and `review_status` describe **the revision that was\nreturned**, not the version: ask for a digest and you get those bytes and\nthe review status they had. That distinction is the feature \u2014 it is what\nlets a patient read the words they actually agreed to.",
         "properties": {
           "blocks": {
             "items": {
@@ -1665,6 +1671,10 @@
           },
           "content_sha256": {
             "title": "Content Sha256",
+            "type": "string"
+          },
+          "current_content_sha256": {
+            "title": "Current Content Sha256",
             "type": "string"
           },
           "effective_on": {
@@ -1707,6 +1717,7 @@
           "effective_on",
           "review_status",
           "content_sha256",
+          "current_content_sha256",
           "blocks"
         ],
         "title": "LegalDocumentRead",
@@ -3748,7 +3759,7 @@
     },
     "/api/v1/legal/documents/{document_id}": {
       "get": {
-        "description": "One document by version id (\"tos-2026-09\") or by slug (\"terms\").",
+        "description": "One document by version id (\"tos-2026-09\"), slug (\"terms\"), or digest.\n\nA 64-character lowercase hex id names exact bytes and returns *that*\nrevision, whatever has been published since. It is what a consent record\nstores, so this is the route that makes a consent legible to the person who\ngave it. A version id or a slug returns the current revision, as before.",
         "operationId": "read_document_api_v1_legal_documents__document_id__get",
         "parameters": [
           {
@@ -3756,6 +3767,8 @@
             "name": "document_id",
             "required": true,
             "schema": {
+              "maxLength": 64,
+              "pattern": "^[a-z0-9-]+$",
               "title": "Document Id",
               "type": "string"
             }

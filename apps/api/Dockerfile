@@ -55,7 +55,11 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -fsS http://localhost:8000/healthz || exit 1
 
-CMD ["uvicorn", "eoehelp_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --no-access-log: uvicorn's access log prints the resolved path and the
+# client address, which the privacy policy says are not recorded. The structlog
+# middleware in main.py logs every request with the route template instead.
+CMD ["uvicorn", "eoehelp_api.main:app", "--host", "0.0.0.0", "--port", "8000", \
+     "--no-access-log"]
 
 # ---- test -------------------------------------------------------------------
 # Built from runtime so tests exercise the image that actually ships, rather

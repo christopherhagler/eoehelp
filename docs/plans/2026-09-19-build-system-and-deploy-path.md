@@ -711,6 +711,65 @@ stalls, the repository is never left half-converted.
 - **AWS:** $0 from this feature. Nothing is provisioned. ADR 0004's $250–300/month
   begins when M0b begins, and *Open question 5* is when that is.
 
+## Handed to this plan by the legal documents review (2026-09-21)
+
+Two findings from the security review of `c6c1820` are infrastructure
+assertions, not application code, so they are recorded here rather than fixed
+in that commit. Both are cheap now and awkward later.
+
+**1. Host-header open redirect on the API's trailing-slash redirect.** Starlette
+rebuilds an absolute `Location` from the request scope, and the scope takes its
+host from the `Host` header. Demonstrated against the running stack:
+
+```
+$ curl -sD- -o /dev/null -H "Host: evil.test" \
+    "http://localhost:8000/api/v1/legal/documents/terms/"
+HTTP/1.1 307 Temporary Redirect
+location: http://evil.test/api/v1/legal/documents/terms
+```
+
+It matters now because `c6c1820` added the first public, link-shaped `GET`
+routes — the kind a person follows from an email or a printed page. Exploitable
+only through a proxy that forwards an arbitrary `Host`, which a host-based ALB
+listener rule prevents. The fix belongs with the edge this plan designs:
+`TrustedHostMiddleware` with the deployed hostnames (which also closes
+Host-header cache poisoning generally), or `redirect_slashes=False`. The
+prod-shaped local profile (`just up-prod`) is where it can be proven, since it
+is the only place a real edge sits in front of the API.
+
+**2. `ENVIRONMENT` is a self-declared string that gates two separate controls.**
+`enforce_production_safety` refuses to start on a development JWT secret or
+field-encryption key, and `enforce_review_status` refuses to serve an
+unreviewed legal draft. Both key on `settings.environment == "production"`. A
+production host deployed with `ENVIRONMENT=staging` silently turns off **both**,
+and nothing would say so. The legal-text consequence is the least of it. That
+one string also decides whether the API accepts:
+
+- `DEV_JWT_SECRET` — a total authentication bypass, since the signing key is in
+  this repository and anyone holding it can mint a token for any patient id;
+- `DEV_FIELD_ENCRYPTION_KEY` — every encrypted note readable by anyone with a
+  copy of the repository;
+- a missing `redis_url`, which drops the rate limiter to an in-process store,
+  so magic-link throttling stops holding across tasks;
+- `debug=True`.
+
+That is the reason this belongs in a CI check on the task definition rather
+than in a sentence someone is expected to remember.
+
+The mitigation is not in the API. The production task definition must assert
+`ENVIRONMENT=production`, and a CI check on the infrastructure definition should
+fail if it does not — which makes it part of the **deploy contract** this plan's
+ADR already carries (ports, health checks, ARM64, `@sha256:` references, which
+variables come from Secrets Manager, migrations as a separate task under the
+owner role). Add `ENVIRONMENT` to that contract explicitly, with the two
+controls it governs named, so the next person who reads it knows what a wrong
+value costs.
+
+A related note the same review raised, which is **not** this plan's to fix:
+`review_status = attorney_reviewed` is a one-token edit in the same file as the
+drafts, with no reviewer name or date behind it. Making that flag evidentiary
+belongs to the legal documents work.
+
 ## Open questions
 
 1. **A new local tool, `just`?** It is one `brew install` and the reason the plan

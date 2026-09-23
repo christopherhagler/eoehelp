@@ -109,7 +109,14 @@ import { LegalBlock, LegalSpan } from '../../core/api/api-types';
 export class LegalContent {
   readonly blocks = input.required<readonly LegalBlock[]>();
 
+  /**
+   * Mirrors the server's INTERNAL_PATH rule rather than trusting it. `//host`
+   * is a protocol-relative URL and `/\host` is normalised to one by browsers,
+   * so a bare startsWith('/') would hand an external target to routerLink.
+   * Checking here too means the page is right even if the parser's rule slips.
+   */
   protected isInternal(span: LegalSpan): boolean {
-    return (span.href ?? '').startsWith('/');
+    const href = span.href ?? '';
+    return /^\/(?![/\\]|%2[fF]|%5[cC])/.test(href);
   }
 }

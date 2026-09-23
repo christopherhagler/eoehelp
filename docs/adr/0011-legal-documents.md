@@ -85,3 +85,65 @@ disclaimer.
 - The operator now carries an obligation the code does not enforce: an
   arbitration opt-out sent by a patient must be answered and filed against their
   consent record. It belongs in a runbook before a real patient sees the terms.
+
+## Amendment — 2026-09-21: a published-document ledger in the database
+
+Two statements in the Decision and Consequences above were **wrong**, and the
+development database proved it within a week of shipping. They are corrected
+here rather than edited away, because the reason they were wrong is the useful
+part.
+
+**"A published document's bytes never change. The registry pins each file's
+sha256, and `verify_integrity()` checks every digest at startup."** The check
+compares a file with a digest that travels in the same commit. It detects
+corruption, a packaging mistake, and an accidental edit — not a deliberate
+rewrite, which updates both together and passes.
+
+**"A new version is a new file, a new registry entry, and a new digest. There is
+no in-place edit, by construction."** There was one. The eight corrections from
+the legal review were applied under the same three version ids, and 54 consent
+rows in the development database ended up split across six `(version, digest)`
+pairs: 27 of them naming bytes that were never committed and cannot be
+recovered. The only witness to what had been published was the commit that
+changed it.
+
+### The mechanism now
+
+A **revision** is `(consent_type, version, content_sha256)` and is the unit of
+evidence. A revision is *published* when a migration inserts it into the
+`legal_documents` ledger. `consents` carries a composite foreign key to that
+ledger, so the database refuses any consent row naming a revision it has no
+record of. Documents are readable by digest — `GET /legal/documents/<sha256>`
+returns exactly those bytes — and the API refuses to start when the registry in
+the build and the ledger in the database disagree in either direction.
+
+The ledger is the second witness the source tree cannot provide: its rows were
+written by a migration that has already run, and no later commit moves them.
+
+### The publishing rules
+
+1. A material change is a new version id, and existing patients must re-consent.
+2. A correction to a **draft** is a new revision under the same version id, with
+   its own file and its own ledger row. Consents pinned to an earlier revision
+   keep resolving to that revision's bytes.
+3. A **reviewed** revision is frozen: no further revision under that id, rule 1
+   applies instead. `verify_integrity` enforces it.
+4. A reviewed revision's file is kept permanently. A draft revision's file may be
+   retired only when no consent references it, which the foreign key makes a
+   fact rather than a promise.
+
+### Consequences
+
+- **Publishing text now requires a migration.** That is the intended cost: it
+  makes "what was published" a dated, reviewed record rather than a property of
+  whatever is checked out.
+- **The API depends on the database at startup.** Deliberate — an evidence check
+  an outage can skip is not a control, and migrations run before the API in
+  every environment.
+- **`research_consent_scopes` is inside row-level security**, by carrying a
+  `patient_id` like every other patient-owned table, with a composite foreign
+  key so the denormalised key cannot disagree with its parent consent. It had
+  no policy at all, and passed the catalogue test by having no `patient_id` for
+  that test to find.
+- **The 27 orphaned development rows were discarded** with a database rebuild.
+  No option preserved them honestly.

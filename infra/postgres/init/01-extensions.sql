@@ -17,7 +17,28 @@ $$;
 
 GRANT CONNECT ON DATABASE eoehelp TO app_runtime;
 GRANT USAGE ON SCHEMA public TO app_runtime;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_runtime;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-    GRANT USAGE, SELECT ON SEQUENCES TO app_runtime;
+
+-- Deliberately no ALTER DEFAULT PRIVILEGES. Granting DML on every future table
+-- made each migration's considered grant cosmetic: `GRANT SELECT ON
+-- ingredient_catalog` added nothing when the role already held INSERT, UPDATE
+-- and DELETE on it by default, so the application could rewrite the DSQ
+-- definition every symptom score is computed against, and could move
+-- alembic_version. It also hid itself, because default privileges are per
+-- database: the test database is created with CREATE DATABASE, inherits no
+-- default ACL, and so passed a read-only assertion that was false in the
+-- database the application actually runs against.
+--
+-- Every migration grants explicitly, per table, so nothing depends on a
+-- default. A new table with no grant fails loudly the first time it is read,
+-- which is the right way for that mistake to surface.
+
+-- Bounds on the application role, so one stuck request cannot stall a table.
+-- A session left idle inside a transaction holds its locks indefinitely: the
+-- next migration's ACCESS EXCLUSIVE request queues behind it, and then every
+-- read and write of that table queues behind the migration. That turns one
+-- leaked connection into a table-wide outage during a deploy. These are role
+-- settings rather than server settings so migrations, which run as the owner,
+-- keep the time they need.
+ALTER ROLE app_runtime SET idle_in_transaction_session_timeout = '30s';
+ALTER ROLE app_runtime SET statement_timeout = '30s';
+ALTER ROLE app_runtime SET lock_timeout = '5s';

@@ -153,6 +153,10 @@ class ConsentRecord(BaseModel):
 
     consent_type: str
     document_version: str
+    # The privacy policy tells patients their consent record holds a digest of
+    # the exact text, and the terms say they can ask for that record. Returning
+    # the version alone would make both statements untrue.
+    document_sha256: str
     granted: bool
     granted_at: datetime
 

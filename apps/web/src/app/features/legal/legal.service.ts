@@ -25,7 +25,12 @@ export class LegalService {
     const held = this.cache().get(documentId);
     if (held) return held;
     const document = await firstValueFrom(
-      this.http.get<LegalDocumentRead>(`${this.baseUrl}/legal/documents/${documentId}`),
+      // Encoded: the id arrives from the route, and an unencoded ../.. would be
+      // normalised by the browser into an authenticated request to some other
+      // API path, whose response this would then try to render as a document.
+      this.http.get<LegalDocumentRead>(
+        `${this.baseUrl}/legal/documents/${encodeURIComponent(documentId)}`,
+      ),
     );
     this.cache.update((map) => new Map(map).set(documentId, document));
     return document;

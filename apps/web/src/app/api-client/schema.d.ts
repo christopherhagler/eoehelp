@@ -192,7 +192,12 @@ export interface paths {
         };
         /**
          * Read Document
-         * @description One document by version id ("tos-2026-09") or by slug ("terms").
+         * @description One document by version id ("tos-2026-09"), slug ("terms"), or digest.
+         *
+         *     A 64-character lowercase hex id names exact bytes and returns *that*
+         *     revision, whatever has been published since. It is what a consent record
+         *     stores, so this is the route that makes a consent legible to the person who
+         *     gave it. A version id or a slug returns the current revision, as before.
          */
         get: operations["read_document_api_v1_legal_documents__document_id__get"];
         put?: never;
@@ -934,6 +939,8 @@ export interface components {
         ConsentRecord: {
             /** Consent Type */
             consent_type: string;
+            /** Document Sha256 */
+            document_sha256: string;
             /** Document Version */
             document_version: string;
             /** Granted */
@@ -1425,13 +1432,23 @@ export interface components {
              */
             kind: "bullets";
         };
-        /** LegalDocumentRead */
+        /**
+         * LegalDocumentRead
+         * @description One revision of one document.
+         *
+         *     `content_sha256` and `review_status` describe **the revision that was
+         *     returned**, not the version: ask for a digest and you get those bytes and
+         *     the review status they had. That distinction is the feature — it is what
+         *     lets a patient read the words they actually agreed to.
+         */
         LegalDocumentRead: {
             /** Blocks */
             blocks: (components["schemas"]["LegalHeading"] | components["schemas"]["LegalParagraph"] | components["schemas"]["LegalBullets"] | components["schemas"]["LegalTable"])[];
             consent_type: components["schemas"]["ConsentType"];
             /** Content Sha256 */
             content_sha256: string;
+            /** Current Content Sha256 */
+            current_content_sha256: string;
             /**
              * Effective On
              * Format: date

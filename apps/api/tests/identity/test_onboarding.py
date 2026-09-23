@@ -4,17 +4,21 @@ import asyncio
 from datetime import UTC, datetime
 
 import jwt
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select, text
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from eoehelp_api.audit.models import AuditLog
+from eoehelp_api.identity import documents
 from eoehelp_api.identity.consent import Consent
 from eoehelp_api.identity.documents import (
     CONSUMER_HEALTH_DATA_VERSION,
     PRIVACY_POLICY_VERSION,
     TERMS_OF_SERVICE_VERSION,
 )
+from eoehelp_api.identity.enums import ConsentType
 from eoehelp_api.identity.patient import Patient
 from eoehelp_api.identity.user import User
 from helpers import auth, onboarding_payload
@@ -177,6 +181,135 @@ class TestOnboarding:
         serialised = str([r.metadata_ for r in rows])
         assert "Jane Doe" not in serialised, "the audit trail must not carry PHI values"
         assert "display_name" in serialised
+
+    async def test_consent_rows_carry_the_digest_of_the_document_in_force(
+        self, client: AsyncClient, sign_in, session: AsyncSession
+    ) -> None:
+        """The version label names a document; only the digest identifies the
+        words. Asserting the *correct* digest is the point: any 64-hex value
+        satisfies the column and its constraint."""
+        access = await sign_in()
+        await client.post(f"{ME}/onboarding", json=_payload(), headers=auth(access))
+
+        rows = (await session.execute(select(Consent))).scalars().all()
+        stored = {row.consent_type: row.document_sha256 for row in rows}
+        assert len(stored) == 3
+        for consent_type, digest in stored.items():
+            assert digest == documents.current_for(consent_type).sha256
+
+    async def test_the_consent_audit_row_records_the_digest_and_nothing_else(
+        self, client: AsyncClient, sign_in, session: AsyncSession
+    ) -> None:
+        """The consent row cascades away with the account; this one does not, so
+        after a deletion it is the only surviving statement of what was agreed
+        to. A version label alone does not identify wording."""
+        access = await sign_in()
+        await client.post(f"{ME}/onboarding", json=_payload(), headers=auth(access))
+
+        rows = (await session.execute(select(AuditLog))).scalars().all()
+        grants = [row for row in rows if row.action == "consent.grant"]
+        assert len(grants) == 3
+
+        published = {document.sha256 for document in documents.DOCUMENTS}
+        for row in grants:
+            assert set(row.metadata_) == {"consent_type", "document_version", "content_sha256"}
+            assert row.metadata_["content_sha256"] in published
+
+    async def test_a_malformed_digest_is_refused_by_the_database(
+        self, session: AsyncSession
+    ) -> None:
+        """The check constraint, not the application, is what guarantees this:
+        it holds against a repository written in a hurry and against psql."""
+        user_id = (
+            await session.execute(
+                text(
+                    "INSERT INTO users (email, role, status) "
+                    "VALUES ('digest@example.com', 'patient', 'active') RETURNING id"
+                )
+            )
+        ).scalar_one()
+        patient_id = (
+            await session.execute(
+                text("INSERT INTO patients (user_id) VALUES (:uid) RETURNING id"),
+                {"uid": user_id},
+            )
+        ).scalar_one()
+        await session.commit()
+
+        # "a" * 65 is refused by the varchar(64) type rather than by the check
+        # constraint, which is why DBAPIError is accepted below: both layers are
+        # exercised, and the regex alone would not catch an over-long value.
+        for malformed in ("A" * 64, "a" * 63, "a" * 65, "g" * 64, "", " " + "a" * 63):
+            with pytest.raises((IntegrityError, DBAPIError)):
+                await session.execute(
+                    text(
+                        "INSERT INTO consents "
+                        "(patient_id, consent_type, document_version, document_sha256, granted) "
+                        "VALUES (:pid, 'terms_of_service', 'tos-2026-09', :digest, true)"
+                    ),
+                    {"pid": patient_id, "digest": malformed},
+                )
+            await session.rollback()
+
+    async def test_a_consent_must_name_a_published_revision(self, session: AsyncSession) -> None:
+        """The foreign key to legal_documents, which is what makes "the wording
+        can be reproduced" a guarantee rather than a convention.
+
+        The three rejected cases are the three ways a consent row can name
+        evidence that does not exist: unpublished bytes, the right bytes under
+        the wrong version, and a published pair under the wrong document.
+        """
+        user_id = (
+            await session.execute(
+                text(
+                    "INSERT INTO users (email, role, status) "
+                    "VALUES ('ledger@example.com', 'patient', 'active') RETURNING id"
+                )
+            )
+        ).scalar_one()
+        patient_id = (
+            await session.execute(
+                text("INSERT INTO patients (user_id) VALUES (:uid) RETURNING id"),
+                {"uid": user_id},
+            )
+        ).scalar_one()
+        await session.commit()
+
+        terms = documents.current_for(ConsentType.TERMS_OF_SERVICE)
+        privacy = documents.current_for(ConsentType.PRIVACY_POLICY)
+        insert = text(
+            "INSERT INTO consents "
+            "(patient_id, consent_type, document_version, document_sha256, granted) "
+            "VALUES (:pid, CAST(:type AS consent_type), :version, :digest, true)"
+        )
+        rejected = (
+            # Never published: the failure that produced 27 unreadable rows.
+            ("terms_of_service", terms.version, "b" * 64),
+            # Real bytes, wrong version id.
+            ("terms_of_service", "tos-2099-01", terms.sha256),
+            # A published pair, attributed to the wrong document.
+            ("privacy_policy", terms.version, terms.sha256),
+        )
+        for consent_type, version, digest in rejected:
+            with pytest.raises(IntegrityError):
+                await session.execute(
+                    insert,
+                    {"pid": patient_id, "type": consent_type, "version": version, "digest": digest},
+                )
+            await session.rollback()
+
+        # And the positive case, so the test proves the constraint admits the
+        # triple onboarding actually writes.
+        await session.execute(
+            insert,
+            {
+                "pid": patient_id,
+                "type": "privacy_policy",
+                "version": privacy.version,
+                "digest": privacy.sha256,
+            },
+        )
+        await session.commit()
 
 
 class TestProfile:

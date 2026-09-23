@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
@@ -13,7 +14,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from helpers import DEFAULT_ONBOARDING
 
-TEST_DB_NAME = "eoehelp_test"
+# Unique per session, not a constant. The session fixture drops and recreates
+# this database at startup, so two suites sharing one name silently rebuild each
+# other's database mid-run — which shows up as a magic-link token that was just
+# issued being rejected, an audit trail that is suddenly empty, or a fixture
+# erroring with "database ... does not exist". All three look like a bug in
+# whichever test was unlucky.
+#
+# A random suffix rather than the pid: the suite runs as PID 1 inside its
+# container, so every containerised run would otherwise pick the same name and
+# collide exactly as before.
+TEST_DB_NAME = os.environ.get("TEST_DB_NAME") or f"eoehelp_test_{uuid.uuid4().hex[:12]}"
 
 
 def _admin_url() -> str:
@@ -30,9 +41,24 @@ def _test_url() -> str:
     return base.rsplit("/", 1)[0] + f"/{TEST_DB_NAME}"
 
 
+# Captured at import, before _configure_environment rewrites DATABASE_URL to
+# point at the test database. Some properties can only be checked against the
+# database the application itself runs in — default privileges, for one, are
+# per database, so a test database created with CREATE DATABASE inherits none
+# of them and proves nothing about the real one.
+APPLICATION_DATABASE_URL = os.environ.get(
+    "DATABASE_URL", "postgresql+asyncpg://eoehelp:eoehelp@localhost:5432/eoehelp"
+)
+
+
 @pytest.fixture(scope="session")
 def test_database_url() -> str:
     return _test_url()
+
+
+@pytest.fixture(scope="session")
+def application_database_url() -> str:
+    return APPLICATION_DATABASE_URL
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -117,6 +143,19 @@ async def clean_tables(_database: None) -> AsyncIterator[None]:
     """
     engine = create_async_engine(_test_url())
     async with engine.begin() as conn:
+        # A request that leaves a session checked out mid-transaction holds an
+        # ACCESS SHARE lock that outlives the test: dispose() closes pooled
+        # connections, not checked-out ones, so the socket survives until
+        # CPython collects it. The TRUNCATE below then waits for ACCESS
+        # EXCLUSIVE, and every later statement waits behind the TRUNCATE — the
+        # suite hangs, or fails somewhere unrelated when the leak finally
+        # clears. Clear the blocker deterministically, and never wait long.
+        await conn.exec_driver_sql("SET lock_timeout = '5s'")
+        await conn.exec_driver_sql(
+            "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+            "WHERE datname = current_database() AND pid <> pg_backend_pid() "
+            "AND state = 'idle in transaction'"
+        )
         await conn.exec_driver_sql(
             # clinical_instruments, medication_catalog, and ingredient_catalog are
             # deliberately absent: all are reference data seeded by a migration,

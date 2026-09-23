@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 
 import { LegalDocumentRead } from '../../core/api/api-types';
 import { LegalDocument } from './legal-document';
@@ -14,6 +15,7 @@ function document(overrides: Partial<LegalDocumentRead> = {}): LegalDocumentRead
     effective_on: '2026-09-19',
     review_status: 'draft',
     content_sha256: 'a'.repeat(64),
+    current_content_sha256: 'a'.repeat(64),
     superseded_by: null,
     blocks: [
       { kind: 'heading', level: 2, text: '1. Who runs eoehelp', anchor: 'who' },
@@ -44,7 +46,13 @@ describe('LegalDocument', () => {
         { provide: LegalService, useValue: legal },
         {
           provide: ActivatedRoute,
-          useValue: { snapshot: { paramMap: new Map(), data: { documentId: 'terms' } } },
+          // paramMap is an observable, not just a snapshot: the component
+          // re-reads it so that following the superseded notice from one
+          // version to another actually reloads the text.
+          useValue: {
+            paramMap: of(convertToParamMap({})),
+            snapshot: { paramMap: convertToParamMap({}), data: { documentId: 'terms' } },
+          },
         },
       ],
     }).compileComponents();
@@ -89,5 +97,28 @@ describe('LegalDocument', () => {
     const element = await render();
     expect(element.querySelector('[role="alert"]')).not.toBeNull();
     expect(element.textContent).toContain('Try again');
+  });
+
+  it('says so when the wording being read is not the current wording', async () => {
+    // The point of the digest-addressed route: a patient can read the words
+    // they agreed to, and must be told those words have since changed.
+    legal.next = document({
+      content_sha256: 'a'.repeat(64),
+      current_content_sha256: 'b'.repeat(64),
+    });
+    const element = await render();
+    expect(element.textContent).toContain('This is an earlier wording of this document');
+    expect(element.querySelector('a[href="/legal/tos-2026-09"]')?.textContent).toContain(
+      'Read the current wording',
+    );
+  });
+
+  it('says nothing about older wording when reading the current revision', async () => {
+    legal.next = document({
+      content_sha256: 'a'.repeat(64),
+      current_content_sha256: 'a'.repeat(64),
+    });
+    const element = await render();
+    expect(element.textContent).not.toContain('earlier wording');
   });
 });

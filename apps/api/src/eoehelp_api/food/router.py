@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from eoehelp_api.audit.service import AuditContext
 from eoehelp_api.core import ratelimit
 from eoehelp_api.core.errors import NotFoundError, ServiceUnavailableError
-from eoehelp_api.core.ratelimit import limiter
 from eoehelp_api.deps import (
     Principal,
     get_authenticated_audit_context,
@@ -68,7 +67,7 @@ async def list_catalog(
 
 
 @catalog_router.get("/products/search", response_model=list[ProductSummaryRead])
-@limiter.limit(ratelimit.PRODUCT_LOOKUP)
+@ratelimit.route_limit(ratelimit.PRODUCT_LOOKUP, "product_lookup")
 async def search_products(
     request: Request,
     q: str = Query(min_length=2, max_length=100),
@@ -93,7 +92,7 @@ async def search_products(
 
 
 @catalog_router.get("/products/barcode/{barcode}", response_model=ProductRead)
-@limiter.limit(ratelimit.PRODUCT_LOOKUP)
+@ratelimit.route_limit(ratelimit.PRODUCT_LOOKUP, "product_lookup")
 async def product_by_barcode(
     request: Request,
     barcode: str = Path(pattern=r"^\d{8,14}$"),
@@ -110,7 +109,7 @@ async def product_by_barcode(
 
 
 @catalog_router.get("/products/{source}/{source_id}", response_model=ProductRead)
-@limiter.limit(ratelimit.PRODUCT_LOOKUP)
+@ratelimit.route_limit(ratelimit.PRODUCT_LOOKUP, "product_lookup")
 async def product_detail(
     request: Request,
     source: FoodDataSource,

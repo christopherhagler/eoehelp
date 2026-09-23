@@ -82,4 +82,19 @@ describe('LegalContent', () => {
     expect(element.querySelector('script')).toBeNull();
     expect(element.textContent).toContain('<script>alert(1)</script>');
   });
+
+  it('does not treat a protocol-relative target as an internal link', () => {
+    // "//evil.test" and "/\\evil.test" leave the site while looking internal to a
+    // bare startsWith('/'). Binding one to routerLink would make a legal
+    // document an open redirect. The server refuses these too; this is the
+    // second, independent layer.
+    for (const href of ['//evil.test', '/\\evil.test', '/%2fevil.test']) {
+      const element = render([
+        { kind: 'paragraph', spans: [{ text: 'click', bold: false, href }] },
+      ]);
+      const anchor = element.querySelector('a');
+      expect(anchor?.getAttribute('rel')).toBe('noopener noreferrer');
+      expect(anchor?.getAttribute('target')).toBe('_blank');
+    }
+  });
 });
