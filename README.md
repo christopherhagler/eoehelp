@@ -12,10 +12,12 @@ disease that is persistently short of one.
 
 ## Quick start
 
-Everything runs in containers under **Podman**. You need `podman` and nothing else.
+Everything runs in containers under **Podman**. You need `podman` and `just`
+(`brew install podman just`); this project pins `just` 1.58.0, which
+`just doctor` checks. Nothing else is installed on the host.
 
 ```bash
-make up
+just up
 ```
 
 | Service | URL | Notes |
@@ -28,13 +30,13 @@ Sign in at http://localhost:4200/sign-in with any address, then open Mailhog to
 click the link. Registration and login are the same action by design.
 
 ```bash
-make test            # API suite, in a container
-make openapi         # regenerate the committed API contract
-make verify-promote  # prove image promotion preserves the digest (needs skopeo)
-make help            # everything else
+just test            # API suite, in a container
+just contract        # regenerate the API contract and the web types
+just verify-promote  # prove image promotion preserves the digest (needs skopeo)
+just --list          # everything else
 ```
 
-`verify-promote` is the only target with an extra dependency (`brew install
+`verify-promote` is the only recipe with an extra dependency (`brew install
 skopeo`). It stands up two throwaway registries and proves that promoting an image
 between them preserves its digest — the property that lets production run the
 exact artifact that was tested rather than a rebuild of it. See
@@ -95,7 +97,7 @@ full list; the load-bearing ones:
   schema, magic-link authentication, audit trail, row-level security, and CI.
 - **M1 (daily tracking): complete.** Onboarding with versioned consent, the
   DSQ-based daily log and 14-day score, medications with RRULE-based adherence,
-  account deletion, and a synthetic history generator (`make seed`).
+  account deletion, and a synthetic history generator (`just seed`).
 - **Food and ingredient logging: complete.** An allergen-tagged ingredient
   catalog, patient-defined ingredients, and recent foods for fast re-logging. See
   [ADR 0007](docs/adr/0007-food-and-ingredient-logging.md), including the limits

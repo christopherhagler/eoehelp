@@ -1,5 +1,9 @@
 # ADR 0005 — Podman as the container runtime; everything containerized
 
+> **Amended 2026-09-23:** the `make` commands below are now `just` recipes
+> (`make up` is `just up`). The runtime decision is unchanged. See the
+> amendment at the end of this record.
+
 **Status:** Accepted · 2026-09-15
 
 ## Context
@@ -93,3 +97,11 @@ privileged daemon. Nothing here needs either.
 production and quietly hides role and grant problems — the `app_runtime` role
 owning no tables is exactly the kind of detail that would be "fine locally" and
 broken in CI.
+
+## Amendment — 2026-09-23
+
+The commands in this record were `make` targets. The Makefile has been replaced
+by a `justfile` whose recipes wrap scripts in `scripts/` that CI calls directly;
+`make up` is now `just up`. The runtime decision this ADR records — Podman
+locally, rootless, with compose — is unchanged, and so is everything else here.
+See `docs/plans/2026-09-19-build-system-and-deploy-path.md`.

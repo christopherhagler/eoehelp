@@ -64,9 +64,9 @@ somebody will cite later.
 
 ## Run the checks
 
-You have Bash and the stack is usually up. Run `make lint`, `make typecheck` and
-`make test-api` rather than taking the implementer's numbers, and report what you
-got. If a number disagrees with what you were told, that is a finding. If you
+You have Bash and the stack is usually up. Run `just check` (lint, typecheck,
+tests and the contract) rather than taking the implementer's numbers, and report
+what you got. If a number disagrees with what you were told, that is a finding. If you
 could not run them, say which and why.
 
 Two things that waste time if you do not know them: the API container serves

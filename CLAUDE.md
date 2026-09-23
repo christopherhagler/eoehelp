@@ -60,13 +60,20 @@ Three habits this project learned the expensive way:
 ## Commands
 
 Everything runs in Podman containers; start the machine with
-`podman machine start` if a command cannot connect.
+`podman machine start` if a command cannot connect. The command surface is
+`just` (pinned 1.58.0, `brew install just`).
 
-- `make up`: start the stack (web :4200, API :8000, Mailhog :8025)
-- `make test-api`, `make lint`, `make typecheck`, `make format`: API checks
-- `make web-check`, `make web-format`: web formatting, tests, and build
-- `make openapi` then `make api-types`: after any change to the API surface
-- `make seed`: synthetic patients for local development
+`just --list` is the index; every recipe is a thin wrapper over a script in
+`scripts/` that CI calls directly.
+
+- `just up`: start the stack (web :4200, API :8000, Mailhog :8025)
+- `just test`, `just lint`, `just typecheck`, `just format`: API checks
+- `just check`: everything CI runs against the API, in one command
+- `just web-check`, `just web-format`: web formatting, tests, and build
+- `just contract` after any change to the API surface, `just contract-check`
+  to assert it is current
+- `just seed`: synthetic patients for local development
+- `just doctor`: what is wrong before a command fails confusingly
 
 ## Rules that carry weight
 

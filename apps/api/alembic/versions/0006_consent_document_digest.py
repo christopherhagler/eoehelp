@@ -53,13 +53,15 @@ down_revision: str | None = "0005_procedures"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-# Every revision published by this migration: (consent_type, version, sha256 of
-# the file's bytes). Declared once here and used for both the ledger and the
-# backfill. See eoehelp_api/identity/documents.py, whose registry must agree
-# with these rows or the API refuses to start.
-# The publication date is a literal too, not now(): now() is transaction start
-# time, so every environment would record the moment its database was built and
-# two environments would disagree about when a document was published. This is
+# Every revision published by this migration: consent type, version, the sha256
+# of the file's bytes, and the date it was published. Declared once here and
+# used for both the ledger and the backfill. See
+# eoehelp_api/identity/documents.py, whose registry must agree with these rows
+# or the API refuses to start.
+#
+# The date is a literal rather than now(): now() is transaction start time, so
+# every environment would record the moment its own database was built and two
+# environments would disagree about when a document was published. This is
 # provenance on a legal record; it has to be the same everywhere.
 PUBLISHED_REVISIONS: tuple[tuple[str, str, str, str], ...] = (
     (
@@ -211,7 +213,7 @@ def upgrade() -> None:
                 f"{consent_type}/{version} ({count} rows)" for consent_type, version, count in stale
             )
             + ". Before deployment, rebuild the development database "
-            "(make clean && make up && make seed). After deployment, publish the "
+            "(just clean && just up && just seed). After deployment, publish the "
             "missing revision's bytes and add them to a migration — deleting a "
             "consent row destroys a legal record."
         )

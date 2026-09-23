@@ -112,7 +112,7 @@ jobs:
           print(json.dumps(create_app().openapi(), indent=2, sort_keys=True))
           PY
           if ! diff -q /tmp/openapi.json packages/openapi/schema.json >/dev/null 2>&1; then
-            echo "::error::OpenAPI schema changed. Run 'make openapi' and commit packages/openapi/schema.json."
+            echo "::error::OpenAPI schema changed. Run 'just openapi' and commit packages/openapi/schema.json."
             diff -u packages/openapi/schema.json /tmp/openapi.json | head -60 || true
             exit 1
           fi
@@ -142,12 +142,12 @@ jobs:
         # The generated types are what turn a backend response-shape change into a
         # compile error here rather than a runtime surprise on a clinical screen.
         # Pinned exactly, and run with npx because openapi-typescript 7 peers on
-        # typescript ^5 while this project is on 6 — see `make api-types`.
+        # typescript ^5 while this project is on 6 — see `just api-types`.
         run: |
           npx -y openapi-typescript@7.13.0 ../../packages/openapi/schema.json \
             -o /tmp/schema.d.ts
           if ! diff -q /tmp/schema.d.ts src/app/api-client/schema.d.ts >/dev/null; then
-            echo "::error::Generated API types are stale. Run 'make api-types' and commit."
+            echo "::error::Generated API types are stale. Run 'just api-types' and commit."
             diff -u src/app/api-client/schema.d.ts /tmp/schema.d.ts | head -40 || true
             exit 1
           fi

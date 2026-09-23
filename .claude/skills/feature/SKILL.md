@@ -73,9 +73,9 @@ rule), send it back to the architect to revise the design before continuing.
 Record small deviations in the review log yourself.
 
 Then run everything CI runs:
-- `make lint`, `make typecheck`, and `make test-api` for API changes
-- `make openapi` and `make api-types` when the API surface changed
-- `make web-check` for web changes
+- `just check` for API changes (lint, typecheck, tests, contract)
+- `just contract` when the API surface changed
+- `just web-check` for web changes
 
 For UI work, also run the app and look at it: screenshot the affected screens
 at phone width in light and dark mode, and fix what you see.

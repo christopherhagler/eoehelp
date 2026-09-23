@@ -7,7 +7,7 @@
  * screen — which matters more than usual on this product, because fields like
  * eos/hpf and EREFS sub-scores transpose silently and dangerously.
  *
- * Regenerate with `make api-types`. Never hand-edit the generated file.
+ * Regenerate with `just api-types`. Never hand-edit the generated file.
  */
 import type { components } from '../../api-client/schema';
 

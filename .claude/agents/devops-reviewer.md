@@ -23,7 +23,7 @@ Two facts govern every judgement you make:
 ## What to read
 
 The changed files in full, what they replace, and the surrounding system:
-`Makefile` or whatever replaces it, `infra/`, `apps/*/Dockerfile`,
+the `justfile` and `scripts/`, `infra/`, `apps/*/Dockerfile`,
 `.github/workflows/`, any Terraform, `CLAUDE.md` and the READMEs (which
 document the commands), and the ADRs — 0004 (AWS), 0005 (Podman), 0006
 (buildah and skopeo). Read the plan the change belongs to.

@@ -1,5 +1,8 @@
 # ADR 0006 — Build with buildah, publish with skopeo, promote by digest
 
+> **Amended 2026-09-23:** `make verify-promote` is now `just verify-promote`.
+> The buildah and skopeo decision is unchanged. See the amendment at the end.
+
 **Status:** Accepted · 2026-09-15
 **Extends:** [ADR 0005](0005-podman-container-runtime.md) (Podman as the container runtime)
 
@@ -103,3 +106,11 @@ the divergence ADR 0005 exists to prevent.
 job that only builds, keeps the manifest format a matter of defaults, and offers
 nothing toward promotion by digest — which is the part that matters once there is
 a production account to promote into.
+
+## Amendment — 2026-09-23
+
+`make verify-promote` is now `just verify-promote`. The Makefile has been
+replaced by a `justfile` whose recipes wrap scripts in `scripts/` that CI calls
+directly; nothing about the buildah and skopeo decision, or the
+build-once-promote-by-digest rule, changes. See
+`docs/plans/2026-09-19-build-system-and-deploy-path.md`.

@@ -34,7 +34,7 @@ conventions; `db/session.py` for the RLS scope hook; and the ADRs, especially
 
 Where it helps, inspect the live development database read-only, through the
 running stack. `EXPLAIN (ANALYZE, BUFFERS)` on a query against seeded synthetic
-data says more than reading the SQL, and `make seed`-scale data is already
+data says more than reading the SQL, and `just seed`-scale data is already
 available. Say what you ran.
 
 ## What to check

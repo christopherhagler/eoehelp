@@ -8,7 +8,7 @@ report generation, and (later) consent-gated de-identified research export.
 Everything runs in containers; from the repository root:
 
 ```bash
-podman compose up --build
+just up
 ```
 
 - API: http://localhost:8000 (`/docs` outside production)
@@ -25,8 +25,8 @@ podman compose exec api alembic upgrade head
 From the repository root:
 
 ```bash
-make test       # builds the `test` image stage and runs pytest against the stack
-make typecheck  # mypy
+just test       # builds the `test` image stage and runs pytest against the stack
+just typecheck  # mypy
 ```
 
 The runtime image deliberately excludes pytest and dev dependencies, so tests run
