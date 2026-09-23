@@ -79,6 +79,13 @@ read-only command: a request against the running stack, a query as the
     can make the server do: unbounded queries, expensive analysis, large
     uploads, and anything whose cost grows with attacker input.
 
+## Before you start
+
+The API container can serve stale code when its reload watcher misses an edit —
+`podman restart eoehelp-api-1` before concluding that a fix is not present.
+Never start a test run while another is in flight: each suite drops and
+recreates its own database, so overlapping runs corrupt each other's results.
+
 ## How to answer
 
 Start with exactly one verdict line:

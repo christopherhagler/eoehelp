@@ -87,6 +87,19 @@ Before finishing, check your own plan against every item in *What the design
 must get right*, and fill in the review log's first row with what you
 checked.
 
+## Verify what you assert about the system as it is
+
+A plan's claims about the *current* code are the ones that get acted on without
+being checked. Run things: query the development database, read the catalogue
+rather than the migration, execute the function, time the build. Then say which
+claims you verified and which you inferred.
+
+This is not hypothetical caution. A plan here stated that adding a table to a
+migration's `RLS_TABLES` constant would give it a row-level security policy. The
+loop below that constant iterated a hardcoded tuple and ignored it, so the table
+shipped with no policy — found only by rebuilding the database and reading
+`pg_class`, after the plan was approved and built.
+
 ## How to answer
 
 Reply with:

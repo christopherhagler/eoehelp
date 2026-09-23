@@ -34,8 +34,28 @@ in `.claude/skills/feature/SKILL.md` (`/feature <description>`):
 Reviews run only when they apply, and a plan's review log records which ran
 and which were skipped.
 
+Scale the review to what the change can break, and say in the review log why:
+
+- **Presentation only** (styling, copy that makes no claim, a component split):
+  the code reviewer alone.
+- **Anything reaching patient data, auth, migrations, grants, public endpoints
+  or outbound calls:** the reviewers that cover it, without exception. These are
+  where every expensive finding so far has come from.
+- **Legal and clinical wording:** the legal reviewer, and the specialist for
+  anything a patient reads about their own health.
+
 Small fixes (a typo, a one-line bug, a dependency bump) can skip the
 architect, but still get a code review before committing.
+
+Three habits this project learned the expensive way:
+
+- **Reviewers that run things find what reviewers that read things do not.** The
+  rate-limit bypass, the writable consent table, the grants that were cosmetic,
+  and the deadlocked test suite were all demonstrated, not deduced.
+- **Ask what would make a new test fail.** Three tests here have been committed
+  that could not fail, including one guarding a privacy-policy claim.
+- **Do not run two test suites at once.** Each drops and recreates its own
+  database; overlapping runs produce failures in whichever test was unlucky.
 
 ## Commands
 

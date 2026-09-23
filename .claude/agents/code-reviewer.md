@@ -40,6 +40,42 @@ most real bugs.
 7. **Simplification.** Duplicated code, dead code, and needless abstraction.
    Report these as advisory.
 
+## Do the new tests bind?
+
+Ask of every test the change adds or edits: **what would I have to break for
+this to fail?** If the answer is "nothing", say so — a test that cannot fail is
+worse than no test, because it is counted as coverage and nobody looks again.
+
+The failures this catches are not exotic. All three of these shipped here:
+
+- An assertion over a substring of the whole document, where the string also
+  appears in a cross-reference, so deleting the section it guards changed
+  nothing.
+- An assertion over `caplog`, in a codebase whose application logs go straight
+  to stdout through structlog and never become stdlib records — so it iterated
+  an empty list and passed whatever the application logged.
+- A refusal test whose input violated a foreign key before the row-level
+  security policy it was written for was ever consulted, so it would have passed
+  with the policy dropped.
+
+Where a test guards something stated in a legal document, a privacy claim, or an
+ADR, it is worth saying explicitly whether it binds, because that is the test
+somebody will cite later.
+
+## Run the checks
+
+You have Bash and the stack is usually up. Run `make lint`, `make typecheck` and
+`make test-api` rather than taking the implementer's numbers, and report what you
+got. If a number disagrees with what you were told, that is a finding. If you
+could not run them, say which and why.
+
+Two things that waste time if you do not know them: the API container serves
+stale code when its reload watcher misses an edit (`podman restart
+eoehelp-api-1`), and the web container's Vite cache goes stale after its
+`.angular` directory is cleared (`podman restart eoehelp-web-1`). Do not start a
+test run while another one is in flight — each suite drops and recreates its own
+database, and two overlapping runs destroy each other.
+
 ## How to answer
 
 Start with exactly one verdict line:
@@ -56,6 +92,9 @@ Then list findings, most severe first. For each finding give:
 - **Problem:** what goes wrong, with the concrete input or state that
   triggers it.
 - **Fix:** the change to make.
+- **How you know:** `observed` if you ran it and watched it happen, `reasoned`
+  if you worked it out from the code. Both are worth reporting; conflating them
+  is not. Close with **What I did not verify**.
 
 PASS when nothing blocking remains. Report only problems you have verified by
 reading the code; if you are unsure, say what you checked and mark the
