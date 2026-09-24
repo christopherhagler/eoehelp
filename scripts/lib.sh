@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared helpers for the scripts the justfile and CI both call.
 #
 # Sourced, never executed. Every script that sources this sets its own
@@ -21,7 +22,9 @@ require_cmd() {
 # apps/api — where `podman compose` finds no configuration and reports it in
 # terms that never mention this project.
 compose() {
-    podman compose -f "$REPO_ROOT/compose.yaml" "$@"
+    podman compose \
+        --env-file "$REPO_ROOT/infra/images.env" \
+        -f "$REPO_ROOT/compose.yaml" "$@"
 }
 
 # sha256 over the given files, lowercase hex, one value for the set. macOS ships

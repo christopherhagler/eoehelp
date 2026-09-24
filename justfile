@@ -4,6 +4,9 @@
 # directly, so "it passed locally" and "CI is green" are the same claim rather
 # than two implementations that happen to agree.
 
+# Base images are pinned in one file so local, CI and deployed cannot drift.
+compose := "podman compose --env-file infra/images.env"
+
 [private]
 default:
     @just --list
@@ -13,7 +16,10 @@ default:
 # Start the full stack (web, api, postgres, redis, mailhog)
 [group('stack')]
 up:
-    podman compose up -d --build
+    @scripts/build-images.sh dev web-deps
+    # On failure, show the migration output: `up -d` does not stream a one-shot
+    # service's logs, so a failed migration otherwise aborts with no reason.
+    @{{ compose }} up -d || ({{ compose }} logs migrate; exit 1)
     @echo ""
     @echo "  web      http://localhost:4200"
     @echo "  api      http://localhost:8000/docs"
@@ -22,22 +28,25 @@ up:
 # Stop the stack
 [group('stack')]
 down:
-    podman compose down
+    {{ compose }} down
 
 # Stop the stack and delete its volumes (destroys local data)
 [group('stack')]
 clean:
-    podman compose down -v
+    {{ compose }} down -v
+    # Named explicitly: it is no longer declared in compose.yaml, so `down -v`
+    # does not know about it, and nothing else would ever remove it.
+    -podman volume rm -f eoehelp_web_node_modules
 
 # Tail logs from every service, or one of them
 [group('stack')]
 logs service="":
-    podman compose logs -f {{ service }}
+    {{ compose }} logs -f {{ service }}
 
 # Show service status
 [group('stack')]
 ps:
-    podman compose ps
+    {{ compose }} ps
 
 # Check the things that go wrong before a command does
 [group('stack')]
@@ -49,12 +58,12 @@ doctor:
 # Apply database migrations
 [group('db')]
 migrate:
-    podman compose exec api alembic upgrade head
+    {{ compose }} exec api alembic upgrade head
 
 # Autogenerate a migration, then HAND-REVIEW it
 [group('db')]
 revision message:
-    podman compose exec api alembic revision --autogenerate -m "{{ message }}"
+    {{ compose }} exec api alembic revision --autogenerate -m "{{ message }}"
     @echo ""
     @echo "Review the generated file before committing: autogenerate does not"
     @echo "emit RLS policies, grants, check constraints, or partial indexes."
@@ -62,12 +71,12 @@ revision message:
 # Open a psql shell against the dev database
 [group('db')]
 psql:
-    podman compose exec postgres psql -U eoehelp -d eoehelp
+    {{ compose }} exec postgres psql -U eoehelp -d eoehelp
 
 # Seed the dev database with synthetic patients
 [group('db')]
 seed patients="3" months="18" seed="1":
-    podman compose exec -T api python -m eoehelp_api.synthetic \
+    {{ compose }} exec -T api python -m eoehelp_api.synthetic \
         --patients {{ patients }} --months {{ months }} --seed {{ seed }}
 
 # ---- api ------------------------------------------------------------------
@@ -86,6 +95,13 @@ test *args:
 lint:
     @scripts/api-checks.sh lint
 
+# Lint the shell scripts that are now the command surface
+[group('api')]
+shellcheck:
+    podman run --rm -v "$PWD:/repo:z" -w /repo \
+        $(grep '^SHELLCHECK_IMAGE=' infra/images.env | cut -d= -f2-) \
+        -x --source-path=SCRIPTDIR scripts/*.sh
+
 # Apply ruff's formatting and safe fixes to the API
 [group('api')]
 format:
@@ -96,9 +112,9 @@ format:
 typecheck:
     @scripts/api-checks.sh typecheck
 
-# Everything CI runs against the API
+# Everything CI runs against the API, plus shellcheck, which CI gains in stage 3
 [group('api')]
-check: lint typecheck test contract-check
+check: lint shellcheck typecheck test contract-check
 
 # ---- web ------------------------------------------------------------------
 
@@ -141,23 +157,26 @@ contract-check:
 
 # ---- images ---------------------------------------------------------------
 
-# Build the API runtime image (the artifact that ships)
+# Build images, tagged by content; skips anything already up to date
 [group('images')]
-build-api:
-    podman build --format docker --target runtime -t eoehelp-api:local apps/api
+build *targets:
+    @scripts/build-images.sh {{ targets }}
 
-# Wider than `build-api`, which builds only the shipping artifact. Stage 2 of
-# the build plan replaces both with one script.
-
-# Rebuild every compose image from scratch
+# Rebuild every image from scratch, ignoring the content tags
 [group('images')]
 rebuild:
-    podman compose build --no-cache
+    @scripts/build-images.sh all --no-cache
 
 # Prove promotion between registries preserves the image digest
 [group('images')]
-verify-promote: build-api
-    ./scripts/verify-promote.sh eoehelp-api:local
+verify-promote:
+    @scripts/build-images.sh runtime
+    ./scripts/verify-promote.sh localhost/eoehelp-api:runtime
+
+# Assert an image is what it claims: manifest, arch, unprivileged, no test tooling
+[group('images')]
+verify-image *images:
+    @scripts/verify-image.sh {{ if images == "" { "localhost/eoehelp-api:runtime" } else { images } }}
 
 # ---- housekeeping ---------------------------------------------------------
 

@@ -10,6 +10,18 @@ disease that is persistently short of one.
 > eoehelp is a personal health record that patients control. It is **not** a
 > medical record system and does **not** provide medical advice.
 
+## How it builds
+
+`scripts/build-images.sh` is the only thing that builds an image. Each image is
+tagged by a digest of the files it is built from, so an image that matches its
+inputs is never rebuilt and an image built from different inputs can never reuse
+a tag. `compose.yaml` has no `build:` keys and `pull_policy: never`, so starting
+the stack cannot silently rebuild or silently run something stale.
+
+Base images are pinned in `infra/images.env`. Postgres is the glibc build, not
+alpine: musl collates by byte, so text ordering and `citext` folding would
+differ from production.
+
 ## Quick start
 
 Everything runs in containers under **Podman**. You need `podman` and `just`

@@ -28,7 +28,11 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        # Must match POSTGRES_IMAGE in infra/images.env. glibc, not alpine:
+        # musl collates by byte, so text ordering and citext folding differ
+        # from any glibc build including RDS. A `services:` block cannot read
+        # a file, so this is the one place the pin is duplicated.
+        image: postgres:16.15-bookworm
         env:
           POSTGRES_USER: eoehelp
           POSTGRES_PASSWORD: eoehelp
@@ -55,18 +59,10 @@ jobs:
         # bypass row-level security. They connect as this role instead.
         env:
           PGPASSWORD: eoehelp
-        run: |
-          psql -h localhost -U eoehelp -d eoehelp -v ON_ERROR_STOP=1 <<'SQL'
-          CREATE EXTENSION IF NOT EXISTS pgcrypto;
-          CREATE EXTENSION IF NOT EXISTS citext;
-          DO $$
-          BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_runtime') THEN
-              CREATE ROLE app_runtime LOGIN PASSWORD 'app_runtime_local_only';
-            END IF;
-          END
-          $$;
-          SQL
+        # From the repository root: this job's default working directory is
+        # apps/api, and the script is shared with the local stack.
+        working-directory: ${{ github.workspace }}
+        run: scripts/db-init.sh localhost 5432
 
       - name: Lint
         run: ruff check . && ruff format --check .

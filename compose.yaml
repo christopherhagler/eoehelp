@@ -1,9 +1,19 @@
+# Base image tags come from infra/images.env and have no inline default: a
+# missing variable must fail loudly rather than quietly selecting a different
+# Postgres from the one CI and the deployed stack use. Run through `just`, which
+# passes --env-file, or pass it yourself.
+#
+# Local development stack, run with Podman. Images are built by
+# scripts/build-images.sh and referenced by tag here — there are deliberately no
+# `build:` keys, so `just up` cannot silently rebuild an image that is already
+# correct, and cannot silently run one that is stale.
+#
 # Local development stack, run with Podman. Everything runs in containers, so a
 # developer needs only `podman` and nothing else installed. The api/web images
 # here are the same ones CI builds and ECS runs; only the command and mounts differ.
 #
-#   podman compose up --build
-#   podman compose exec api alembic upgrade head
+#   just up
+#   just migrate
 #
 # Mailhog captures magic-link emails at http://localhost:8025 so no mail ever
 # leaves the machine in development.
@@ -15,7 +25,7 @@ name: eoehelp
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: ${POSTGRES_IMAGE:?set in infra/images.env}
     environment:
       POSTGRES_USER: eoehelp
       POSTGRES_PASSWORD: eoehelp
@@ -23,7 +33,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_glibc:/var/lib/postgresql/data
       - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U eoehelp -d eoehelp"]
@@ -32,7 +42,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: ${REDIS_IMAGE:?set in infra/images.env}
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "6379:6379"
@@ -43,21 +53,36 @@ services:
       retries: 10
 
   mailhog:
-    image: mailhog/mailhog:v1.0.1
+    image: ${MAILHOG_IMAGE:?set in infra/images.env}
     ports:
       - "1025:1025"   # SMTP
       - "8025:8025"   # web UI
     logging:
       driver: none
 
+  # Migrations run once, before the API starts, as their own service. Previously
+  # they were the first half of the API's command, which meant a failed
+  # migration surfaced as a container that restarted forever with the real error
+  # scrolled away. The deployed shape runs them as a separate task too.
+  migrate:
+    image: ${API_DEV_IMAGE:-localhost/eoehelp-api:dev}
+    pull_policy: never
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      PYTHONPATH: /app/src
+      ENVIRONMENT: local
+      DATABASE_URL: postgresql+asyncpg://eoehelp:eoehelp@postgres:5432/eoehelp
+    volumes:
+      - ./apps/api/src:/app/src:ro
+      - ./apps/api/alembic:/app/alembic:ro
+      - ./apps/api/alembic.ini:/app/alembic.ini:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
-    build:
-      context: ./apps/api
-      target: runtime
-    command:
-      - sh
-      - -c
-      - "alembic upgrade head && uvicorn eoehelp_api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src"
+    image: ${API_DEV_IMAGE:-localhost/eoehelp-api:dev}
+    pull_policy: never
     environment:
       # Makes the mounted source take precedence over the copy pip-installed into
       # the image, so edits reload. Deployed images set no PYTHONPATH and run the
@@ -78,27 +103,38 @@ services:
       # Source mount for reload. Deployed images copy source in and mount nothing.
       - ./apps/api/src:/app/src:ro
       - ./apps/api/alembic:/app/alembic:ro
+      - ./apps/api/alembic.ini:/app/alembic.ini:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   web:
-    build:
-      context: ./apps/web
-      target: builder
+    image: ${WEB_DEPS_IMAGE:-localhost/eoehelp-web:deps}
+    pull_policy: never
     command: ["npm", "start", "--", "--host", "0.0.0.0", "--port", "4200", "--poll", "1000"]
     ports:
       - "4200:4200"
     volumes:
+      # Only src and public. node_modules lives in the image, where a dependency
+      # change rebuilds it; the named volume that used to hold it was a snapshot
+      # taken once and never updated, which is how the dev server ended up
+      # running against dependencies from weeks earlier.
       - ./apps/web/src:/build/src
       - ./apps/web/public:/build/public
-      # Keeps container-built node_modules from being shadowed by the host mount.
-      - web_node_modules:/build/node_modules
     depends_on:
       - api
 
 volumes:
-  postgres_data:
-  web_node_modules:
+  # Renamed when the image moved from musl to glibc. A glibc server starts
+  # happily on a musl-created directory and says nothing — musl records no
+  # collation version, so PostgreSQL's own mismatch check cannot fire — while
+  # every text index is ordered by musl bytes and read by glibc rules. Measured
+  # on such a directory: an index scan and a sequential scan returned different
+  # answers for the same query, a row was invisible to an index lookup, and a
+  # duplicate primary key was accepted. Renaming forces a fresh directory and
+  # leaves the old one intact if anyone wants it back.
+  postgres_data_glibc:

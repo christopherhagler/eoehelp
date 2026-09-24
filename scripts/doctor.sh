@@ -76,6 +76,16 @@ else
     warn "podman system df failed: $(cat "$df_errors")"
 fi
 
+# compose has no build: keys — it runs what build-images.sh produced — so a
+# missing image is a confusing "no such image" rather than a rebuild.
+for image in localhost/eoehelp-api:dev localhost/eoehelp-web:deps; do
+    if podman image exists "$image"; then
+        ok "$image present"
+    else
+        warn "$image missing — run: just build dev web-deps"
+    fi
+done
+
 for name in eoehelp-postgres-1 eoehelp-api-1 eoehelp-web-1; do
     if container_running "$name"; then
         ok "$name is up"
@@ -97,8 +107,11 @@ else
     warn "just is not installed — brew install just"
 fi
 
-command -v skopeo >/dev/null 2>&1 && ok "skopeo present" \
-    || warn "skopeo not installed (needed for verify-promote)"
+if command -v skopeo >/dev/null 2>&1; then
+    ok "skopeo present"
+else
+    warn "skopeo not installed (needed for verify-promote)"
+fi
 
 # Traps that have each cost an afternoon. Hints, not warnings: nothing is wrong
 # right now, and a doctor that always prints warnings trains you to ignore it.

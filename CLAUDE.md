@@ -73,6 +73,9 @@ Everything runs in Podman containers; start the machine with
 - `just contract` after any change to the API surface, `just contract-check`
   to assert it is current
 - `just seed`: synthetic patients for local development
+- `just build`, `just verify-image`: images, tagged by the content they are
+  built from; `scripts/build-images.sh` is the only thing that builds one
+- `just shellcheck`: the scripts are the command surface, so they are linted
 - `just doctor`: what is wrong before a command fails confusingly
 
 ## Rules that carry weight
