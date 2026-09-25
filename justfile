@@ -178,6 +178,32 @@ verify-promote:
 verify-image *images:
     @scripts/verify-image.sh {{ if images == "" { "localhost/eoehelp-api:runtime" } else { images } }}
 
+# ---- ci -------------------------------------------------------------------
+# The exact sequences CI runs, so "it passed locally" and "CI is green" are the
+# same claim. CI calls these; nothing here is CI-only.
+
+# Everything the api job runs, inside the image that gets tested
+[group('ci')]
+ci-api:
+    @scripts/api-checks.sh lint
+    @scripts/api-checks.sh typecheck
+    @scripts/api-checks.sh test
+    @scripts/api-checks.sh migrations
+    @scripts/openapi.sh --check
+
+# Everything the web job runs, inside the deps image
+[group('ci')]
+ci-web:
+    @scripts/web-checks.sh check
+    @scripts/api-types.sh --check
+
+# Everything the images job runs: build what ships, then assert what it is
+[group('ci')]
+ci-images:
+    @scripts/build-images.sh runtime web-runtime
+    @scripts/verify-image.sh localhost/eoehelp-api:runtime localhost/eoehelp-web:runtime
+    ./scripts/verify-promote.sh localhost/eoehelp-api:runtime
+
 # ---- housekeeping ---------------------------------------------------------
 
 # `just prune all` adds -a, which also removes images no container is using —

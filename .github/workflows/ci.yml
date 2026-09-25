@@ -14,24 +14,19 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  PYTHON_VERSION: "3.12"
-  NODE_VERSION: "24"
 
 jobs:
   api:
     name: API — lint, types, tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/api
+    # arm64 end to end: the same architecture as the development machines and as
+    # the deployed instance, so nothing is cross-built or emulated anywhere.
+    runs-on: ubuntu-24.04-arm
 
     services:
       postgres:
         # Must match POSTGRES_IMAGE in infra/images.env. glibc, not alpine:
         # musl collates by byte, so text ordering and citext folding differ
-        # from any glibc build including RDS. A `services:` block cannot read
-        # a file, so this is the one place the pin is duplicated.
+        # from any glibc build including the deployed one.
         image: postgres:16.15-bookworm
         env:
           POSTGRES_USER: eoehelp
@@ -44,195 +39,54 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/container-tooling
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: apps/api/pyproject.toml
-
-      - name: Install
-        run: pip install -e ".[dev]"
-
-      - name: Create the unprivileged application role
-        # The isolation tests are meaningless as a table owner, since owners
-        # bypass row-level security. They connect as this role instead.
+      - name: Bootstrap the database
+        # The same file the local stack applies through the postgres image's
+        # init directory. CI used to carry its own heredoc copy of this, which
+        # had drifted to creating the role and nothing else.
         env:
           PGPASSWORD: eoehelp
-        # From the repository root: this job's default working directory is
-        # apps/api, and the script is shared with the local stack.
-        working-directory: ${{ github.workspace }}
         run: scripts/db-init.sh localhost 5432
 
-      - name: Lint
-        run: ruff check . && ruff format --check .
-
-      - name: Type check
-        run: mypy src
-
-      - name: Tests
+      - name: Lint, type-check, test, migrations, contract
+        # Inside the image that gets tested, which is the premise of ADR 0006:
+        # production runs the artifact that passed. Previously CI pip-installed
+        # on the runner and the images it built were never executed.
         env:
-          DATABASE_URL: postgresql+asyncpg://eoehelp:eoehelp@localhost:5432/eoehelp
-          ENVIRONMENT: local
-        run: pytest --cov --cov-report=term-missing
-
-      - name: Migrations must roll back
-        # A health-data migration that cannot be reversed turns a bad deploy into
-        # permanent data loss, so both directions are exercised on every change.
-        env:
-          DATABASE_URL: postgresql+asyncpg://eoehelp:eoehelp@localhost:5432/eoehelp
-        run: |
-          alembic upgrade head
-          alembic downgrade base
-          alembic upgrade head
-
-  openapi-drift:
-    name: OpenAPI contract is current
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install
-        working-directory: apps/api
-        run: pip install -e .
-      - name: Regenerate and compare
-        # The Angular client is generated from this schema. If it drifts, a
-        # backend response change stops being a compile error on the frontend.
-        run: |
-          python - <<'PY' > /tmp/openapi.json
-          import json, os
-          os.environ.setdefault("ENVIRONMENT", "local")
-          from eoehelp_api.main import create_app
-          print(json.dumps(create_app().openapi(), indent=2, sort_keys=True))
-          PY
-          if ! diff -q /tmp/openapi.json packages/openapi/schema.json >/dev/null 2>&1; then
-            echo "::error::OpenAPI schema changed. Run 'just openapi' and commit packages/openapi/schema.json."
-            diff -u packages/openapi/schema.json /tmp/openapi.json | head -60 || true
-            exit 1
-          fi
+          TEST_NETWORK: host
+          TEST_DATABASE_URL: postgresql+asyncpg://eoehelp:eoehelp@localhost:5432/eoehelp
+        run: just ci-api
 
   web:
     name: Web — format, build, tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
-      - run: npm ci
-      - run: npm run format:check
-      # Flags after `--` go to ng, so --if-present stays on the npm side. The test
-      # target is @angular/build:unit-test (vitest on jsdom) — there is no browser
-      # to pick, and a --browsers flag is rejected outright.
-      - run: npm run test --if-present -- --watch=false
-      - run: npm run build -- --configuration production
-
-      - name: Angular API types match the OpenAPI contract
-        # The generated types are what turn a backend response-shape change into a
-        # compile error here rather than a runtime surprise on a clinical screen.
-        # Pinned exactly, and run with npx because openapi-typescript 7 peers on
-        # typescript ^5 while this project is on 6 — see `just api-types`.
-        run: |
-          npx -y openapi-typescript@7.13.0 ../../packages/openapi/schema.json \
-            -o /tmp/schema.d.ts
-          if ! diff -q /tmp/schema.d.ts src/app/api-client/schema.d.ts >/dev/null; then
-            echo "::error::Generated API types are stale. Run 'just api-types' and commit."
-            diff -u src/app/api-client/schema.d.ts /tmp/schema.d.ts | head -40 || true
-            exit 1
-          fi
-
-  images:
-    name: Container images (buildah, arm64)
-    # arm64 runners so CI builds the same architecture as both the Apple Silicon
-    # dev machines and ARM64 Fargate. Single architecture end to end means no
-    # cross-building and no QEMU emulation anywhere. GA for private repos since
-    # January 2026.
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/container-tooling
 
-      # buildah and skopeo rather than podman: this job only builds and inspects,
-      # and neither tool needs a container runtime or a daemon to do it. See
-      # docs/adr/0006-buildah-and-skopeo.md.
-      #
-      # Installed explicitly rather than trusting the runner image. buildah ships
-      # on ubuntu-22.04+, but skopeo's preinstalled version has historically been
-      # too old for some operations, and relying on it invites intermittent failure.
-      - name: Install buildah and skopeo
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends buildah skopeo
-          buildah --version
-          skopeo --version
+      - name: Format, test, build, contract types
+        run: just ci-web
 
-      # --format docker is pinned deliberately. The OCI manifest format is
-      # buildah's other option, and ECS has historically choked on it; Docker v2
-      # is what ECR and ECS consume without incident. --layers keeps intermediate
-      # layers so registry-backed --cache-from/--cache-to can be added later.
-      #
-      # --target is always explicit: the final stage of apps/api/Dockerfile is
-      # `test`, so a bare build would produce the test image, not the runtime one.
-      - name: Build API runtime image
-        run: buildah build --format docker --layers --target runtime -t eoehelp-api:ci apps/api
+  images:
+    name: Container images (arm64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/container-tooling
 
-      - name: Build API test image
-        run: buildah build --format docker --layers --target test -t eoehelp-api-test:ci apps/api
-
-      - name: Build web runtime image
-        run: buildah build --format docker --layers --target runtime -t eoehelp-web:ci apps/web
-
-      - name: Images must be Docker v2 manifests and arm64
-        # Read out of local container storage with buildah, not skopeo. Ubuntu 24.04
-        # restricts unprivileged user namespaces by AppArmor, and only binaries with
-        # a profile may unshare — buildah ships one, skopeo does not, so
-        # `skopeo inspect containers-storage:…` dies with "unshare(...): Operation
-        # not permitted". skopeo's job here is registry work, which it does over
-        # docker:// in the promotion check below and needs no namespace at all.
-        #
-        # .Manifest is the committed manifest verbatim, so the media type asserted
-        # here is exactly what would land in ECR.
-        run: |
-          for image in eoehelp-api:ci eoehelp-web:ci; do
-            manifest=$(buildah inspect --type image --format '{{.Manifest}}' "$image" \
-              | python3 -c 'import json,sys; print(json.load(sys.stdin)["mediaType"])')
-            arch=$(buildah inspect --type image --format '{{.OCIv1.Architecture}}' "$image")
-            echo "$image -> $manifest / $arch"
-            case "$manifest" in
-              application/vnd.docker.distribution.manifest.v2+json) ;;
-              *) echo "::error::$image is $manifest, expected a Docker v2 manifest"; exit 1 ;;
-            esac
-            [ "$arch" = "arm64" ] || { echo "::error::$image is $arch, expected arm64"; exit 1; }
-          done
-
-      - name: Images must run unprivileged
-        # A container escape should not begin as root. Asserted here rather than
-        # trusted, because a base-image bump can silently revert it.
-        run: |
-          for image in eoehelp-api:ci eoehelp-web:ci; do
-            user=$(buildah inspect --type image --format '{{.OCIv1.Config.User}}' "$image")
-            echo "$image runs as '${user:-root}'"
-            if [ -z "$user" ] || [ "$user" = "root" ] || [ "$user" = "0" ]; then
-              echo "::error::$image would run as root"
-              exit 1
-            fi
-          done
-
-      - name: Promotion preserves the image digest
-        # Proves the deploy pattern the plan depends on: build once, then promote
-        # the identical digest between registries rather than rebuilding, so
-        # production runs the artifact that was actually tested. Two throwaway
-        # registries stand in for the staging and production ECRs.
-        run: ./scripts/verify-promote.sh eoehelp-api:ci
+      - name: Build what ships, and assert what it is
+        # verify-image.sh asserts the manifest format, the architecture, that
+        # the image runs unprivileged, that it carries no test tooling and no
+        # tests directory, and that no secret reached its environment.
+        # verify-promote.sh proves a digest survives promotion between two
+        # throwaway registries, which is the deploy pattern ADR 0006 rests on.
+        run: just ci-images
 
   security:
     name: Dependency and code scanning
+    # x86: pip-audit and npm audit read advisory databases and build nothing, so
+    # the architecture is irrelevant and this runner is the cheaper one.
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -241,7 +95,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: "3.12"
       - name: Python dependency audit
         working-directory: apps/api
         run: |
@@ -259,7 +113,7 @@ jobs:
           pip-audit --strict -r /tmp/requirements.txt
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: "24"
       - name: Node dependency audit
         working-directory: apps/web
         run: npm audit --audit-level=high

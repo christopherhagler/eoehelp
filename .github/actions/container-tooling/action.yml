@@ -1,0 +1,57 @@
+name: Container tooling
+description: podman, buildah, skopeo and a pinned just, for jobs that build or run images.
+
+inputs:
+  just-version:
+    description: The just release to install. Pinned; see the build plan.
+    default: "1.58.0"
+  just-sha256:
+    description: sha256 of the aarch64-unknown-linux-musl tarball, from the release's SHA256SUMS.
+    default: 748237128c4c40cbdabc65e841d05ceba13cc23a91eaba395495894c1d9764df
+
+runs:
+  using: composite
+  steps:
+    - name: Install podman, buildah and skopeo
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Installed explicitly rather than trusting the runner image: buildah
+        # ships on ubuntu-22.04+, but skopeo's preinstalled version has
+        # historically been too old for some operations, and relying on it
+        # invites intermittent failure.
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends podman buildah skopeo
+        podman --version && buildah --version && skopeo --version
+
+    - name: Allow unprivileged user namespaces
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Ubuntu 24.04 restricts unprivileged `unshare` through AppArmor, and
+        # only binaries with a profile may use it. buildah ships one; podman
+        # and skopeo do not, so rootless `podman run` and
+        # `skopeo inspect containers-storage:` fail with
+        # "unshare(...): Operation not permitted". The runner is ephemeral and
+        # single-tenant, so relaxing it here costs nothing and is the
+        # documented remedy.
+        if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+        fi
+        podman info --format '{{.Host.Security.Rootless}}'
+
+    - name: Install just
+      shell: bash
+      env:
+        JUST_VERSION: ${{ inputs.just-version }}
+        JUST_SHA256: ${{ inputs.just-sha256 }}
+      run: |
+        set -euo pipefail
+        # A pinned tarball with a verified checksum rather than a third-party
+        # action: this is the tool that runs every check, so it does not belong
+        # in the supply chain of something unpinned.
+        url="https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-aarch64-unknown-linux-musl.tar.gz"
+        curl -fsSL "$url" -o /tmp/just.tar.gz
+        echo "${JUST_SHA256}  /tmp/just.tar.gz" | sha256sum -c -
+        sudo tar -xzf /tmp/just.tar.gz -C /usr/local/bin just
+        just --version
