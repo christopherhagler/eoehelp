@@ -44,11 +44,16 @@ runs:
         # eoehelp-prod-postgres-1 and podman-compose gives
         # eoehelp-prod_postgres_1, and something downstream always assumes one.
         url="https://github.com/docker/compose/releases/download/v${COMPOSE_VERSION}/docker-compose-linux-aarch64"
-        sudo curl -fsSL "$url" -o /usr/local/lib/docker/cli-plugins/docker-compose --create-dirs \
-          || { sudo mkdir -p /usr/local/lib/docker/cli-plugins; sudo curl -fsSL "$url" -o /usr/local/lib/docker/cli-plugins/docker-compose; }
-        echo "${COMPOSE_SHA256}  /usr/local/lib/docker/cli-plugins/docker-compose" | sha256sum -c -
-        sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+        # Downloaded and verified as the runner user, installed with sudo only
+        # once it has been checked. Downloading straight to a root-owned path
+        # left sha256sum unable to read its own input, so the verification
+        # silently could not run — the step failed, but a less strict shell
+        # would have installed an unverified binary.
+        curl -fsSL "$url" -o /tmp/docker-compose
+        echo "${COMPOSE_SHA256}  /tmp/docker-compose" | sha256sum -c -
+        sudo install -m 0755 -D /tmp/docker-compose /usr/local/lib/docker/cli-plugins/docker-compose
         sudo ln -sf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+        rm -f /tmp/docker-compose
         docker-compose version
 
     - name: Allow unprivileged user namespaces
