@@ -117,6 +117,11 @@ shellcheck:
         $(grep '^SHELLCHECK_IMAGE=' infra/images.env | cut -d= -f2-) \
         -x --source-path=SCRIPTDIR scripts/*.sh
 
+# Lint the GitHub Actions config, which builds and publishes what ships
+[group('api')]
+lint-actions:
+    @scripts/lint-actions.sh
+
 # Apply ruff's formatting and safe fixes to the API
 [group('api')]
 format:
@@ -127,9 +132,13 @@ format:
 typecheck:
     @scripts/api-checks.sh typecheck
 
-# Everything CI runs against the API, plus shellcheck, which CI gains in stage 3
+# The shell scripts and the workflows are the command surface too, and a broken
+# workflow costs a whole CI run to discover, so both are linted here. They run
+# first because they are the cheapest checks in the list.
+
+# Everything CI runs against the API
 [group('api')]
-check: lint shellcheck typecheck test contract-check
+check: lint-actions shellcheck lint typecheck test contract-check
 
 # ---- web ------------------------------------------------------------------
 
@@ -212,8 +221,9 @@ preflight: check web-check
 # Everything the api job runs, inside the image that gets tested
 [group('ci')]
 ci-api:
-    @scripts/api-checks.sh lint
+    @just lint-actions
     @just shellcheck
+    @scripts/api-checks.sh lint
     @scripts/api-checks.sh typecheck
     @scripts/api-checks.sh test
     @scripts/api-checks.sh migrations

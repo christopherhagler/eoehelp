@@ -14,11 +14,13 @@
 #   ./scripts/verify-promote.sh [image-tag]
 
 set -euo pipefail
+source "$(dirname "$0")/lib.sh"
 
 IMAGE="${1:-eoehelp-api:ci}"
 REPO_NAME="eoehelp-api"
 SRC_PORT="${SRC_PORT:-5001}"
 DST_PORT="${DST_PORT:-5002}"
+REGISTRY_IMAGE="$(pinned_image REGISTRY_IMAGE)"
 SRC_CTR="eoehelp-verify-src"
 DST_CTR="eoehelp-verify-dst"
 
@@ -58,8 +60,8 @@ trap cleanup EXIT
 
 echo "==> starting throwaway registries (:$SRC_PORT staging, :$DST_PORT production)"
 cleanup
-$RUNTIME run -d --name "$SRC_CTR" -p "127.0.0.1:${SRC_PORT}:5000" registry:2 >/dev/null
-$RUNTIME run -d --name "$DST_CTR" -p "127.0.0.1:${DST_PORT}:5000" registry:2 >/dev/null
+$RUNTIME run -d --name "$SRC_CTR" -p "127.0.0.1:${SRC_PORT}:5000" "$REGISTRY_IMAGE" >/dev/null
+$RUNTIME run -d --name "$DST_CTR" -p "127.0.0.1:${DST_PORT}:5000" "$REGISTRY_IMAGE" >/dev/null
 
 for port in "$SRC_PORT" "$DST_PORT"; do
   for _ in $(seq 1 40); do

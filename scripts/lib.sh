@@ -19,6 +19,16 @@ require_cmd() {
     command -v "$1" >/dev/null 2>&1 || die "$1 is not installed. ${2:-}"
 }
 
+# The pinned reference for a tool or base image, from the one file that pins
+# them. Dies rather than returning empty: an unset variable becomes
+# `podman run ""`, which fails later and in terms that never mention the pin.
+pinned_image() {
+    local var="$1" ref
+    ref="$(grep "^${var}=" "$REPO_ROOT/infra/images.env" | cut -d= -f2-)"
+    [[ -n "$ref" ]] || die "$var is not set in infra/images.env"
+    printf '%s\n' "$ref"
+}
+
 # Explicit about the compose file, so a script works from any directory. Every
 # other path here is absolute through $REPO_ROOT; this one was the exception,
 # and it matters because CI's api job runs with a working directory of
