@@ -1,0 +1,38 @@
+name: Layer cache
+description: >
+  Sign in to the registry read-only and point build-images.sh at the shared
+  layer cache, so a job does not rebuild from nothing.
+
+runs:
+  using: composite
+  steps:
+    - name: Sign in to the registry, read-only
+      shell: bash
+      env:
+        TOKEN: ${{ github.token }}
+        REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }}
+      run: |
+        set -euo pipefail
+        # A pull-only login: CI reads the cache, the publish workflow writes it.
+        # A fork's pull request gets no token with package access, so this is
+        # allowed to fail — the build then runs cold rather than not at all.
+        if ! echo "$TOKEN" | skopeo login "$REGISTRY" \
+            --username "${{ github.actor }}" --password-stdin 2>/dev/null; then
+          echo "::notice::no registry access; building without the layer cache"
+          exit 0
+        fi
+        echo "BUILD_CACHE_AVAILABLE=1" >> "$GITHUB_ENV"
+
+    - name: Point the builder at the cache
+      shell: bash
+      env:
+        REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }}
+        NAMESPACE: ${{ vars.REGISTRY_NAMESPACE || github.repository_owner }}
+      run: |
+        set -euo pipefail
+        if [ "${BUILD_CACHE_AVAILABLE:-}" = "1" ]; then
+          # Read-only here. Writing the cache from every CI run would race
+          # between jobs and between pull requests; the publish workflow, which
+          # runs once per push to development, writes it.
+          echo "BUILD_CACHE_FROM=$REGISTRY/$NAMESPACE/eoehelp-cache" >> "$GITHUB_ENV"
+        fi

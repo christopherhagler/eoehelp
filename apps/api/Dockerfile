@@ -46,7 +46,15 @@ RUN /opt/venv/bin/pip install ".[dev]"
 
 FROM deps AS builder
 COPY src ./src
-RUN /opt/venv/bin/pip install --no-deps --force-reinstall .
+# The stale build tree must go first. setuptools' build_py copies a source file
+# only when it is *newer* than the copy under build/, and COPY preserves the
+# host's mtimes — so the real __init__.py looked older than the stub created
+# while this image was being built, and was silently skipped. The installed
+# package then had every module except an empty __init__.py, which fails at
+# import with "cannot import name __version__". Nothing catches that in the
+# development stack, because it mounts the source and sets PYTHONPATH.
+RUN rm -rf build src/*.egg-info \
+ && /opt/venv/bin/pip install --no-deps --force-reinstall .
 
 # ---- runtime ----------------------------------------------------------------
 FROM python:3.12-slim-bookworm AS runtime-base
@@ -70,6 +78,11 @@ RUN groupadd --system --gid 1001 app \
 WORKDIR /app
 
 FROM runtime-base AS runtime
+
+# What this image is, so verify-image.sh asserts the right things against it
+# rather than inferring from a missing label — which made it ask the web image
+# for a Python interpreter.
+LABEL org.eoehelp.component=api
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=app:app alembic.ini ./

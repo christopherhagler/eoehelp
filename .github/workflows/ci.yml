@@ -13,6 +13,8 @@ concurrency:
 
 permissions:
   contents: read
+  # Read-only on the cache repository. Only the publish workflow writes.
+  packages: read
 
 
 jobs:
@@ -49,6 +51,8 @@ jobs:
           PGPASSWORD: eoehelp
         run: scripts/db-init.sh localhost 5432
 
+      - uses: ./.github/actions/layer-cache
+
       - name: Lint, type-check, test, migrations, contract
         # Inside the image that gets tested, which is the premise of ADR 0006:
         # production runs the artifact that passed. Previously CI pip-installed
@@ -65,6 +69,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/container-tooling
 
+      - uses: ./.github/actions/layer-cache
+
       - name: Format, test, build, contract types
         run: just ci-web
 
@@ -75,6 +81,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/container-tooling
 
+      - uses: ./.github/actions/layer-cache
+
       - name: Build what ships, and assert what it is
         # verify-image.sh asserts the manifest format, the architecture, that
         # the image runs unprivileged, that it carries no test tooling and no
@@ -82,6 +90,90 @@ jobs:
         # verify-promote.sh proves a digest survives promotion between two
         # throwaway registries, which is the deploy pattern ADR 0006 rests on.
         run: just ci-images
+
+  # Publishing is a job here, not a separate workflow, and it needs the other
+  # three. As its own workflow it ran concurrently with CI, so a push whose test
+  # suite was red still produced a green publish and a candidate image in the
+  # registry — and the image it pushed was a second, independent build of the
+  # same source, not the one the images job verified. ADR 0006's rule is that
+  # what runs is what was tested; this is what makes that true rather than
+  # nearly true.
+  publish:
+    name: Publish by digest
+    needs: [api, web, images]
+    if: github.ref == 'refs/heads/development' && github.event_name == 'push'
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/container-tooling
+
+      - name: Sign in to the registry
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }}
+        run: |
+          echo "$TOKEN" | skopeo login "$REGISTRY" \
+            --username "${{ github.actor }}" --password-stdin
+
+      - name: Build, verify, and write the layer cache
+        # This job rebuilds, and the rebuilt image's digest will not equal the
+        # one the `images` job verified — an image config carries its own
+        # creation timestamp, so even a complete cache hit produces a different
+        # manifest. Digest identity between two jobs is not available without
+        # pushing from the job that built it.
+        #
+        # What makes the published artifact trustworthy is that `ci-images` is
+        # the whole gate — build, image assertions, promotion check, then the
+        # production-shaped stack under a real request — and this job runs that
+        # gate on the very image it then pushes, behind `needs: [api, web,
+        # images]`. So the digest published is the digest of an artifact that
+        # passed every assertion, on a commit whose other jobs are green.
+        #
+        # Writing the cache here, once per push to development, is also why the
+        # other jobs can read it without racing.
+        env:
+          BUILD_CACHE_FROM: ${{ vars.REGISTRY || 'ghcr.io' }}/${{ vars.REGISTRY_NAMESPACE || github.repository_owner }}/eoehelp-cache
+          BUILD_CACHE_TO: ${{ vars.REGISTRY || 'ghcr.io' }}/${{ vars.REGISTRY_NAMESPACE || github.repository_owner }}/eoehelp-cache
+        run: just ci-images
+
+      - name: Publish
+        id: push
+        env:
+          REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }}
+          NAMESPACE: ${{ vars.REGISTRY_NAMESPACE || github.repository_owner }}
+        run: |
+          set -euo pipefail
+          tag="candidate-${GITHUB_SHA::12}"
+
+          api_digest="$(scripts/publish.sh localhost/eoehelp-api:runtime \
+            "$REGISTRY/$NAMESPACE/eoehelp-api:$tag")"
+          web_digest="$(scripts/publish.sh localhost/eoehelp-web:runtime \
+            "$REGISTRY/$NAMESPACE/eoehelp-web:$tag")"
+
+          {
+            echo "### Published from a green CI run"
+            echo
+            echo "| image | digest |"
+            echo "|---|---|"
+            echo "| \`eoehelp-api:$tag\` | \`$api_digest\` |"
+            echo "| \`eoehelp-web:$tag\` | \`$web_digest\` |"
+            echo
+            echo "Promote with the **Promote** workflow, using these digests."
+            echo
+            echo "> **On the first publish only:** GHCR creates a package"
+            echo "> **public** by default. Set both packages, and the cache"
+            echo "> package, to private in their package settings."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Sign out of the registry
+        # The login wrote a token to auth.json on disk; nothing later in this
+        # job needs it.
+        if: always()
+        run: skopeo logout "${{ vars.REGISTRY || 'ghcr.io' }}" || true
 
   security:
     name: Dependency and code scanning

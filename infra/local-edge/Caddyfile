@@ -1,0 +1,29 @@
+# The local stand-in for the deployed edge: one origin, with /api/v1/* going to
+# the API and everything else to the SPA. It exists so the browser path the
+# product actually uses — same-origin `${origin}/api/v1` — is exercised before
+# it is exercised in production for the first time.
+#
+# Caddy rather than nginx here because the deployed edge is Caddy, and one
+# configuration serving both is worth more than two kept equivalent by hand.
+# Deployed it also terminates TLS; locally there is nothing to terminate.
+
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	handle /api/v1/* {
+		reverse_proxy api:8000 {
+			# Replaced, not appended. The API records this in audit_log and
+			# keys rate limits on it, so a client that sends its own
+			# X-Forwarded-For must not be able to choose what gets recorded.
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	handle {
+		reverse_proxy web:8080
+	}
+}

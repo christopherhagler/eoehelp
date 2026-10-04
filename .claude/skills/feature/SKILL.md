@@ -76,6 +76,10 @@ Then run everything CI runs:
 - `just check` for API changes (lint, typecheck, tests, contract)
 - `just contract` when the API surface changed
 - `just web-check` for web changes
+- `just preflight` for build, container, migration or infrastructure changes:
+  it runs everything and then drives a real request through the images that
+  ship. Two defects have been found only this way — an image that could not
+  import itself, and a readiness check watching the wrong container.
 
 For UI work, also run the app and look at it: screenshot the affected screens
 at phone width in light and dark mode, and fix what you see.

@@ -1,0 +1,59 @@
+name: Registry cleanup
+
+# GitHub Free includes 500 MB of storage for private packages, and nothing here
+# ever deletes anything on its own. The first publish is roughly 350–450 MB
+# across the three packages, so without this the next few pushes either start
+# failing (with a $0 spending limit) or start billing at $0.25/GB/month — and a
+# failed publish also stops the layer cache being written, which quietly makes
+# every CI job build cold.
+on:
+  schedule:
+    - cron: "17 4 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  prune:
+    name: Prune untagged versions
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [eoehelp-api, eoehelp-web, eoehelp-cache]
+    steps:
+      - name: Delete untagged versions
+        # Untagged only, for every package. An untagged version is an
+        # intermediate layer or a superseded manifest: nothing references it, so
+        # deleting it cannot take an image a deployment is using.
+        #
+        # Deliberately *not* using a count-based rule here. The cache package
+        # legitimately holds dozens of tagged layer versions, so keeping ten
+        # would empty it every Sunday and leave Monday building cold; and for
+        # the image packages, whether `ignore-versions` matches a tag or the
+        # version's digest name is unverified — if it matches the digest, the
+        # pattern protects nothing and the image tagged `production` is deleted
+        # as soon as ten newer candidates exist.
+        uses: actions/delete-package-versions@e470259144d6cb77a4a9a0a9f90b0ac1a9e7ffd1 # v5.0.0
+        with:
+          package-name: ${{ matrix.package }}
+          package-type: container
+          delete-only-untagged-versions: true
+        # Only so a package that does not exist yet is not a failure. A cleanup
+        # that silently stops working is the control that bounds the bill
+        # quietly failing, so this must not hide anything else.
+        continue-on-error: ${{ github.event_name == 'schedule' }}
+
+      - name: What this did
+        if: always()
+        run: |
+          {
+            echo "### ${{ matrix.package }}"
+            echo
+            echo "Untagged versions pruned. Tagged candidates are **not**"
+            echo "pruned automatically: see the comment in this workflow for"
+            echo "why, and prune them by hand until the behaviour of"
+            echo "\`ignore-versions\` has been confirmed against a package"
+            echo "holding a promoted digest."
+          } >> "$GITHUB_STEP_SUMMARY"

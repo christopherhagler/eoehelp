@@ -1,0 +1,68 @@
+name: Promote
+
+# Manual only, and by digest. Promotion is the deliberate human gate in front of
+# an environment that holds patient data; nothing here runs on a push.
+on:
+  workflow_dispatch:
+    inputs:
+      api_digest:
+        description: The API image digest to promote (sha256:…), from a Publish run
+        required: true
+      web_digest:
+        description: The web image digest to promote (sha256:…), from a Publish run
+        required: true
+      target:
+        description: Where to promote it
+        required: true
+        type: choice
+        options: [staging, production]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  promote:
+    name: Promote ${{ inputs.target }}
+    runs-on: ubuntu-24.04-arm
+    # The environment is what carries a required reviewer for production, if one
+    # is configured. Without it, promotion is only as deliberate as the person
+    # clicking the button.
+    environment: ${{ inputs.target }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/container-tooling
+
+      - name: Sign in to the registry
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | skopeo login "${{ vars.REGISTRY || 'ghcr.io' }}" \
+            --username "${{ github.actor }}" --password-stdin
+
+      - name: Promote both images, unchanged
+        env:
+          REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }}
+          NAMESPACE: ${{ vars.REGISTRY_NAMESPACE || github.repository_owner }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          # promote.sh refuses a source that is not digest-pinned, and fails if
+          # the digest changes in transit — so "what runs is what was tested" is
+          # asserted rather than assumed.
+          api="$(scripts/promote.sh \
+            "$REGISTRY/$NAMESPACE/eoehelp-api@${{ inputs.api_digest }}" \
+            "$REGISTRY/$NAMESPACE/eoehelp-api:$TARGET")"
+          web="$(scripts/promote.sh \
+            "$REGISTRY/$NAMESPACE/eoehelp-web@${{ inputs.web_digest }}" \
+            "$REGISTRY/$NAMESPACE/eoehelp-web:$TARGET")"
+
+          {
+            echo "### Promoted to $TARGET"
+            echo
+            echo "| image | digest |"
+            echo "|---|---|"
+            echo "| eoehelp-api | \`$api\` |"
+            echo "| eoehelp-web | \`$web\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

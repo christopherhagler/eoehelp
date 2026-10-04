@@ -46,3 +46,7 @@ npm-debug.log*
 
 # A failed `just openapi` leaves this behind.
 packages/openapi/*.tmp
+
+# Real secrets for the production-shaped local stack. The .env.* pattern above
+# does not match this name, so it is listed explicitly.
+infra/local-prod.env

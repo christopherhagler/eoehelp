@@ -72,7 +72,7 @@ under *What deletion leaves behind* and the retention period in open question 2.
   deletion transaction, and the column-level grant that permits exactly that and
   nothing more.
 - A static test that every `metadata=` key at every call site is in the registry.
-- ADR 0012, an amendment to ADR 0002, the `audit/models.py` docstring, and the
+- ADR 0013, an amendment to ADR 0002, the `audit/models.py` docstring, and the
   `CLAUDE.md` rule line so the written claim matches the code.
 
 **Out of scope**
@@ -271,17 +271,17 @@ this paragraph; it is open question 1.
 
 ### Documentation to correct in the same change
 
-- **ADR 0012, new:** "What the audit trail may contain" — the rule, the four
+- **ADR 0013, new:** "What the audit trail may contain" — the rule, the four
   corollaries, the allow-list registry, the column-level grant and what it costs,
   and the accepted residue after deletion.
-- **ADR 0002:** amend the audit paragraph to point at 0012 and to stop implying
+- **ADR 0002:** amend the audit paragraph to point at 0013 and to stop implying
   the trail is entirely un-updatable.
 - **`audit/models.py` docstring:** "`metadata_` carries changed field *names*
   only, never PHI values" becomes the real rule, with a pointer to
   `audit/metadata.py`.
 - **`CLAUDE.md`:** "No PHI in logs, errors, or the audit trail: field names and
   counts only" becomes "…: the audit trail may describe the request and the shape
-  of a change, never the patient's health, behaviour, or whereabouts (ADR 0012)."
+  of a change, never the patient's health, behaviour, or whereabouts (ADR 0013)."
 
 ## Security and privacy
 
@@ -389,3 +389,9 @@ when it is written.
 | Round | Reviewer | Verdict | What changed |
 |---|---|---|---|
 | 1 | architect | Draft ready for implementation | Written in response to the legal reviewer's finding that the audit trail stores clinical values while four documents and `CLAUDE.md` say it does not. Decided: an allow-list registry rather than the current deny-list, because a deny-list admits every field name nobody anticipated; no dates in metadata at any precision, since `resource_id` already identifies the row and a date timeline is behavioural data about a named patient id; date ranges become `window_days`, which preserves the scope of an access without recording which days the patient lived through; counts permitted for records and parts of records, forbidden for clinical findings, which removes `flagged`/`assessed`; `ip_address` and `user_agent` nulled inside the deletion transaction via a column-level grant, chosen over an out-of-band job because the stack has no scheduler and a synchronous scrub needs no "within 24 hours" caveat in the policy. Accepted and documented rather than hidden: the categorical residue after deletion, which is irreducible if the trail is to answer the access question at all. Enforcement is at the write path (drop and warn always, raise in `local`) plus a static AST scan of every call site, because runtime tests do not reach every audit call. Recommended as its own feature, landing before the legal documents, since a document claim must be true when it is written. |
+
+## Note — 2026-09-25
+
+This plan reserved **ADR 0012**, which the build and deploy contract took first
+(`docs/adr/0012-build-and-deploy-contract.md`, written while this work was still
+unbuilt). The references above now read **0013**. Nothing else changes.

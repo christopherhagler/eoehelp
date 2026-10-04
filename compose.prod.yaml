@@ -1,0 +1,125 @@
+# The production-shaped stack: the images that ship, behind one origin, with
+# real secrets. `just up-prod`.
+#
+# Self-contained rather than an override of compose.yaml, because compose cannot
+# *remove* a volume mount through an override — an overlay could not drop the
+# source mounts that make tier 1 a development stack. Both files read
+# infra/images.env, so the datastore versions cannot drift between them.
+#
+# Every published port is shifted, so this can run alongside `just up`, and
+# every one is bound to loopback. Without the bind, compose publishes on all
+# interfaces: on any network the machine joins this would expose Postgres with a
+# known password, Redis with none, and an API holding a real field-encryption
+# key. The API's port is worse than the rest — it sits inside the
+# FORWARDED_ALLOW_IPS range below, so anything that reaches it is a trusted
+# proxy and chooses what lands in audit_log.
+
+name: eoehelp-prod
+
+networks:
+  default:
+    ipam:
+      config:
+        # Pinned rather than podman-allocated, because FORWARDED_ALLOW_IPS below
+        # has to name it: uvicorn trusts proxy headers only from addresses it is
+        # told to trust, and an allocated subnet would change under it.
+        - subnet: 10.90.0.0/24
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:?set in infra/images.env}
+    environment:
+      POSTGRES_USER: eoehelp
+      POSTGRES_PASSWORD: eoehelp
+      POSTGRES_DB: eoehelp
+    ports: ["127.0.0.1:5433:5432"]
+    volumes:
+      - prod_postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eoehelp -d eoehelp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: ${REDIS_IMAGE:?set in infra/images.env}
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:6380:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailhog:
+    image: ${MAILHOG_IMAGE:?set in infra/images.env}
+    ports: ["127.0.0.1:1026:1025", "127.0.0.1:8026:8025"]
+    logging:
+      driver: none
+
+  # As the deployed shape runs them: a separate task, before the service, as the
+  # owner. The API connects as app_runtime and cannot run them.
+  migrate:
+    image: ${API_RUNTIME_IMAGE:?run scripts/build-images.sh runtime}
+    pull_policy: never
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      ENVIRONMENT: staging
+      DATABASE_URL: postgresql+asyncpg://eoehelp:eoehelp@postgres:5432/eoehelp
+    env_file: [infra/local-prod.env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    image: ${API_RUNTIME_IMAGE:?run scripts/build-images.sh runtime}
+    pull_policy: never
+    environment:
+      # staging, not production: synthetic/writer.py refuses production
+      # outright, and identity/documents.py refuses to serve draft legal
+      # documents there. staging is what the first deployment will be anyway.
+      ENVIRONMENT: staging
+      DEBUG: "false"
+      # As app_runtime, not the owner. Verified to work end to end, so the
+      # deployed environment has one fewer unknown — and row-level security is
+      # inert against a table owner, which is the whole point of ADR 0002.
+      DATABASE_URL: postgresql+asyncpg://app_runtime:app_runtime_local_only@postgres:5432/eoehelp
+      REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      # Through the edge, so magic links point where a person would click them.
+      APP_BASE_URL: http://localhost:8080
+      API_BASE_URL: http://localhost:8080
+      CORS_ORIGINS: http://localhost:8080
+      # Only the edge may set X-Forwarded-For. Without this uvicorn trusts
+      # 127.0.0.1 alone, so every audit row records the proxy and every client
+      # shares one rate-limit bucket.
+      FORWARDED_ALLOW_IPS: 10.90.0.0/24
+    env_file: [infra/local-prod.env]
+    # Published only so the spoofed-header test can reach the API directly. The
+    # browser path goes through the edge.
+    ports: ["127.0.0.1:8001:8000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    image: ${WEB_RUNTIME_IMAGE:?run scripts/build-images.sh web-runtime}
+    pull_policy: never
+
+  edge:
+    image: ${CADDY_IMAGE:?set in infra/images.env}
+    ports: ["127.0.0.1:8080:8080"]
+    volumes:
+      - ./infra/local-edge/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - api
+      - web
+
+volumes:
+  prod_postgres_data:

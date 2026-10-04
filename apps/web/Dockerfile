@@ -38,6 +38,8 @@ RUN npm run build -- --configuration production
 # environment, so what runs there is what was built and tested here.
 FROM nginx:1.27-alpine AS runtime
 
+LABEL org.eoehelp.component=web
+
 RUN rm -rf /usr/share/nginx/html/* \
  && rm /etc/nginx/conf.d/default.conf
 

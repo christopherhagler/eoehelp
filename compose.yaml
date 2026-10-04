@@ -31,7 +31,7 @@ services:
       POSTGRES_PASSWORD: eoehelp
       POSTGRES_DB: eoehelp
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data_glibc:/var/lib/postgresql/data
       - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -45,7 +45,7 @@ services:
     image: ${REDIS_IMAGE:?set in infra/images.env}
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -55,8 +55,8 @@ services:
   mailhog:
     image: ${MAILHOG_IMAGE:?set in infra/images.env}
     ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # web UI
+      - "127.0.0.1:1025:1025"   # SMTP
+      - "127.0.0.1:8025:8025"   # web UI
     logging:
       driver: none
 
@@ -98,7 +98,7 @@ services:
       API_BASE_URL: http://localhost:8000
       CORS_ORIGINS: http://localhost:4200,http://localhost:8080
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       # Source mount for reload. Deployed images copy source in and mount nothing.
       - ./apps/api/src:/app/src:ro
@@ -117,7 +117,7 @@ services:
     pull_policy: never
     command: ["npm", "start", "--", "--host", "0.0.0.0", "--port", "4200", "--poll", "1000"]
     ports:
-      - "4200:4200"
+      - "127.0.0.1:4200:4200"
     volumes:
       # Only src and public. node_modules lives in the image, where a dependency
       # change rebuilds it; the named volume that used to hold it was a snapshot

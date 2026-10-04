@@ -76,6 +76,14 @@ Everything runs in Podman containers; start the machine with
 - `just build`, `just verify-image`: images, tagged by the content they are
   built from; `scripts/build-images.sh` is the only thing that builds one
 - `just shellcheck`: the scripts are the command surface, so they are linted
+- `just up-prod`, `just down-prod`: the artifact that ships, behind one origin
+  at :8080, as `app_runtime` — the only place production behaviour is exercised
+- `just smoke`: drives a sign-in, onboarding and a symptom write through it,
+  and asserts a client-supplied `X-Forwarded-For` never reaches the audit trail
+- `just secrets`: generates real keys for that stack, so the production-safety
+  checks compare against real values rather than the development defaults
+- **`just preflight`: the gate before pushing** — every check, then the smoke
+  test against the production-shaped stack
 - `just doctor`: what is wrong before a command fails confusingly
 
 ## Rules that carry weight

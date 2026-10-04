@@ -25,8 +25,10 @@ set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 
 NO_CACHE=""
-CACHE_FROM=""
-CACHE_TO=""
+# From the environment as well as the flags, so CI can set it once for every
+# build in a job rather than threading it through each call site.
+CACHE_FROM="${BUILD_CACHE_FROM:-}"
+CACHE_TO="${BUILD_CACHE_TO:-}"
 TARGETS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in

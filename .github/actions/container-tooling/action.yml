@@ -8,6 +8,12 @@ inputs:
   just-sha256:
     description: sha256 of the aarch64-unknown-linux-musl tarball, from the release's SHA256SUMS.
     default: 748237128c4c40cbdabc65e841d05ceba13cc23a91eaba395495894c1d9764df
+  compose-version:
+    description: The docker compose release podman shells out to. Pinned.
+    default: "2.29.7"
+  compose-sha256:
+    description: sha256 of docker-compose-linux-aarch64 for that release.
+    default: 6e9fbd5daa20dca5d7d89145081ae8155d68ef2928b497d9f85b54fe0f9dbb2c
 
 runs:
   using: composite
@@ -23,6 +29,27 @@ runs:
         sudo apt-get update -qq
         sudo apt-get install -y --no-install-recommends podman buildah skopeo
         podman --version && buildah --version && skopeo --version
+
+    - name: Install the compose provider
+      shell: bash
+      env:
+        COMPOSE_VERSION: ${{ inputs.compose-version }}
+        COMPOSE_SHA256: ${{ inputs.compose-sha256 }}
+      run: |
+        set -euo pipefail
+        # `podman compose` is only a shim: it executes an external provider, and
+        # the runner image is not guaranteed to carry one. Installing it
+        # explicitly also fixes which provider is used, because the project
+        # naming differs between them — docker-compose gives
+        # eoehelp-prod-postgres-1 and podman-compose gives
+        # eoehelp-prod_postgres_1, and something downstream always assumes one.
+        url="https://github.com/docker/compose/releases/download/v${COMPOSE_VERSION}/docker-compose-linux-aarch64"
+        sudo curl -fsSL "$url" -o /usr/local/lib/docker/cli-plugins/docker-compose --create-dirs \
+          || { sudo mkdir -p /usr/local/lib/docker/cli-plugins; sudo curl -fsSL "$url" -o /usr/local/lib/docker/cli-plugins/docker-compose; }
+        echo "${COMPOSE_SHA256}  /usr/local/lib/docker/cli-plugins/docker-compose" | sha256sum -c -
+        sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+        sudo ln -sf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+        docker-compose version
 
     - name: Allow unprivileged user namespaces
       shell: bash

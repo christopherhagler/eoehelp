@@ -22,6 +22,19 @@ Base images are pinned in `infra/images.env`. Postgres is the glibc build, not
 alpine: musl collates by byte, so text ordering and `citext` folding would
 differ from production.
 
+`just up` is the development stack — source mounted, reload, the API published
+on 8000. `just up-prod` is the artifact that ships: the runtime images behind
+one origin at `http://localhost:8080`, `ENVIRONMENT=staging` with real generated
+secrets (`just secrets`), and the API connected as the unprivileged
+`app_runtime` role so row-level security actually binds. `just smoke` drives a
+sign-in, onboarding and a symptom write through it, and asserts that a
+client-supplied `X-Forwarded-For` does not reach the audit trail.
+
+`just preflight` runs everything and then the smoke test — the gate before
+pushing. Images are published to the registry by digest on every push to
+`development`, and promoted by digest through a manual workflow; the deploy
+contract they satisfy is in `docs/adr/0012-build-and-deploy-contract.md`.
+
 ## Quick start
 
 Everything runs in containers under **Podman**. You need `podman` and `just`

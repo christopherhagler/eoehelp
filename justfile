@@ -30,6 +30,21 @@ up:
 down:
     {{ compose }} down
 
+# Generate real secrets for the production-shaped stack
+[group('stack')]
+secrets:
+    @scripts/secrets.sh
+
+# The production-shaped stack: the images that ship, behind one origin
+[group('stack')]
+up-prod:
+    @scripts/prod-stack.sh up
+
+# Stop the production-shaped stack and delete its volumes
+[group('stack')]
+down-prod:
+    @scripts/prod-stack.sh down
+
 # Stop the stack and delete its volumes (destroys local data)
 [group('stack')]
 clean:
@@ -178,6 +193,18 @@ verify-promote:
 verify-image *images:
     @scripts/verify-image.sh {{ if images == "" { "localhost/eoehelp-api:runtime" } else { images } }}
 
+# Drive the production-shaped stack end to end, through the edge
+[group('quality')]
+smoke edge="http://localhost:8080":
+    @scripts/smoke.sh {{ edge }} http://localhost:8001
+
+# The gate before pushing: every check, then a real request end to end
+[group('quality')]
+preflight: check web-check
+    # ci-images, not a subset of it: verifying only the API image locally is
+    # how a web-image assertion failure reached CI unnoticed.
+    @just ci-images
+
 # ---- ci -------------------------------------------------------------------
 # The exact sequences CI runs, so "it passed locally" and "CI is green" are the
 # same claim. CI calls these; nothing here is CI-only.
@@ -186,6 +213,7 @@ verify-image *images:
 [group('ci')]
 ci-api:
     @scripts/api-checks.sh lint
+    @just shellcheck
     @scripts/api-checks.sh typecheck
     @scripts/api-checks.sh test
     @scripts/api-checks.sh migrations
@@ -203,6 +231,16 @@ ci-images:
     @scripts/build-images.sh runtime web-runtime
     @scripts/verify-image.sh localhost/eoehelp-api:runtime localhost/eoehelp-web:runtime
     ./scripts/verify-promote.sh localhost/eoehelp-api:runtime
+    # The runtime images under a real request. Both defects stage 4 found — an
+    # image that could not import itself, and a readiness check on the wrong
+    # container — were only visible this way, and until now this ran on one
+    # laptop by memory.
+    @scripts/secrets.sh
+    @scripts/prod-stack.sh up
+    # Logs on failure and the stack down either way: a smoke failure in CI
+    # otherwise leaves the operator with an exit code and nothing to read.
+    @scripts/smoke.sh http://localhost:8080 || (scripts/prod-stack.sh logs; scripts/prod-stack.sh down; exit 1)
+    @scripts/prod-stack.sh down
 
 # ---- housekeeping ---------------------------------------------------------
 

@@ -40,18 +40,42 @@ for image in "$@"; do
     user="$(podman image inspect --format '{{.Config.User}}' "$image")"
     check "runs unprivileged (user=${user:-root})" test -n "$user"
 
-    # A runtime image with test tooling in it is a runtime image built from the
-    # wrong stage. The test and dev stages carry a label saying so, and are
-    # skipped. Identified by label rather than by tag, because a content tag
-    # carries no target name — and the case this catches is exactly
-    # the one where the wrong image sits behind the right tag.
-    is_test="$(podman image inspect --format '{{index .Labels "org.eoehelp.stage"}}' "$image" 2>/dev/null || true)"
-    case "$is_test" in
-        test|dev) ;;
+    # What the image claims to be, asserted rather than inferred. Inferring
+    # "this is a runtime image" from the absence of a stage label meant the web
+    # image was asked for a Python interpreter, and an image carrying no label
+    # at all would pass by being unrecognised.
+    stage="$(podman image inspect --format '{{index .Labels "org.eoehelp.stage"}}' "$image" 2>/dev/null || true)"
+    component="$(podman image inspect --format '{{index .Labels "org.eoehelp.component"}}' "$image" 2>/dev/null || true)"
+
+    case "$stage" in
+        test|dev)
+            # Expected to carry test tooling; nothing further to assert.
+            ;;
         *)
+            [[ -n "$component" && "$component" != "<no value>" ]] \
+                || die "$image carries no org.eoehelp.component label. Add one to its runtime stage, or this image ships unasserted."
+
             check "no test tooling" podman run --rm "$image" \
                 sh -c '! command -v pytest && ! command -v ruff && ! command -v mypy'
             check "no tests directory" podman run --rm "$image" sh -c '! test -e /app/tests'
+
+            if [[ "$component" == "api" ]]; then
+                # The installed package, not a source tree. The suite runs with
+                # PYTHONPATH=/app/src, which precedes site-packages, so every
+                # test imports the source and the installed package is never
+                # executed by anything — which is how an image whose installed
+                # __init__.py was zero bytes passed every check and then failed
+                # at startup.
+                check "the installed package imports" podman run --rm "$image" \
+                    /opt/venv/bin/python -c \
+                    'import eoehelp_api; assert eoehelp_api.__version__, "no __version__"'
+                check "the installed app builds" podman run --rm "$image" \
+                    /opt/venv/bin/python -c 'from eoehelp_api.main import create_app; create_app()'
+                # A migration file that was never shipped fails here rather than
+                # on the first deploy.
+                check "alembic can read its revisions" podman run --rm "$image" \
+                    /opt/venv/bin/alembic -c alembic.ini heads
+            fi
             ;;
     esac
 

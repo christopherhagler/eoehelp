@@ -9,7 +9,10 @@
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export REPO_ROOT
 
-log() { printf '\033[36m==>\033[0m %s\n' "$*"; }
+# To stderr: a script's stdout may be data — build-images.sh prints NAME=ref
+# lines a caller evals — and a progress message on that stream is a syntax error
+# in the caller.
+log() { printf '\033[36m==>\033[0m %s\n' "$*" >&2; }
 die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 require_cmd() {
