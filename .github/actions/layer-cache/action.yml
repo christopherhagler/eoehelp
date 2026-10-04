@@ -3,21 +3,37 @@ description: >
   Sign in to the registry read-only and point build-images.sh at the shared
   layer cache, so a job does not rebuild from nothing.
 
+# Taken as inputs, not read from `vars`: the vars context does not exist inside
+# a composite action, and referencing it makes the action fail to load — which
+# fails every job that uses it, with an error about a template rather than about
+# the cache.
+inputs:
+  registry:
+    description: The registry holding the cache.
+    default: ghcr.io
+  namespace:
+    description: The owner or organisation the cache package sits under.
+    required: true
+  token:
+    description: A token with read access to packages.
+    required: true
+
 runs:
   using: composite
   steps:
     - name: Sign in to the registry, read-only
       shell: bash
       env:
-        TOKEN: ${{ github.token }}
-        REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }}
+        TOKEN: ${{ inputs.token }}
+        REGISTRY: ${{ inputs.registry }}
+        ACTOR: ${{ github.actor }}
       run: |
         set -euo pipefail
-        # A pull-only login: CI reads the cache, the publish workflow writes it.
-        # A fork's pull request gets no token with package access, so this is
+        # A pull-only login: CI reads the cache, the publish job writes it. A
+        # fork's pull request gets no token with package access, so this is
         # allowed to fail — the build then runs cold rather than not at all.
         if ! echo "$TOKEN" | skopeo login "$REGISTRY" \
-            --username "${{ github.actor }}" --password-stdin 2>/dev/null; then
+            --username "$ACTOR" --password-stdin 2>/dev/null; then
           echo "::notice::no registry access; building without the layer cache"
           exit 0
         fi
@@ -26,13 +42,33 @@ runs:
     - name: Point the builder at the cache
       shell: bash
       env:
-        REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }}
-        NAMESPACE: ${{ vars.REGISTRY_NAMESPACE || github.repository_owner }}
+        REGISTRY: ${{ inputs.registry }}
+        NAMESPACE: ${{ inputs.namespace }}
       run: |
         set -euo pipefail
-        if [ "${BUILD_CACHE_AVAILABLE:-}" = "1" ]; then
-          # Read-only here. Writing the cache from every CI run would race
-          # between jobs and between pull requests; the publish workflow, which
-          # runs once per push to development, writes it.
-          echo "BUILD_CACHE_FROM=$REGISTRY/$NAMESPACE/eoehelp-cache" >> "$GITHUB_ENV"
+        if [ "${BUILD_CACHE_AVAILABLE:-}" != "1" ]; then
+          exit 0
         fi
+        cache="$REGISTRY/$NAMESPACE/eoehelp-cache"
+        # Reported rather than assumed: podman swallows an unusable cache
+        # silently, so a missing, misnamed or quota-blocked repository is
+        # otherwise indistinguishable from a working one except by wall clock.
+        #
+        # The repository, not a tag. `--cache-to` publishes one image per cache
+        # key tagged with that key's hash, and never a `latest` — measured
+        # against a throwaway registry, a fully populated cache answered
+        # `inspect :latest` with exit 2. Probing a tag therefore reported every
+        # build cold, including the warm ones, which is worse than not probing:
+        # a warning that is always wrong teaches the reader to skip warnings.
+        if tags="$(skopeo list-tags "docker://$cache" 2>/dev/null)"; then
+          # Only the array elements: a bare quoted string, optionally with a
+          # trailing comma. Matching any line that starts with a quote also
+          # counts the `"Tags": [` header, which reported 3 keys for 2.
+          keys="$(grep -cE '^[[:space:]]*"[^"]*",?$' <<<"$tags" || true)"
+          echo "::notice::layer cache present at $cache ($keys cache key(s))"
+        else
+          echo "::warning::layer cache not readable at $cache; this build will be cold"
+        fi
+        # Read-only here. Writing from every CI run would race between jobs and
+        # between pull requests; the publish job writes it, once per push.
+        echo "BUILD_CACHE_FROM=$cache" >> "$GITHUB_ENV"
